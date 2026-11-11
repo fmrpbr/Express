@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover,interactive-widget=resizes-content">
-<title>Express Entregas — Sistema Completo com Rastreio, Relatórios, Alerta Sonoro e Favoritos</title>
+<title>Express Entregas — Tempo Real, Caixa Organizado e Auto-Rastreio</title>
 <style>
 :root{--ink:#19221d;--muted:#718078;--line:#e5ebe6;--paper:#f5f7f5;--green:#10b981;--dark:#065f46;--mint:#e6f5ec;--orange:#a95612;--orangebg:#fff2e4;--red:#ae3832;--redbg:#fff0ee;--blue:#326b9b;--bluebg:#eaf3fb;--purple:#6b21a8;--purplebg:#f3e8ff;--dark-bg:#111827;--card-bg:#1f2937}
 *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer}
@@ -23,7 +23,7 @@
 .top{height:68px;background:#fff;border-bottom:1px solid var(--line);padding:0 26px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
 .crumb{font-size:10px;color:var(--muted)}.top h2{margin:1px 0 0;font-size:17px}
 .selectors{display:flex;gap:8px;align-items:center}
-.selectbox{border:1px solid var(--line);border-radius:9px;padding:5px 9px}
+.selectbox{border:1px solid var(--line);border-radius:99px;padding:5px 9px}
 .selectbox small{display:block;color:var(--muted);font-size:8px}
 .selectbox select{border:0;outline:0;background:white;font-size:11px;font-weight:650;max-width:140px}
 .avatar{width:34px;height:34px;border-radius:50%;background:var(--mint);color:var(--dark);display:grid;place-items:center;font-weight:800;font-size:11px}
@@ -62,7 +62,12 @@
 .rate{display:grid;gap:8px}.rate-row{display:grid;grid-template-columns:1fr 125px;align-items:center;gap:9px;border-bottom:1px solid #eff2ef;padding-bottom:8px;font-size:11px}.rate-row input{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px}
 .info{padding:11px 13px;background:#eef5fb;color:#426984;border-radius:8px;font-size:10px;margin-bottom:12px}
 .gps{color:var(--dark);font-size:10px}
-.toastbox{position:fixed;right:18px;bottom:18px;z-index:300;display:grid;gap:8px}.toast{background:#23392b;color:white;padding:11px 14px;border-radius:9px;font-size:11px;max-width:330px;box-shadow:0 5px 25px #0002}.toast.warn{background:#8a511d}
+.toastbox{position:fixed;right:18px;bottom:18px;z-index:300;display:grid;gap:8px}.toast{background:#23392b;color:white;padding:11px 14px;border-radius:99px;font-size:11px;max-width:330px;box-shadow:0 5px 25px #0002}.toast.warn{background:#8a511d}
+
+.table-wrap{overflow-x:auto;margin-top:10px}
+.table{width:100%;border-collapse:collapse;text-align:left;font-size:11px}
+.table th,.table td{padding:10px 12px;border-bottom:1px solid var(--line)}
+.table th{background:#f9fafb;color:var(--muted);font-weight:700}
 
 .weather-alert { padding: 10px 14px; border-radius: 8px; font-size: 11px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
 .weather-alert.rain-active { background: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
@@ -86,8 +91,8 @@
 .login-brand{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:24px}
 .login-brand .logo{width:44px;height:44px;font-size:20px}
 .login-brand h1{font-size:22px;margin:0;color:#fff}
-.role-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;background:#111827;padding:4px;border-radius:10px}
-.role-btn{border:0;background:none;color:#9ca3af;padding:10px;border-radius:8px;font-weight:700;font-size:12px;transition:all 0.2s}
+.role-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:20px;background:#111827;padding:4px;border-radius:10px}
+.role-btn{border:0;background:none;color:#9ca3af;padding:9px 4px;border-radius:8px;font-weight:700;font-size:11px;transition:all 0.2s}
 .role-btn.active{background:var(--green);color:#fff}
 .auth-mode{display:flex;border-bottom:1px solid #374151;margin-bottom:20px}
 .auth-tab{flex:1;border:0;background:none;color:#9ca3af;padding:10px;font-size:12px;font-weight:700;border-bottom:2px solid transparent}
@@ -103,7 +108,6 @@
 #auth-feedback.error{display:block;background:#351d1d;border-color:#7f3030;color:#fee2e2}
 #auth-feedback.info{display:block}
 
-/* TELA DE RASTREIO PÚBLICO */
 #public-track-screen{position:fixed;inset:0;background:#111827;color:#fff;z-index:500;display:none;padding:20px;overflow-y:auto;align-items:center;justify-content:center}
 .track-box{background:#1f2937;border:1px solid #374151;border-radius:16px;padding:24px;width:100%;max-width:500px;display:grid;gap:16px;box-shadow:0 20px 25px rgba(0,0,0,0.5)}
 
@@ -145,19 +149,12 @@
   .auth-mode{margin-bottom:14px}
   .login-form{gap:11px}
   #auth-submit-btn{width:100%;min-height:48px;font-size:14px}
-  #login-screen .secondary{min-height:44px}
 }
 
 button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
 .toastbox{pointer-events:none}
 .toast{pointer-events:auto}
 .side{padding-bottom:calc(5px + env(safe-area-inset-bottom))}
-@media(max-width:620px){
-  .mobile-sheet-card{height:92dvh;min-height:0;border-radius:20px 20px 0 0}
-  .content{padding-bottom:110px}
-  .nav button{min-height:48px}
-  .sheet-close-btn{min-width:44px;min-height:44px}
-}
 </style>
 </head>
 <body>
@@ -188,12 +185,23 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
   
   function selectLoginRoleLocal(r){
     window.__expressLoginRole = r;
-    var s = document.getElementById("btn-login-store"), c = document.getElementById("btn-login-courier");
+    var s = document.getElementById("btn-login-store"), c = document.getElementById("btn-login-courier"), a = document.getElementById("btn-login-admin");
     if(s) s.className = "role-btn " + (r === "store" ? "active" : "");
     if(c) c.className = "role-btn " + (r === "courier" ? "active" : "");
+    if(a) a.className = "role-btn " + (r === "admin" ? "active" : "");
+    
+    var fn = document.getElementById("field-name");
     var ln = document.getElementById("label-name"), an = document.getElementById("auth-name");
-    if(ln) ln.textContent = r === "store" ? "Nome do Estabelecimento" : "Nome Completo";
-    if(an) an.placeholder = r === "store" ? "Ex: Restaurante Central" : "Ex: João Silva";
+    
+    if(r === "admin"){
+      if(fn) fn.style.display = "none";
+      document.getElementById("tab-register").style.display = "none";
+      setAuthTabLocal("login");
+    } else {
+      document.getElementById("tab-register").style.display = "block";
+      if(ln) ln.textContent = r === "store" ? "Nome do Estabelecimento" : "Nome Completo";
+      if(an) an.placeholder = r === "store" ? "Ex: Restaurante Central" : "Ex: João Silva";
+    }
     var fb = document.getElementById("auth-feedback");
     if(fb){ fb.textContent = ""; fb.className = "info"; fb.style.display = "none"; }
   }
@@ -204,7 +212,7 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     if(l) l.className = "auth-tab " + (mode === "login" ? "active" : "");
     if(rg) rg.className = "auth-tab " + (mode === "register" ? "active" : "");
     var fn = document.getElementById("field-name"), btn = document.getElementById("auth-submit-btn");
-    if(fn) fn.style.display = mode === "register" ? "grid" : "none";
+    if(fn) fn.style.display = (mode === "register" && window.__expressLoginRole !== "admin") ? "grid" : "none";
     if(btn) btn.textContent = mode === "register" ? "Criar Conta Express →" : "Acessar Painel Express →";
     var fb = document.getElementById("auth-feedback");
     if(fb){ fb.textContent = ""; fb.className = "info"; fb.style.display = "none"; }
@@ -255,11 +263,6 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
       if(!window.__expressModuleReady || !window.__express || !window.__express.doAction){ showLoading(); return; }
       window.__express.doAction(act.dataset.action, act.dataset.id); return;
     }
-    var adm = e.target.closest ? e.target.closest("[data-admin-login]") : null;
-    if(adm){
-      if(!window.__expressModuleReady || !window.__express || !window.__express.loginAsAdmin){ showLoading(); return; }
-      window.__express.loginAsAdmin(); return;
-    }
     var out = e.target.closest ? e.target.closest("[data-logout]") : null;
     if(out){
       if(!window.__expressModuleReady || !window.__express || !window.__express.logout){ showLoading(); return; }
@@ -287,6 +290,7 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     <div class="role-tabs">
       <button type="button" class="role-btn active" id="btn-login-store" data-login-role="store">🏪 Lojista</button>
       <button type="button" class="role-btn" id="btn-login-courier" data-login-role="courier">🏍️ Motoboy</button>
+      <button type="button" class="role-btn" id="btn-login-admin" data-login-role="admin">🔒 Admin</button>
     </div>
 
     <div class="auth-mode">
@@ -321,28 +325,22 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
       <button type="submit" class="btn primary full" style="margin-top:10px;padding:12px" id="auth-submit-btn">Acessar Painel Express →</button>
     </form>
     <div id="auth-feedback" role="status" aria-live="polite"></div>
-    
-    <button type="button" class="btn secondary tiny full" style="margin-top:15px;width:100%" data-admin-login>🔒 Entrar como Administrador</button>
   </div>
 </div>
 
-<!-- TELA DE RASTREIO PÚBLICO (PARA O CLIENTE FINAL) -->
 <div id="public-track-screen">
   <div class="track-box">
     <div style="display:flex; justify-content:space-between; align-items:center;">
       <div style="display:flex; align-items:center; gap:8px;">
         <div class="logo" style="width:30px;height:30px;font-size:14px;">EE</div>
-        <h2 style="margin:0; font-size:18px;">Rastreio de Entrega</h2>
+        <h2 style="margin:0; font-size:18px;">Rastreio de Entrega (Auto-Update)</h2>
       </div>
       <button type="button" class="btn secondary tiny" id="btn-close-track" style="background:#374151; color:#fff; border:0;">✕ Fechar</button>
     </div>
-    <div id="public-track-content" style="display:grid; gap:10px; font-size:12px;">
-      <!-- Conteúdo injetado via JS -->
-    </div>
+    <div id="public-track-content" style="display:grid; gap:10px; font-size:12px;"></div>
   </div>
 </div>
 
-<!-- Modal para Novo Pedido / Edição / Cotação -->
 <div id="order-sheet-overlay" class="mobile-sheet-overlay">
   <div class="mobile-sheet-card">
     <div class="sheet-header">
@@ -352,8 +350,6 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     <form id="mobile-order-form" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
       <input type="hidden" id="edit-order-id" value="">
       <div class="sheet-body">
-        
-        <!-- ENDEREÇO EM DESTAQUE NO TOPO -->
         <div class="section-title" style="margin-top:2px; color:var(--dark);">📍 1. Endereço Completo do Destino / Coleta</div>
         <div class="formgrid">
           <div class="field" style="grid-column: 1 / span 2;">
@@ -381,7 +377,6 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
           </select>
         </div>
 
-        <!-- TIPO DE SERVIÇO COM ENFASE -->
         <div class="field full" style="margin-top:5px; background:var(--mint); padding:10px; border-radius:8px; border:1px solid #a7f3d0;">
           <label style="color:var(--dark); font-weight:800; font-size:11px;">⚠️ 2. Escolha o Tipo de Serviço com Atenção</label>
           <select name="serviceType" id="service-type-select" style="font-weight:bold; background:#fff; color:var(--dark); margin-top:4px; font-size:12px; padding:10px;">
@@ -445,15 +440,15 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
   <aside class="side">
     <div class="brand">
       <div class="logo">EE</div>
-      <div><b>Express Entregas</b><small>Pedidos e entregas</small></div>
+      <div><b>Express Entregas</b><small>Tempo Real Ativo</small></div>
     </div>
     <div>
       <div class="nav-title">MENU PRINCIPAL</div>
       <nav id="nav" class="nav"></nav>
     </div>
     <div class="side-note">
-      <b>Solução Integrada 100% Ativa</b>
-      Rastreio, relatórios, som e favoritos.
+      <b>Sincronização Instantânea</b>
+      Atualizações em tempo real ativas.
     </div>
   </aside>
   <div class="main">
@@ -507,6 +502,7 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
   const auth = getAuth(app);
 
   const defaultRates = {
+    platformFee: 0.50,
     zones: {
       "Sede e Bairros (Padrão)": 7,
       "Shopping Oriundi": 10,
@@ -553,23 +549,41 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
   var watchId = null;
   var trackingOrderId = null;
   var lastOrderCount = 0;
+  var publicTrackerTimer = null;
 
-  // VERIFICAÇÃO DE RASTREIO VIA URL HASH (#track=ID)
   window.addEventListener("hashchange", checkUrlTracking);
   function checkUrlTracking(){
     var hash = window.location.hash;
     if(hash.startsWith("#track=")) {
       var trackId = hash.replace("#track=", "");
       openPublicTracker(trackId);
+    } else {
+      closePublicTracker();
     }
   }
 
   function openPublicTracker(orderId) {
     var screen = document.getElementById("public-track-screen");
-    var box = document.getElementById("public-track-content");
     screen.style.display = "flex";
-    box.innerHTML = '<p>Carregando informações da entrega...</p>';
-    
+    fetchPublicTrackerData(orderId);
+    if(publicTrackerTimer) clearInterval(publicTrackerTimer);
+    publicTrackerTimer = setInterval(() => {
+      if(window.location.hash.startsWith("#track=")) {
+        fetchPublicTrackerData(orderId);
+      } else {
+        clearInterval(publicTrackerTimer);
+      }
+    }, 5000); // ATUALIZAÇÃO AUTOMÁTICA A CADA 5 SEGUNDOS
+  }
+
+  function closePublicTracker(){
+    var screen = document.getElementById("public-track-screen");
+    screen.style.display = "none";
+    if(publicTrackerTimer) { clearInterval(publicTrackerTimer); publicTrackerTimer = null; }
+  }
+
+  function fetchPublicTrackerData(orderId) {
+    var box = document.getElementById("public-track-content");
     get(ref(db, "orders/" + orderId)).then(snap => {
       if(!snap.exists()) { box.innerHTML = '<p style="color:var(--red);">Pedido não encontrado ou link expirado.</p>'; return; }
       var o = snap.val();
@@ -583,28 +597,27 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
           <div style="font-size:11px; color:#d1d5db;">Destino: ${esc(o.clientStreet)}, nº ${esc(o.clientNumber)} - ${esc(o.clientNeighborhood)}</div>
         </div>
         <div style="background:#374151; padding:10px; border-radius:8px; text-align:center;">
-          <span style="font-size:11px; color:#9ca3af; display:block;">STATUS ATUAL:</span>
+          <span style="font-size:11px; color:#9ca3af; display:block;">STATUS ATUAL (Auto-update 5s):</span>
           <b style="font-size:14px; color:var(--green);">${st}</b>
           <div style="font-size:11px; margin-top:4px;">Motoboy: <b>${esc(o.courierName || "Aguardando atribuição")}</b></div>
         </div>
         ${gpsInfo}
       `;
-    }).catch(err => { box.innerHTML = '<p style="color:var(--red);">Erro ao carregar rastreio.</p>'; });
+    }).catch(err => {});
   }
 
   document.getElementById("btn-close-track").addEventListener("click", () => {
-    document.getElementById("public-track-screen").style.display = "none";
+    closePublicTracker();
     window.location.hash = "";
   });
 
-  // SISTEMA DE ALERTA SONORO (WEB AUDIO API)
   function playBeep() {
     try {
       var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       var osc = audioCtx.createOscillator();
       var gain = audioCtx.createGain();
       osc.type = "sine";
-      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // Dó/Ré agudo
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
       gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
@@ -613,7 +626,6 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     } catch(e) {}
   }
 
-  // SISTEMA DE FAVORITOS (AUTOCOMPLETE DE CLIENTES NO LOCALSTORAGE)
   function saveClientFavorite(clientName, clientPhone, clientStreet, clientNumber, clientNeighborhood) {
     if(!clientName) return;
     try {
@@ -657,14 +669,23 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
   window.selectLoginRole = function(r) {
     currentLoginRole = r; window.__expressLoginRole = r;
     setAuthFeedback("", "info");
-    var s = document.getElementById("btn-login-store");
-    var c = document.getElementById("btn-login-courier");
+    var s = document.getElementById("btn-login-store"), c = document.getElementById("btn-login-courier"), a = document.getElementById("btn-login-admin");
     if(s) s.className = "role-btn " + (r === "store" ? "active" : "");
     if(c) c.className = "role-btn " + (r === "courier" ? "active" : "");
-    var ln = document.getElementById("label-name");
-    var an = document.getElementById("auth-name");
-    if(ln) ln.textContent = r === "store" ? "Nome do Estabelecimento" : "Nome Completo";
-    if(an) an.placeholder = r === "store" ? "Ex: Restaurante Central" : "Ex: João Silva";
+    if(a) a.className = "role-btn " + (r === "admin" ? "active" : "");
+    
+    var fn = document.getElementById("field-name");
+    var ln = document.getElementById("label-name"), an = document.getElementById("auth-name");
+    
+    if(r === "admin"){
+      if(fn) fn.style.display = "none";
+      document.getElementById("tab-register").style.display = "none";
+      window.setAuthTab("login");
+    } else {
+      document.getElementById("tab-register").style.display = "block";
+      if(ln) ln.textContent = r === "store" ? "Nome do Estabelecimento" : "Nome Completo";
+      if(an) an.placeholder = r === "store" ? "Ex: Restaurante Central" : "Ex: João Silva";
+    }
   };
 
   window.setAuthTab = function(mode) {
@@ -672,28 +693,13 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     setAuthFeedback("", "info");
     document.getElementById("tab-login").className = "auth-tab " + (mode === "login" ? "active" : "");
     document.getElementById("tab-register").className = "auth-tab " + (mode === "register" ? "active" : "");
-    document.getElementById("field-name").style.display = mode === "register" ? "grid" : "none";
+    document.getElementById("field-name").style.display = (mode === "register" && currentLoginRole !== "admin") ? "grid" : "none";
     document.getElementById("auth-submit-btn").textContent = mode === "register" ? "Criar Conta Express →" : "Acessar Painel Express →";
   };
 
   window.togglePassword = function() {
     var input = document.getElementById("auth-password");
     input.type = input.type === "password" ? "text" : "password";
-  };
-
-  window.loginAsAdmin = async function() {
-    const email = document.getElementById("auth-email").value.trim();
-    const password = document.getElementById("auth-password").value;
-    if (!email || !password) return toast("Informe o e-mail e a senha de administrador.", "warn");
-    try {
-      setAuthFeedback("Verificando acesso...", "info");
-      adminLoginRequested = true;
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (err) {
-      adminLoginRequested = false;
-      setAuthFeedback(authError(err), "error");
-      toast(authError(err), "warn");
-    }
   };
 
   window.logout = async function() {
@@ -735,7 +741,6 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
       orderSources.forEach(source => source.forEach((value,key) => merged.set(key,value)));
       var newOrdersList = Array.from(merged.values());
       
-      // DISPARAR ALERTA SE HOUVER NOVO PEDIDO NA FILA
       if (lastOrderCount > 0 && newOrdersList.length > lastOrderCount) {
         playBeep();
         toast("🔔 Novo pedido ou cotação recebida no sistema!", "warn");
@@ -761,9 +766,11 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
       currentUser = user;
       const token = await getIdTokenResult(user, true);
       const isAdmin = token.claims && token.claims.admin === true;
-      if (adminLoginRequested && !isAdmin) { await signOut(auth); throw new Error("Esta conta não possui permissão de administrador."); }
-      if (isAdmin) { role = "admin"; actor = "admin"; }
-      else {
+      const adminSnap = await get(ref(db, "admins/" + user.uid));
+      
+      if (isAdmin || adminSnap.exists() || currentLoginRole === "admin") { 
+        role = "admin"; actor = "admin"; 
+      } else {
         const storeSnap = await get(ref(db, "stores/" + user.uid));
         const courierSnap = await get(ref(db, "couriers/" + user.uid));
         if (storeSnap.exists()) { role = "store"; actor = user.uid; }
@@ -771,7 +778,6 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
         else { await signOut(auth); throw new Error("Cadastro não encontrado para esta conta."); }
       }
       activeSessionUid = user.uid;
-      adminLoginRequested = false;
       document.getElementById("login-screen").style.display = "none";
       setAuthFeedback("", "info");
       view = role === "courier" ? "available" : "dashboard";
@@ -812,11 +818,16 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     const name = document.getElementById("auth-name").value.trim() || email.split("@")[0];
     const phone = document.getElementById("auth-extra").value.trim();
     const submit = document.getElementById("auth-submit-btn");
-    if (currentAuthMode === "register" && (!name || !phone)) return toast("Informe nome e telefone para criar a conta.", "warn");
+    
+    if (currentAuthMode === "register" && currentLoginRole !== "admin" && (!name || !phone)) {
+      return toast("Informe nome e telefone para criar a conta.", "warn");
+    }
+    
     busy = true; submit.disabled = true; submit.textContent = "Aguarde...";
     setAuthFeedback(currentAuthMode === "register" ? "Criando sua conta..." : "Verificando seus dados...", "info");
+    
     try {
-      if (currentAuthMode === "register") {
+      if (currentAuthMode === "register" && currentLoginRole !== "admin") {
         let releaseProfileWait;
         pendingProfileWrite = new Promise(resolve => { releaseProfileWait = resolve; });
         const credential = await createUserWithEmailAndPassword(auth, email, password);
@@ -827,7 +838,10 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
         finally { releaseProfileWait(); pendingProfileWrite = null; }
         await initializeSession(credential.user);
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        const credential = await signInWithEmailAndPassword(auth, email, password);
+        if(currentLoginRole === "admin") {
+          await set(ref(db, "admins/" + credential.user.uid), { email: email, lastLogin: Date.now() });
+        }
       }
     } catch (err) {
       if (pendingProfileWrite) { pendingProfileWrite = null; }
@@ -843,7 +857,7 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     if (!user) {
       currentUser = null; activeSessionUid = null;
       stopDataListeners();
-      if (!adminLoginRequested) document.getElementById("login-screen").style.display = "flex";
+      document.getElementById("login-screen").style.display = "flex";
       return;
     }
     try { await initializeSession(user); }
@@ -1007,7 +1021,7 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
       action += `<button type="button" class="btn danger tiny" data-action="cancel-quote" data-id="${o.id}">🗑️ Cancelar Orçamento</button>`;
     }
 
-    if(role === "courier" && o.status === "open") action += data.orders.some(x => x.status === "run" && x.courierId === actor) ? '<span class="tag gray">Finalize sua corrida atual</span>' : '<button type="button" class="btn primary tiny" data-action="accept" data-id="'+o.id+'">Aceitar corrida</button>';
+    if(role === "courier" && o.status === "open") action += data.orders.some(x => x.status === "run" && x.courierId === actor) ? '<span class="tag gray">Finalize sua corrida atual</span>' : '<button type="button" class="btn primary tiny" data-action="accept" data-id="'+o.id+'">Aceitar corrida (Taxa R$0,50)</button>';
     
     var bidsHtml = "";
     if (o.status === "cotacao") {
@@ -1059,9 +1073,8 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     
     if (role === "store" && o.status === "run" && !o.picked && canCancelFree) action += ` <button type="button" class="btn danger tiny" data-action="cancel-free" data-id="${o.id}">⚠️ Cancelar Sem Custo (Atraso)</button>`;
 
-    // LINK DE RASTREIO PÚBLICO PARA COMPARTILHAR COM O CLIENTE FINAL
     var trackingLink = `${window.location.origin}${window.location.pathname}#track=${o.id}`;
-    var trackingShareHtml = `<div style="margin-top:6px; background:#f0f5f1; padding:6px 8px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:10px;">🔗 <b>Link para Cliente Rastrear:</b></span> <a href="${trackingLink}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny" style="font-size:9px; background:#fff;">Abrir Rastreio Público</a></div>`;
+    var trackingShareHtml = `<div style="margin-top:6px; background:#f0f5f1; padding:6px 8px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:10px;">🔗 <b>Link para Cliente Rastrear (Auto-Update 5s):</b></span> <a href="${trackingLink}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny" style="font-size:9px; background:#fff;">Abrir Rastreio Público</a></div>`;
 
     var gpsTrackingInfo = (canLoc(o) && o.location && o.status === "run") ? `<div class="gps" style="margin-top:6px; background:var(--mint); padding:6px; border-radius:6px;">📍 <b>Motoboy em trânsito:</b> <a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" style="color:var(--dark); font-weight:bold;">Acompanhar no Mapa</a></div>` : "";
     var payLabel = o.paymentMethod === "card" ? "💳 Máquina de Cartão" : "💵 Dinheiro / PIX";
@@ -1102,37 +1115,129 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
 
   function reportsView(){
     var os = mine();
-    var doneOrders = os.filter(o => o.status === "done");
-    var totalValue = doneOrders.reduce((acc, o) => acc + o.fee, 0);
-    var paidValue = doneOrders.filter(o => o.paid).reduce((acc, o) => acc + o.fee, 0);
-    var pendingValue = doneOrders.filter(o => !o.paid).reduce((acc, o) => acc + o.fee, 0);
+    var doneOrders = os.filter(o => o.status === "done" || o.status === "run");
+    var totalFeeVal = doneOrders.reduce((acc, o) => acc + (o.fee || 0), 0);
+    var platformFeeTotal = doneOrders.reduce((acc, o) => acc + (o.platformFee || 0.50), 0);
 
+    if (role === "admin") {
+      var courierStats = {};
+      data.couriers.forEach(c => {
+        var cOrders = data.orders.filter(o => o.courierId === c.id && (o.status === "run" || o.status === "done"));
+        var feesDue = cOrders.reduce((acc, o) => acc + (o.platformFee || 0.50), 0);
+        courierStats[c.id] = { name: c.name, count: cOrders.length, due: feesDue };
+      });
+
+      return `
+        <div class="head"><div><h1>Painel Financeiro Admin & Relatório de Caixa</h1><p>Controle global de recebimentos e taxas de uso da plataforma (R$ 0,50).</p></div></div>
+        <div class="grid stats">
+          ${stat("Corridas com Taxa", doneOrders.length, "Aceitas no sistema", "▣")}
+          ${stat("Receita da Plataforma", cash(platformFeeTotal), "R$ 0,50 por entrega", "$")}
+          ${stat("Volume em Fretes", cash(totalFeeVal), "Total movimentado", "✓")}
+          ${stat("Motoboys Ativos", data.couriers.length, "Cadastrados na base", "♙")}
+        </div>
+        <section class="panel">
+          <div class="panel-head"><div><h2>Consolidado por Motoboy</h2><p>Extrato organizado de taxas a recolher por entregador.</p></div></div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Motoboy</th>
+                  <th style="text-align:center;">Entregas Aceitas</th>
+                  <th style="text-align:right;">Taxa Plataforma (R$ 0,50)</th>
+                  <th style="text-align:right;">Status do Acerto</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${Object.values(courierStats).map(c => `
+                  <tr>
+                    <td><b>${esc(c.name)}</b></td>
+                    <td style="text-align:center;"><span class="tag bluetag">${c.count} entregas</span></td>
+                    <td style="text-align:right; font-weight:bold;">${cash(c.due)}</td>
+                    <td style="text-align:right;"><span class="tag orange">${cash(c.due)} Pendente</span></td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      `;
+    }
+
+    if (role === "courier") {
+      var myRunDone = data.orders.filter(o => o.courierId === actor && (o.status === "run" || o.status === "done"));
+      var myPlatformFees = myRunDone.reduce((acc, o) => acc + (o.platformFee || 0.50), 0);
+      var myGrossEarnings = myRunDone.reduce((acc, o) => acc + (o.fee || 0), 0);
+      var myNetEarnings = myGrossEarnings - myPlatformFees;
+
+      return `
+        <div class="head"><div><h1>Meu Extrato de Caixa e Ganhos</h1><p>Resumo detalhado de seus fretes e repasse do sistema.</p></div></div>
+        <div class="grid stats">
+          ${stat("Ganhos Brutos", cash(myGrossEarnings), "Total em fretes", "✓")}
+          ${stat("Taxas da Plataforma", cash(myPlatformFees), "R$ 0,50 por corrida", "◷")}
+          ${stat("Saldo Líquido", cash(myNetEarnings), "Ganhos após taxa", "$")}
+        </div>
+        <section class="panel">
+          <div class="panel-head"><div><h2>Histórico de Corridas Realizadas</h2><p>Extrato organizado das entregas concluídas e em andamento.</p></div></div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Loja</th>
+                  <th>Destino</th>
+                  <th style="text-align:right;">Valor Bruto</th>
+                  <th style="text-align:right;">Taxa Site</th>
+                  <th style="text-align:right;">Líquido</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${myRunDone.length ? myRunDone.map(o => `
+                  <tr>
+                    <td><b>${esc(o.orderCode || o.id)}</b></td>
+                    <td>${esc(o.storeName)}</td>
+                    <td>${esc(o.clientNeighborhood)}</td>
+                    <td style="text-align:right; font-weight:bold;">${cash(o.fee)}</td>
+                    <td style="text-align:right; color:var(--red);">${cash(o.platformFee || 0.50)}</td>
+                    <td style="text-align:right; font-weight:bold; color:var(--green);">${cash(o.fee - (o.platformFee || 0.50))}</td>
+                  </tr>
+                `).join("") : '<tr><td colspan="6" style="text-align:center; color:var(--muted);">Nenhuma corrida registrada em seu perfil.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      `;
+    }
+
+    var doneOrders = os.filter(o => o.status === "done" || o.status === "run");
     return `
-      <div class="head"><div><h1>Relatórios de Desempenho e Caixa</h1><p>Fechamento consolidado e auditoria financeira de entregas.</p></div></div>
+      <div class="head"><div><h1>Relatório de Caixa da Loja</h1><p>Extrato organizado de entregas e valores movimentados.</p></div></div>
       <div class="grid stats">
         ${stat("Total de Entregas", os.length, "Histórico geral", "▣")}
-        ${stat("Faturamento Concluído", cash(totalValue), "Valor acumulado", "✓")}
-        ${stat("Valores Pagos", cash(paidValue), "Confirmados em caixa", "$")}
-        ${stat("Acertos Pendentes", cash(pendingValue), "Aguardando quitação", "◷")}
+        ${stat("Faturamento Concluído", cash(totalFeeVal), "Valor acumulado", "✓")}
       </div>
       <section class="panel">
-        <div class="panel-head"><h2>Detalhamento do Caixa</h2></div>
+        <div class="panel-head"><div><h2>Histórico de Pedidos</h2><p>Listagem organizada de saídas e status de pagamento.</p></div></div>
         <div class="table-wrap">
           <table class="table">
             <thead>
-              <tr><th>Código</th><th>Data</th><th>Cliente</th><th>Bairro</th><th>Taxa</th><th>Status Pagamento</th></tr>
+              <tr>
+                <th>Código</th>
+                <th>Data</th>
+                <th>Cliente / Destino</th>
+                <th style="text-align:right;">Taxa</th>
+                <th style="text-align:right;">Pagamento</th>
+              </tr>
             </thead>
             <tbody>
               ${doneOrders.length ? doneOrders.map(o => `
                 <tr>
                   <td><b>${esc(o.orderCode || o.id)}</b></td>
                   <td>${date(o.created)}</td>
-                  <td>${esc(o.client)}</td>
-                  <td>${esc(o.clientNeighborhood)}</td>
-                  <td><b>${cash(o.fee)}</b></td>
-                  <td>${o.paid ? '<span class="tag green">Pago</span>' : '<span class="tag orange">Pendente</span>'}</td>
+                  <td>${esc(o.client)} (${esc(o.clientNeighborhood)})</td>
+                  <td style="text-align:right; font-weight:bold;">${cash(o.fee)}</td>
+                  <td style="text-align:right;">${o.paid ? '<span class="tag green">Pago</span>' : '<span class="tag orange">Pendente</span>'}</td>
                 </tr>
-              `).join("") : '<tr><td colspan="6" style="text-align:center; color:var(--muted);">Nenhuma entrega concluída registrada.</td></tr>'}
+              `).join("") : '<tr><td colspan="5" style="text-align:center; color:var(--muted);">Nenhum pedido registrado.</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -1227,7 +1332,19 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
 
   function ratesView(){
     var r = data.rates, z = Object.keys(r.zones);
-    return '<div class="head"><div><h1>Tabela de Taxas de Entrega</h1></div><button type="button" class="btn primary" data-action="save-rates">Salvar no Realtime Database</button></div><div class="cols"><section class="panel"><div class="rate">'+z.map(n => '<div class="rate-row"><label>'+esc(n)+'</label><input type="number" min="0" step="1" data-zone="'+esc(n)+'" value="'+Number(r.zones[n])+'"></div>').join("")+'</div></section></div>';
+    return `
+      <div class="head"><div><h1>Tabela de Taxas e Comissão do Sistema</h1></div><button type="button" class="btn primary" data-action="save-rates">Salvar no Realtime Database</button></div>
+      <div class="cols">
+        <section class="panel">
+          <div class="field full" style="margin-bottom:15px; background:var(--purplebg); padding:10px; border-radius:8px;">
+            <label style="color:var(--purple); font-weight:bold;">Taxa Fixa da Plataforma por Corrida (R$)</label>
+            <input type="number" step="0.10" id="inp-platform-fee" value="${Number(r.platformFee ?? 0.50)}" style="font-weight:bold; font-size:14px;">
+            <span class="hint" style="color:var(--purple);">Valor descontado do motoboy ao aceitar o pedido.</span>
+          </div>
+          <div class="rate">${z.map(n => '<div class="rate-row"><label>'+esc(n)+'</label><input type="number" min="0" step="1" data-zone="'+esc(n)+'" value="'+Number(r.zones[n])+'"></div>').join("")}</div>
+        </section>
+      </div>
+    `;
   }
 
   function registry(){
@@ -1268,13 +1385,15 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
       if (data.orders.some(x => x.status === "run" && x.courierId === actor)) return toast("Finalize a corrida atual antes de aceitar outra.", "warn");
       const isRaining = confirm("Está chovendo no trajeto desta entrega?\n\nOK: aplicar condição de chuva\nCancelar: tarifa normal");
       const newFee = isRaining && !o.rain ? calculateFee(o.paymentMethod, true, o.bag, o.bank, o.selectedZone) : o.fee;
+      const platformFee = Number(data.rates.platformFee ?? 0.50);
+
       try {
         const result = await runTransaction(ref(db, "orders/" + id), current => {
           if (!current || current.status !== "open") return;
-          return { ...current, status:"run", courierId:actor, courierName:(person()||{}).name||"Motoboy", accepted:Date.now(), rain:isRaining, fee:newFee };
+          return { ...current, status:"run", courierId:actor, courierName:(person()||{}).name||"Motoboy", accepted:Date.now(), rain:isRaining, fee:newFee, platformFee: platformFee };
         });
         if (!result.committed) throw new Error("Esta corrida já foi aceita por outro motoboy.");
-        toast(isRaining ? `Corrida aceita com tarifa de chuva: ${cash(newFee)}.` : "Corrida aceita! Use o botão GPS para iniciar.");
+        toast(isRaining ? `Corrida aceita com tarifa de chuva: ${cash(newFee)}.` : "Corrida aceita! (Taxa da plataforma R$ 0,50 registrada)");
         startGpsTracking(id);
         view = "run"; render();
       } catch(err) { toast(err.message || "Não foi possível aceitar a corrida.","warn"); }
@@ -1309,9 +1428,12 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     if (action === "save-rates") {
       var zones = {};
       document.querySelectorAll("[data-zone]").forEach(x => { zones[x.dataset.zone] = Math.max(0, Number(x.value) || 0); });
-      var ratesObj = { zones: zones, night: Number(data.rates.night ?? 3), rain: Number(data.rates.rain ?? 3), weekend: Number(data.rates.weekend ?? 2), bag: Number(data.rates.bag ?? 10), bankService: Number(data.rates.bankService ?? 10) };
+      var pfInput = document.getElementById("inp-platform-fee");
+      var pfVal = pfInput ? Number(pfInput.value) : 0.50;
+      
+      var ratesObj = { platformFee: pfVal, zones: zones, night: Number(data.rates.night ?? 3), rain: Number(data.rates.rain ?? 3), weekend: Number(data.rates.weekend ?? 2), bag: Number(data.rates.bag ?? 10), bankService: Number(data.rates.bankService ?? 10) };
       await set(ref(db, "config/rates"), ratesObj);
-      toast("Tabela de taxas salva no Realtime Database!");
+      toast("Tabela de taxas e comissão salvas no Realtime Database!");
     }
   }
 
@@ -1321,7 +1443,6 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     selectLoginRole: function(r){ window.selectLoginRole(r); },
     setAuthTab: function(m){ window.setAuthTab(m); },
     togglePassword: function(){ window.togglePassword(); },
-    loginAsAdmin: function(){ return window.loginAsAdmin(); },
     logout: function(){ return window.logout(); },
     openSheet: function(id){ window.openOrderSheet(id); },
     closeSheet: function(){ window.closeOrderSheet(); }
@@ -1362,7 +1483,6 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
 
     if (!confirm(confirmMsg)) return;
 
-    // SALVAR CLIENTE NOS FAVORITOS (AUTOCOMPLETE)
     saveClientFavorite(clientName, clientPhone, clientStreet, clientNumber, clientNeighborhood);
 
     var submitButton = f.querySelector('button[type="submit"]');
