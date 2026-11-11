@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover,interactive-widget=resizes-content">
-<title>Express Entregas — Sistema Completo com Coleta e Entrega</title>
+<title>Express Entregas — Sistema Completo com Coleta, Entrega e Cotações</title>
 <style>
-:root{--ink:#19221d;--muted:#718078;--line:#e5ebe6;--paper:#f5f7f5;--green:#10b981;--dark:#065f46;--mint:#e6f5ec;--orange:#a95612;--orangebg:#fff2e4;--red:#ae3832;--redbg:#fff0ee;--blue:#326b9b;--bluebg:#eaf3fb;--dark-bg:#111827;--card-bg:#1f2937}
+:root{--ink:#19221d;--muted:#718078;--line:#e5ebe6;--paper:#f5f7f5;--green:#10b981;--dark:#065f46;--mint:#e6f5ec;--orange:#a95612;--orangebg:#fff2e4;--red:#ae3832;--redbg:#fff0ee;--blue:#326b9b;--bluebg:#eaf3fb;--purple:#6b21a8;--purplebg:#f3e8ff;--dark-bg:#111827;--card-bg:#1f2937}
 *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer}
 .app{min-height:100vh;display:grid;grid-template-columns:225px 1fr}
 .side{background:#fff;border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:24px}
@@ -14,7 +14,7 @@
 .brand b{font-size:17px}.brand small{display:block;color:var(--muted);font-size:10px}
 .nav-title{padding:0 10px 7px;color:#95a097;font-size:9px;font-weight:800;letter-spacing:1px}
 .nav{display:grid;gap:4px}
-.nav button{border:0;background:none;text-align:left;padding:10px;border-radius:9px;color:#65736a;font-weight:650;font-size:11px}
+.nav button{border:0;background:none;text-align:left;padding:10px;border-radius:99px;color:#65736a;font-weight:650;font-size:11px}
 .nav button.active,.nav button:hover{background:var(--mint);color:var(--dark)}
 .nav button span{display:inline-block;width:23px;font-size:15px}
 .side-note{margin-top:auto;padding:12px;background:#f3f7f4;border-radius:12px;color:var(--muted);font-size:10px}
@@ -32,7 +32,7 @@
 .head h1{font-size:23px;margin:0 0 4px}.head p{margin:0;color:var(--muted)}
 .buttons{display:flex;gap:7px;flex-wrap:wrap}
 .btn{border:1px solid transparent;border-radius:8px;padding:9px 12px;font-size:11px;font-weight:750;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
-.primary{background:var(--green);color:white}.secondary{background:white;border-color:var(--line);color:#39473e}.soft{background:var(--mint);color:var(--dark)}.warning{background:var(--orangebg);color:var(--orange)}.danger{background:var(--redbg);color:var(--red)}.tiny{padding:6px 9px;font-size:10px}
+.primary{background:var(--green);color:white}.secondary{background:white;border-color:var(--line);color:#39473e}.soft{background:var(--mint);color:var(--dark)}.warning{background:var(--orangebg);color:var(--orange)}.danger{background:var(--redbg);color:var(--red)}.purple{background:var(--purplebg);color:var(--purple)}.tiny{padding:6px 9px;font-size:10px}
 .grid{display:grid;gap:13px}.stats{grid-template-columns:repeat(4,1fr);margin-bottom:15px}
 .stat,.panel,.order{background:white;border:1px solid var(--line);border-radius:13px}
 .stat{padding:15px}.stat-top{display:flex;justify-content:space-between;color:var(--muted);font-size:10px}
@@ -42,7 +42,7 @@
 .panel-head{display:flex;justify-content:space-between;align-items:center;gap:9px;margin-bottom:12px}
 .panel-head h2{font-size:14px;margin:0}.panel-head p{font-size:10px;color:var(--muted);margin:3px 0 0}
 .tag{display:inline-flex;border-radius:99px;padding:4px 8px;font-size:9px;font-weight:800;white-space:nowrap}
-.green{background:var(--mint);color:var(--dark)}.orange{background:var(--orangebg);color:var(--orange)}.redtag{background:var(--redbg);color:var(--red)}.bluetag{background:var(--bluebg);color:var(--blue)}.gray{background:#f0f2f1;color:#657168}
+.green{background:var(--mint);color:var(--dark)}.orange{background:var(--orangebg);color:var(--orange)}.redtag{background:var(--redbg);color:var(--red)}.bluetag{background:var(--bluebg);color:var(--blue)}.purpletag{background:var(--purplebg);color:var(--purple)}.gray{background:#f0f2f1;color:#657168}
 .list{display:grid;gap:8px}.order{padding:13px}
 .order-top{display:flex;justify-content:space-between;gap:10px}
 .id{font-size:9px;color:var(--muted);font-weight:750}.order h3{font-size:13px;margin:3px 0}
@@ -58,13 +58,10 @@
 .section-title{font-size:11px;font-weight:800;margin-bottom:10px}
 .checks{display:grid;grid-template-columns:1fr 1fr;gap:8px}.check{border:1px solid var(--line);border-radius:8px;padding:9px;font-size:10px}.check input{accent-color:var(--green)}
 .price{background:#f0f7f2;padding:11px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;margin:9px 0}.price span{color:var(--muted);font-size:10px}.price b{font-size:19px;color:var(--dark)}
-.chip{background:white;border:1px solid var(--line);border-radius:99px;padding:9px 11px;font-size:10px;color:#657168}.chip b{color:#27372c}.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:560px;font-size:10px}
-.table th{text-align:left;color:var(--muted);font-size:9px;padding:8px;border-bottom:1px solid var(--line)}
-.table td{padding:10px 8px;border-bottom:1px solid #f0f3f0}
+.chip{background:white;border:1px solid var(--line);border-radius:99px;padding:9px 11px;font-size:10px;color:#657168}.chip b{color:#27372c}
 .rate{display:grid;gap:8px}.rate-row{display:grid;grid-template-columns:1fr 125px;align-items:center;gap:9px;border-bottom:1px solid #eff2ef;padding-bottom:8px;font-size:11px}.rate-row input{width:100%;border:1px solid var(--line);border-radius:7px;padding:7px}
 .info{padding:11px 13px;background:#eef5fb;color:#426984;border-radius:8px;font-size:10px;margin-bottom:12px}
-.gps{color:var(--dark);font-size:10px}.timer{font-weight:800;color:var(--dark);font-variant-numeric:tabular-nums}.late{color:var(--red)}
+.gps{color:var(--dark);font-size:10px}
 .toastbox{position:fixed;right:18px;bottom:18px;z-index:300;display:grid;gap:8px}.toast{background:#23392b;color:white;padding:11px 14px;border-radius:9px;font-size:11px;max-width:330px;box-shadow:0 5px 25px #0002}.toast.warn{background:#8a511d}
 
 .weather-alert { padding: 10px 14px; border-radius: 8px; font-size: 11px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
@@ -80,6 +77,9 @@
 .sheet-close-btn{border:0;background:#e5ebe6;width:28px;height:28px;border-radius:50%;font-weight:bold;color:#444}
 .sheet-body{padding:16px;overflow-y:auto;flex:1;display:grid;gap:12px}
 .sheet-footer{padding:12px 16px;border-top:1px solid var(--line);background:#fff;box-shadow:0 -4px 12px rgba(0,0,0,0.03)}
+
+.bid-box{background:#f8faf9;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px;display:grid;gap:6px}
+.bid-item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:6px 10px;border-radius:6px;border:1px solid #e5ebe6;font-size:11px}
 
 .login-screen{position:fixed;inset:0;min-height:100vh;min-height:100dvh;background:var(--dark-bg);color:#f3f4f6;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .login-card{background:var(--card-bg);border:1px solid #374151;border-radius:16px;padding:32px;width:100%;max-width:440px;margin:auto;box-shadow:0 20px 25px -5px rgba(0,0,0,0.5)}
@@ -133,7 +133,6 @@
   .order-top{flex-direction:column}.order-top>div:last-child{text-align:left!important}
   .fee{text-align:left!important}
   .footer .buttons{width:100%}.footer .btn{flex:1}
-  .table-wrap{max-width:100%}
   .mobile-sheet-overlay{padding-top:env(safe-area-inset-top)}
   .login-screen{align-items:flex-start;justify-content:center;padding:max(12px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom))}
   .login-card{margin:auto 0;padding:22px 18px;width:100%;max-width:440px}
@@ -183,7 +182,6 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     }
   }
   
-  /* CORREÇÃO DIRETA: Função de alternância imediata */
   function selectLoginRoleLocal(r){
     window.__expressLoginRole = r;
     var s = document.getElementById("btn-login-store"), c = document.getElementById("btn-login-courier");
@@ -323,7 +321,7 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
   </div>
 </div>
 
-<!-- Modal para Novo Pedido (Entrega ou Coleta) -->
+<!-- Modal para Novo Pedido (Entrega, Coleta ou Cotação) -->
 <div id="order-sheet-overlay" class="mobile-sheet-overlay">
   <div class="mobile-sheet-card">
     <div class="sheet-header">
@@ -352,20 +350,19 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
         </div>
 
         <!-- Endereço Organizado do Cliente -->
-        <div class="section-title" style="margin-top:5px;">Endereço do Cliente</div>
+        <div class="section-title" style="margin-top:5px;">Endereço Completo do Cliente</div>
         <div class="formgrid">
           <div class="field" style="grid-column: 1 / span 2;">
             <label>Rua / Logradouro</label>
-            <input name="clientStreet" required placeholder="Ex: Rua das Flores">
+            <input name="clientStreet" required placeholder="Ex: Av. Venâncio Flores">
           </div>
           <div class="field">
             <label>Número</label>
             <input name="clientNumber" required placeholder="Ex: 123 ou S/N">
           </div>
           <div class="field">
-            <label>Bairro</label>
-            <input name="clientNeighborhood" id="input-neighborhood" list="neighborhood-options" required placeholder="Bairro" autocomplete="off">
-            <datalist id="neighborhood-options"></datalist>
+            <label>Bairro / Localidade</label>
+            <input name="clientNeighborhood" id="input-neighborhood" required placeholder="Ex: Centro, Barra do Sahy..." autocomplete="off">
           </div>
           <div class="field full">
             <label>Ponto de Referência (Opcional)</label>
@@ -373,7 +370,16 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
           </div>
         </div>
 
-        <div class="field full" style="margin-top:10px;">
+        <!-- SELEÇÃO OPCIONAL DE REGIONALIZAÇÃO DA TAXA -->
+        <div class="field full" style="margin-top:5px; background:#f4f9f5; padding:10px; border-radius:8px; border:1px solid #d2e5d6;">
+          <label style="color:var(--dark)">📍 Região / Localidade para ajuste de taxa (Opcional)</label>
+          <select name="selectedZone" id="zone-select-mobile" style="font-size:12px;">
+            <option value="">Standard — Sede e Bairros (R$ 7,00 padrão)</option>
+          </select>
+          <span class="hint">Deixe em Standard se for na sede. Selecione uma localidade se for um local mais distante da lista.</span>
+        </div>
+
+        <div class="field full" style="margin-top:5px;">
           <label>Forma de Pagamento da Corrida</label>
           <select name="paymentMethod" id="payment-select-mobile">
             <option value="money">💵 Dinheiro / PIX / Online</option>
@@ -386,7 +392,16 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
           <input name="notes" placeholder="Instruções adicionais">
         </div>
 
-        <div class="section" style="padding:10px 0;">
+        <!-- OPÇÃO DE COTAÇÃO DE PREÇO -->
+        <div class="section" style="padding:10px 0; background:var(--purplebg); padding:10px; border-radius:8px; margin-top:5px;">
+          <label class="check" style="background:#fff; border-color:#d8b4fe;">
+            <input type="checkbox" name="isQuote" id="chk-is-quote"> 
+            <span style="font-weight:bold; color:var(--purple);">💬 Solicitar Cotação de Preço aos Motoboys</span>
+          </label>
+          <span class="hint" style="color:#581c87; display:block; margin-top:4px;">Marque esta opção caso o local esteja fora da tabela e você queira receber propostas de valor dos motoboys.</span>
+        </div>
+
+        <div class="section" style="padding:10px 0;" id="section-addons">
           <div class="section-title">Adicionais da Corrida</div>
           <div class="checks">
             <label class="check"><input type="checkbox" name="bag" id="chk-bag-mob"> 🎒 Mochila Cheia (+R$10)</label>
@@ -394,13 +409,13 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
           </div>
         </div>
 
-        <div class="price">
+        <div class="price" id="box-price-display">
           <span>Tarifa Estimada:</span>
           <b id="quote-price-mobile">R$ 7,00</b>
         </div>
       </div>
       <div class="sheet-footer">
-        <button type="submit" class="btn primary" style="width:100%; padding:14px; font-size:13px;">Confirmar e Enviar Pedido →</button>
+        <button type="submit" class="btn primary" id="btn-submit-order" style="width:100%; padding:14px; font-size:13px;">Confirmar e Enviar Pedido →</button>
       </div>
     </form>
   </div>
@@ -418,7 +433,7 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     </div>
     <div class="side-note">
       <b>Fluxo Integrado Ativo</b>
-      Endereço de loja e rotas em 2 etapas.
+      Endereço de loja, rotas e cotações.
     </div>
   </aside>
   <div class="main">
@@ -598,7 +613,7 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
       const raw = snap.val() || {};
       let orders = Object.entries(raw).map(([id, value]) => ({ id, ...value }));
       if (role === "store") orders = orders.filter(o => o.storeId === actor);
-      if (role === "courier") orders = orders.filter(o => o.status === "open" || o.courierId === actor);
+      if (role === "courier") orders = orders.filter(o => o.status === "open" || o.status === "cotacao" || o.courierId === actor);
       orderSources.set(sourceKey, new Map(orders.map(o => [o.id, o])));
       const merged = new Map();
       orderSources.forEach(source => source.forEach((value,key) => merged.set(key,value)));
@@ -658,7 +673,7 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
       const value = snap.val();
       if (value) data.rates = { ...defaultRates, ...value, zones: { ...defaultRates.zones, ...(value.zones || {}) } };
       else if (role === "admin") set(ref(db,"config/rates"), defaultRates).catch(err => toast(err.message,"warn"));
-      refreshNeighborhoodOptions(); render();
+      refreshZoneSelect(); render();
     }, err => toast("Erro ao carregar tarifas: " + err.message,"warn")));
   }
 
@@ -721,26 +736,41 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     document.getElementById("order-sheet-overlay").classList.remove("active");
   };
 
-  function refreshNeighborhoodOptions() {
-    const list = document.getElementById("neighborhood-options");
-    if (list) list.innerHTML = Object.keys(data.rates.zones || defaultRates.zones).map(n => '<option value="'+esc(n)+'"></option>').join("");
+  function refreshZoneSelect() {
+    const select = document.getElementById("zone-select-mobile");
+    if (select) {
+      const zones = data.rates.zones || defaultRates.zones;
+      select.innerHTML = '<option value="">Standard — Sede e Bairros (R$ 7,00 padrão)</option>' +
+        Object.keys(zones).filter(z => z !== "Sede e Bairros (Padrão)").map(z => `<option value="${esc(z)}">${esc(z)} — ${cash(zones[z])}</option>`).join("");
+    }
   }
 
   function recalculateMobileFee() {
-    refreshNeighborhoodOptions();
-    var p = document.getElementById("payment-select-mobile").value;
-    var b = document.getElementById("chk-bag-mob").checked;
-    var k = document.getElementById("chk-bank-mob").checked;
-    var total = calculateFee(p, false, b, k, document.getElementById("input-neighborhood").value);
-    document.getElementById("quote-price-mobile").textContent = cash(total);
+    refreshZoneSelect();
+    var isQuote = document.getElementById("chk-is-quote").checked;
+    var priceBox = document.getElementById("box-price-display");
+    var btnSubmit = document.getElementById("btn-submit-order");
+
+    if(isQuote) {
+      priceBox.style.display = "none";
+      btnSubmit.textContent = "💬 Publicar Cotação para Motoboys →";
+    } else {
+      priceBox.style.display = "flex";
+      btnSubmit.textContent = "Confirmar e Enviar Pedido →";
+      var p = document.getElementById("payment-select-mobile").value;
+      var b = document.getElementById("chk-bag-mob").checked;
+      var k = document.getElementById("chk-bank-mob").checked;
+      var zoneVal = document.getElementById("zone-select-mobile").value;
+      var total = calculateFee(p, false, b, k, zoneVal);
+      document.getElementById("quote-price-mobile").textContent = cash(total);
+    }
   }
 
   document.getElementById("mobile-order-form").addEventListener("change", recalculateMobileFee);
 
-  function calculateFee(paymentMethod, isRain, isBag, isBank, neighborhood) {
+  function calculateFee(paymentMethod, isRain, isBag, isBank, selectedZone) {
     const zones = data.rates.zones || defaultRates.zones;
-    const zoneName = Object.keys(zones).find(name => name.toLocaleLowerCase("pt-BR") === String(neighborhood || "").trim().toLocaleLowerCase("pt-BR"));
-    let base = zoneName ? Number(zones[zoneName]) : Number(zones["Sede e Bairros (Padrão)"] || 7);
+    let base = selectedZone && zones[selectedZone] ? Number(zones[selectedZone]) : Number(zones["Sede e Bairros (Padrão)"] || 7);
     const hour = new Date().getHours();
     if (paymentMethod === "card") base = Math.max(base, 10);
     if (hour >= 23) base = Math.max(base, 10);
@@ -785,20 +815,20 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
   function isWeekend(){ return [0,6].includes(new Date().getDay()); }
 
   function items(){
-    if (role === "store") return [["dashboard","⌂","Visão geral"],["new","＋","Pedir motoboy"],["profile","⚙️","Meu Perfil"],["open","◷","Em aberto"],["done","✓","Concluídos"],["summary","▤","Meu resumo"]];
-    else if (role === "courier") return [["available","＋","Disponíveis"],["run","◷","Em execução"],["done","✓","Concluídos"],["summary","▤","Meu resumo"]];
-    else return [["dashboard","⌂","Visão geral"],["all","▣","Todos os pedidos"],["rates","R$","Tabela de Taxas"],["registry","♙","Cadastros Globais"]];
+    if (role === "store") return [["dashboard","⌂","Visão geral"],["new","＋","Pedir motoboy"],["quotes","💬","Cotações"],["profile","⚙️","Meu Perfil"],["open","◷","Em aberto"],["done","✓","Concluídos"],["summary","▤","Meu resumo"]];
+    else if (role === "courier") return [["available","＋","Disponíveis"],["quotes","💬","Cotações"],["run","◷","Em execução"],["done","✓","Concluídos"],["summary","▤","Meu resumo"]];
+    else return [["dashboard","⌂","Visão geral"],["all","▣","Todos os pedidos"],["quotes","💬","Cotações"],["rates","R$","Tabela de Taxas"],["registry","♙","Cadastros Globais"]];
   }
 
-  function title(){ return ({dashboard:"Visão geral",new:"Solicitar motoboy",profile:"Meu Perfil e Endereço",open:"Pedidos em aberto",available:"Pedidos disponíveis",run:"Em execução",done:"Concluídos",summary:"Resumo diário",rates:"Tabela de Taxas",registry:"Cadastros Globais"})[view]||"Visão geral"; }
+  function title(){ return ({dashboard:"Visão geral",new:"Solicitar motoboy",quotes:"Mural de Cotações",profile:"Meu Perfil e Endereço",open:"Pedidos em aberto",available:"Pedidos disponíveis",run:"Em execução",done:"Concluídos",summary:"Resumo diário",rates:"Tabela de Taxas",registry:"Cadastros Globais"})[view]||"Visão geral"; }
   function toast(s,t){ var e=document.createElement("div"); e.className="toast "+(t||""); e.textContent=s; document.getElementById("toasts").appendChild(e); setTimeout(()=>e.remove(),4000); }
   function empty(a,b){ return '<div class="empty"><b>'+a+'</b>'+b+'</div>'; }
   function stat(a,b,c,d){ return '<div class="stat"><div class="stat-top">'+a+'<span class="stat-icon">'+d+'</span></div><div class="stat-value">'+b+'</div><div class="stat-sub">'+c+'</div></div>'; }
   function canLoc(o){ return role === "admin" || o.storeId === actor || (role === "courier" && o.courierId === actor); }
 
   function card(o){
-    var st = o.status === "open" ? "Aguardando motoboy" : o.status === "run" ? (o.picked ? "Coletado · em trânsito" : "Aguardando recolha") : "Entregue";
-    var tag = o.status === "open" ? "orange" : o.status === "run" ? "bluetag" : "green";
+    var st = o.status === "open" ? "Aguardando motoboy" : o.status === "cotacao" ? "Em Cotação" : o.status === "run" ? (o.picked ? "Coletado · em trânsito" : "Aguardando recolha") : "Entregue";
+    var tag = o.status === "open" ? "orange" : o.status === "cotacao" ? "purpletag" : o.status === "run" ? "bluetag" : "green";
     var action = "";
 
     var pickupTimerHtml = "";
@@ -811,6 +841,23 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
 
     if(role === "courier" && o.status === "open") action = data.orders.some(x => x.status === "run" && x.courierId === actor) ? '<span class="tag gray">Finalize sua corrida atual</span>' : '<button type="button" class="btn primary tiny" data-action="accept" data-id="'+o.id+'">Aceitar corrida</button>';
     
+    /* INTERFACE DE COTAÇÃO */
+    var bidsHtml = "";
+    if (o.status === "cotacao") {
+      var bids = o.bids || {};
+      if (role === "store" || role === "admin") {
+        var bidList = Object.entries(bids).map(([cId, b]) => `<div class="bid-item"><span><b>${esc(b.courierName)}</b>: <b style="color:var(--dark)">${cash(b.amount)}</b></span><button type="button" class="btn primary tiny" data-action="accept-bid" data-id="${o.id}" data-courier="${cId}" data-amount="${b.amount}" data-cname="${esc(b.courierName)}">Aceitar Proposta</button></div>`).join("");
+        bidsHtml = `<div class="bid-box"><div style="font-size:10px; font-weight:bold; color:var(--purple)">💬 Propostas Recebidas (${Object.keys(bids).length}):</div>${bidList || '<span class="hint">Aguardando propostas dos motoboys...</span>'}</div>`;
+      } else if (role === "courier") {
+        var myBid = bids[actor];
+        if (myBid) {
+          bidsHtml = `<div class="bid-box" style="background:#f3e8ff;"><span style="font-size:11px; color:var(--purple)">Sua proposta enviada: <b>${cash(myBid.amount)}</b> (Aguardando resposta da loja)</span></div>`;
+        } else {
+          bidsHtml = `<div class="bid-box"><span style="font-size:10px; font-weight:bold;">Enviar sua Proposta de Valor:</span><div style="display:flex; gap:6px; margin-top:4px;"><input type="number" id="bid-input-${o.id}" placeholder="Ex: 35.00" style="width:100px; padding:4px 6px; font-size:11px;"><button type="button" class="btn purple tiny" data-action="send-bid" data-id="${o.id}">Enviar Valor</button></div></div>`;
+        }
+      }
+    }
+
     if(role === "courier" && o.status === "run") {
       let mapUrl = "";
       if (!o.picked) {
@@ -837,11 +884,11 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
 
     var gpsTrackingInfo = (canLoc(o) && o.location && o.status === "run") ? `<div class="gps" style="margin-top:6px; background:var(--mint); padding:6px; border-radius:6px;">📍 <b>Motoboy em trânsito:</b> <a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" style="color:var(--dark); font-weight:bold;">Acompanhar no Mapa</a></div>` : "";
     var payLabel = o.paymentMethod === "card" ? "💳 Máquina de Cartão" : "💵 Dinheiro / PIX";
-    var rainTag = o.rain ? `<span class="tag orange">🌧️ Dia Chuvoso (Ativado pelo Motoboy)</span>` : "";
+    var rainTag = o.rain ? `<span class="tag orange">🌧️ Dia Chuvoso</span>` : "";
     
     var serviceBadge = o.serviceType === "collection" ? '<span class="tag orange">🔄 COLETA (Cliente ➔ Loja)</span>' : '<span class="tag bluetag">🚚 ENTREGA (Loja ➔ Cliente)</span>';
 
-    return '<article class="order"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>'+esc(o.clientStreet)+', '+esc(o.clientNumber)+' - '+esc(o.clientNeighborhood)+'</h3><div class="order-store">Cliente: <b>'+esc(o.client)+'</b> ('+esc(o.phone)+') '+ (o.clientReference ? '· Ref: '+esc(o.clientReference) : '') +'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+cash(o.fee)+'</div><div style="font-size:9px; color:var(--muted)">'+payLabel+'</div></div></div><div class="meta"><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+rainTag+' '+pickupTimerHtml+'</div>'+gpsTrackingInfo+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
+    return '<article class="order"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>'+esc(o.clientStreet)+', '+esc(o.clientNumber)+' - '+esc(o.clientNeighborhood)+'</h3><div class="order-store">Cliente: <b>'+esc(o.client)+'</b> ('+esc(o.phone)+') '+ (o.clientReference ? '· Ref: '+esc(o.clientReference) : '') +'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div><div style="font-size:9px; color:var(--muted)">'+payLabel+'</div></div></div><div class="meta"><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+rainTag+' '+pickupTimerHtml+'</div>'+bidsHtml+gpsTrackingInfo+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
   }
 
   function render(){
@@ -864,6 +911,7 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     if(view==="profile" && role==="store") return profileView();
     if(view==="all" && role==="admin") return listView("all");
     if(view==="open"||view==="available") return listView("open");
+    if(view==="quotes") return quotesView();
     if(view==="run"||view==="done") return listView(view);
     if(view==="summary") return summaryView();
     if(view==="rates" && role==="admin") return ratesView();
@@ -944,6 +992,13 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     return '<div class="head"><div><h1>'+t+'</h1><p>'+(status==="all"?"Todos os pedidos registrados.":status==="open"?"Aceite uma corrida para iniciá-la.":status==="run"?"Corridas em andamento com GPS ativo.":"Corridas finalizadas hoje.")+'</p></div>'+(role==="store"&&status==="open"?'<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>':"")+'</div>'+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhum pedido","Nenhuma corrida nesta etapa"));
   }
 
+  function quotesView(){
+    var arr = data.orders.filter(o => o.status === "cotacao");
+    if (role === "store") arr = arr.filter(o => o.storeId === actor);
+    arr.sort((a,b) => b.created-a.created);
+    return '<div class="head"><div><h1>Mural de Cotações</h1><p>Locais especiais e entregas com preços propostos por motoboys.</p></div>'+(role==="store"?'<button type="button" class="btn primary" data-open-sheet>＋ Pedir Cotação</button>':"")+'</div>'+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhuma cotação ativa","As solicitações de cotação aparecerão aqui."));
+  }
+
   function summaryView(){
     var os = mine().filter(o => isToday(o.created)), done = os.filter(o => o.status==="done"), paid = done.filter(o => o.paid), unpaid = os.filter(o => o.status!=="done"||!o.paid);
     return '<div class="head"><div><h1>Resumo diário</h1></div></div><div class="grid stats">'+stat("Serviços",os.length,"Registrados hoje","▣")+stat("Concluídos",done.length,cash(done.reduce((n,o)=>n+o.fee,0))+" em entregas","✓")+stat("Pagos",paid.length,cash(paid.reduce((n,o)=>n+o.fee,0))+" confirmados","$")+stat("Em aberto",unpaid.length,cash(unpaid.reduce((n,o)=>n+o.fee,0))+" pendentes","◷")+'</div>';
@@ -961,10 +1016,31 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
   async function act(action, id) {
     var o = data.orders.find(x => x.id === id);
     if (action !== "save-rates" && !o) return toast("Pedido não encontrado. Atualize a tela.", "warn");
+    
+    if (action === "send-bid") {
+      var input = document.getElementById("bid-input-" + id);
+      var amount = Number(input ? input.value : 0);
+      if (!amount || amount <= 0) return toast("Informe um valor válido para a proposta.", "warn");
+      var courierName = (person() || {}).name || "Motoboy";
+      await update(ref(db, `orders/${id}/bids/${actor}`), { amount: amount, courierName: courierName, timestamp: Date.now() });
+      toast("Proposta de cotação enviada com sucesso!"); render();
+    }
+    
+    if (action === "accept-bid") {
+      var btn = document.querySelector(`[data-action="accept-bid"][data-id="${id}"]`);
+      if (!btn) return;
+      var cId = btn.dataset.courier;
+      var amount = Number(btn.dataset.amount);
+      var cName = btn.dataset.cname;
+      if (!confirm(`Confirmar contratação do motoboy ${cName} por ${cash(amount)}?`)) return;
+      await update(ref(db, "orders/" + id), { status: "run", courierId: cId, courierName: cName, fee: amount, accepted: Date.now() });
+      toast(`Cotação finalizada! Motoboy ${cName} contratado.`); view = "open"; render();
+    }
+
     if (action === "accept") {
       if (data.orders.some(x => x.status === "run" && x.courierId === actor)) return toast("Finalize a corrida atual antes de aceitar outra.", "warn");
       const isRaining = confirm("Está chovendo no trajeto desta entrega?\n\nOK: aplicar condição de chuva\nCancelar: tarifa normal");
-      const newFee = isRaining && !o.rain ? calculateFee(o.paymentMethod, true, o.bag, o.bank, o.clientNeighborhood) : o.fee;
+      const newFee = isRaining && !o.rain ? calculateFee(o.paymentMethod, true, o.bag, o.bank, o.selectedZone) : o.fee;
       try {
         const result = await runTransaction(ref(db, "orders/" + id), current => {
           if (!current || current.status !== "open") return;
@@ -1032,7 +1108,7 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     
     var submitButton = f.querySelector('button[type="submit"]');
     if (submitButton.disabled) return;
-    submitButton.disabled = true; submitButton.textContent = "Enviando pedido...";
+    submitButton.disabled = true; submitButton.textContent = "Enviando...";
     
     var serviceType = f.serviceType.value;
     var clientStreet = f.clientStreet.value.trim();
@@ -1042,20 +1118,16 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
 
     if(!clientStreet || !clientNumber || !clientNeighborhood) { 
       submitButton.disabled = false; submitButton.textContent = "Confirmar e Enviar Pedido →"; 
-      return toast("Preencha rua, número e bairro do cliente.", "warn"); 
+      return toast("Preencha a rua, número e bairro do cliente.", "warn"); 
     }
 
-    const knownZones = Object.keys(data.rates.zones || defaultRates.zones);
-    if (!knownZones.some(zone => zone.toLocaleLowerCase("pt-BR") === clientNeighborhood.toLocaleLowerCase("pt-BR"))) {
-      submitButton.disabled = false; submitButton.textContent = "Confirmar e Enviar Pedido →";
-      return toast("Este bairro ainda não possui tarifa cadastrada. Escolha um bairro válido da tabela.", "warn");
-    }
-    
+    var selectedZone = f.selectedZone.value;
+    var isQuote = f.isQuote.checked;
     var p = f.paymentMethod.value;
     var b = f.bag.checked;
     var k = f.bank.checked;
-    var finalFee = calculateFee(p, false, b, k, clientNeighborhood);
-    var code = "EXP-" + Math.floor(1000 + Math.random() * 9000);
+    var finalFee = isQuote ? 0 : calculateFee(p, false, b, k, selectedZone);
+    var code = (isQuote ? "COT-" : "EXP-") + Math.floor(1000 + Math.random() * 9000);
 
     try {
       await set(push(ref(db, "orders")), {
@@ -1072,11 +1144,16 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
         clientReference: clientReference,
         address: `${clientStreet}, nº ${clientNumber} - ${clientNeighborhood}`,
         neighborhood: clientNeighborhood,
+        selectedZone: selectedZone,
         paymentMethod: p, 
         notes: f.elements.namedItem("notes").value.trim(), 
-        rain: false, bag: b, bank: k, fee: finalFee, status: "open", created: Date.now(), location: null
+        rain: false, bag: b, bank: k, fee: finalFee, 
+        status: isQuote ? "cotacao" : "open", 
+        created: Date.now(), location: null
       });
-      f.reset(); recalculateMobileFee(); closeOrderSheet(); toast("Pedido enviado para a fila geral!"); view = "open"; render();
+      f.reset(); recalculateMobileFee(); closeOrderSheet(); 
+      toast(isQuote ? "Cotação publicada no mural dos motoboys!" : "Pedido enviado para a fila geral!"); 
+      view = isQuote ? "quotes" : "open"; render();
     } catch(err) { toast("Não foi possível enviar: " + err.message, "warn"); }
     finally { submitButton.disabled = false; submitButton.textContent = "Confirmar e Enviar Pedido →"; }
   });
