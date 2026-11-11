@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover,interactive-widget=resizes-content">
-<title>Express Entregas — Sistema Completo com Cotações, Pagamentos e Edição</title>
+<title>Express Entregas — Sistema Completo com Rastreio, Relatórios, Alerta Sonoro e Favoritos</title>
 <style>
 :root{--ink:#19221d;--muted:#718078;--line:#e5ebe6;--paper:#f5f7f5;--green:#10b981;--dark:#065f46;--mint:#e6f5ec;--orange:#a95612;--orangebg:#fff2e4;--red:#ae3832;--redbg:#fff0ee;--blue:#326b9b;--bluebg:#eaf3fb;--purple:#6b21a8;--purplebg:#f3e8ff;--dark-bg:#111827;--card-bg:#1f2937}
 *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer}
@@ -102,6 +102,10 @@
 #auth-feedback{display:none;margin-top:12px;padding:11px 12px;border-radius:9px;border:1px solid #286448;background:#172b22;color:#d1fae5;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
 #auth-feedback.error{display:block;background:#351d1d;border-color:#7f3030;color:#fee2e2}
 #auth-feedback.info{display:block}
+
+/* TELA DE RASTREIO PÚBLICO */
+#public-track-screen{position:fixed;inset:0;background:#111827;color:#fff;z-index:500;display:none;padding:20px;overflow-y:auto;align-items:center;justify-content:center}
+.track-box{background:#1f2937;border:1px solid #374151;border-radius:16px;padding:24px;width:100%;max-width:500px;display:grid;gap:16px;box-shadow:0 20px 25px rgba(0,0,0,0.5)}
 
 @media(max-width:850px){.app{grid-template-columns:185px 1fr}.cols{grid-template-columns:1fr}.content{padding:20px}.stats{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:620px){
@@ -322,6 +326,22 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
   </div>
 </div>
 
+<!-- TELA DE RASTREIO PÚBLICO (PARA O CLIENTE FINAL) -->
+<div id="public-track-screen">
+  <div class="track-box">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <div class="logo" style="width:30px;height:30px;font-size:14px;">EE</div>
+        <h2 style="margin:0; font-size:18px;">Rastreio de Entrega</h2>
+      </div>
+      <button type="button" class="btn secondary tiny" id="btn-close-track" style="background:#374151; color:#fff; border:0;">✕ Fechar</button>
+    </div>
+    <div id="public-track-content" style="display:grid; gap:10px; font-size:12px;">
+      <!-- Conteúdo injetado via JS -->
+    </div>
+  </div>
+</div>
+
 <!-- Modal para Novo Pedido / Edição / Cotação -->
 <div id="order-sheet-overlay" class="mobile-sheet-overlay">
   <div class="mobile-sheet-card">
@@ -333,24 +353,8 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
       <input type="hidden" id="edit-order-id" value="">
       <div class="sheet-body">
         
-        <div class="field full">
-          <label><b>Tipo de Serviço</b></label>
-          <select name="serviceType" id="service-type-select" style="font-weight:bold; background:var(--mint); color:var(--dark);">
-            <option value="delivery">🚚 Entrega (Retira na Loja ➔ Leva no Cliente)</option>
-            <option value="collection">🔄 Coleta / Busca (Busca no Cliente ➔ Traz na Loja)</option>
-          </select>
-        </div>
-
-        <div class="field full">
-          <label>Nome do Cliente</label>
-          <input name="client" id="inp-client" required placeholder="Ex: João da Silva">
-        </div>
-        <div class="field full">
-          <label>Telefone / WhatsApp do Cliente</label>
-          <input name="phone" id="inp-phone" required placeholder="(27) 99999-9999">
-        </div>
-
-        <div class="section-title" style="margin-top:5px;">Endereço Completo do Cliente</div>
+        <!-- ENDEREÇO EM DESTAQUE NO TOPO -->
+        <div class="section-title" style="margin-top:2px; color:var(--dark);">📍 1. Endereço Completo do Destino / Coleta</div>
         <div class="formgrid">
           <div class="field" style="grid-column: 1 / span 2;">
             <label>Rua / Logradouro</label>
@@ -371,10 +375,29 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
         </div>
 
         <div class="field full" style="margin-top:5px; background:#f4f9f5; padding:10px; border-radius:8px; border:1px solid #d2e5d6;">
-          <label style="color:var(--dark)">📍 Região / Localidade para ajuste de taxa (Opcional)</label>
+          <label style="color:var(--dark)">Região / Localidade para ajuste de taxa (Opcional)</label>
           <select name="selectedZone" id="zone-select-mobile" style="font-size:12px;">
             <option value="">Standard — Sede e Bairros (R$ 7,00 padrão)</option>
           </select>
+        </div>
+
+        <!-- TIPO DE SERVIÇO COM ENFASE -->
+        <div class="field full" style="margin-top:5px; background:var(--mint); padding:10px; border-radius:8px; border:1px solid #a7f3d0;">
+          <label style="color:var(--dark); font-weight:800; font-size:11px;">⚠️ 2. Escolha o Tipo de Serviço com Atenção</label>
+          <select name="serviceType" id="service-type-select" style="font-weight:bold; background:#fff; color:var(--dark); margin-top:4px; font-size:12px; padding:10px;">
+            <option value="delivery">🚚 ENTREGA (Retira na Loja ➔ Leva no Cliente)</option>
+            <option value="collection">🔄 COLETA / BUSCA (Busca no Cliente ➔ Traz na Loja)</option>
+          </select>
+        </div>
+
+        <div class="field full">
+          <label>Nome do Cliente (Favoritos salvos no autocomplete)</label>
+          <input name="client" id="inp-client" list="saved-clients-list" required placeholder="Ex: João da Silva">
+          <datalist id="saved-clients-list"></datalist>
+        </div>
+        <div class="field full">
+          <label>Telefone / WhatsApp do Cliente <span style="font-weight:normal; color:var(--muted)">(Opcional)</span></label>
+          <input name="phone" id="inp-phone" placeholder="(27) 99999-9999">
         </div>
 
         <div class="field full" style="margin-top:5px;">
@@ -429,8 +452,8 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
       <nav id="nav" class="nav"></nav>
     </div>
     <div class="side-note">
-      <b>Fluxo Integrado Ativo</b>
-      Pagamentos simultâneos e cotações flexíveis.
+      <b>Solução Integrada 100% Ativa</b>
+      Rastreio, relatórios, som e favoritos.
     </div>
   </aside>
   <div class="main">
@@ -529,6 +552,102 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
   var view = "dashboard";
   var watchId = null;
   var trackingOrderId = null;
+  var lastOrderCount = 0;
+
+  // VERIFICAÇÃO DE RASTREIO VIA URL HASH (#track=ID)
+  window.addEventListener("hashchange", checkUrlTracking);
+  function checkUrlTracking(){
+    var hash = window.location.hash;
+    if(hash.startsWith("#track=")) {
+      var trackId = hash.replace("#track=", "");
+      openPublicTracker(trackId);
+    }
+  }
+
+  function openPublicTracker(orderId) {
+    var screen = document.getElementById("public-track-screen");
+    var box = document.getElementById("public-track-content");
+    screen.style.display = "flex";
+    box.innerHTML = '<p>Carregando informações da entrega...</p>';
+    
+    get(ref(db, "orders/" + orderId)).then(snap => {
+      if(!snap.exists()) { box.innerHTML = '<p style="color:var(--red);">Pedido não encontrado ou link expirado.</p>'; return; }
+      var o = snap.val();
+      var st = o.status === "open" ? "Aguardando Motoboy" : o.status === "run" ? "Em Trânsito / Rota" : o.status === "done" ? "Entregue com Sucesso" : "Em Cotação";
+      var gpsInfo = (o.location && o.status === "run") ? `<a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" class="btn primary" style="text-align:center; display:block; margin-top:10px;">🗺️ Abrir Localização Exata no Mapa</a>` : '<p style="color:var(--muted); text-align:center;">Motoboy ainda não iniciou o deslocamento GPS.</p>';
+      
+      box.innerHTML = `
+        <div style="background:#111827; padding:12px; border-radius:8px;">
+          <div style="font-size:10px; color:#9ca3af;">CÓDIGO: <b>${esc(o.orderCode || o.id)}</b></div>
+          <div style="font-size:14px; font-weight:bold; margin:4px 0;">Loja: ${esc(o.storeName)}</div>
+          <div style="font-size:11px; color:#d1d5db;">Destino: ${esc(o.clientStreet)}, nº ${esc(o.clientNumber)} - ${esc(o.clientNeighborhood)}</div>
+        </div>
+        <div style="background:#374151; padding:10px; border-radius:8px; text-align:center;">
+          <span style="font-size:11px; color:#9ca3af; display:block;">STATUS ATUAL:</span>
+          <b style="font-size:14px; color:var(--green);">${st}</b>
+          <div style="font-size:11px; margin-top:4px;">Motoboy: <b>${esc(o.courierName || "Aguardando atribuição")}</b></div>
+        </div>
+        ${gpsInfo}
+      `;
+    }).catch(err => { box.innerHTML = '<p style="color:var(--red);">Erro ao carregar rastreio.</p>'; });
+  }
+
+  document.getElementById("btn-close-track").addEventListener("click", () => {
+    document.getElementById("public-track-screen").style.display = "none";
+    window.location.hash = "";
+  });
+
+  // SISTEMA DE ALERTA SONORO (WEB AUDIO API)
+  function playBeep() {
+    try {
+      var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // Dó/Ré agudo
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.3);
+    } catch(e) {}
+  }
+
+  // SISTEMA DE FAVORITOS (AUTOCOMPLETE DE CLIENTES NO LOCALSTORAGE)
+  function saveClientFavorite(clientName, clientPhone, clientStreet, clientNumber, clientNeighborhood) {
+    if(!clientName) return;
+    try {
+      var favs = JSON.parse(localStorage.getItem("express_clients_favs") || "{}");
+      favs[clientName.toLowerCase()] = { name: clientName, phone: clientPhone || "", street: clientStreet || "", number: clientNumber || "", neighborhood: clientNeighborhood || "" };
+      localStorage.setItem("express_clients_favs", JSON.stringify(favs));
+      refreshSavedClientsDatalist();
+    } catch(e){}
+  }
+
+  function refreshSavedClientsDatalist() {
+    var datalist = document.getElementById("saved-clients-list");
+    if(!datalist) return;
+    try {
+      var favs = JSON.parse(localStorage.getItem("express_clients_favs") || "{}");
+      datalist.innerHTML = Object.values(favs).map(f => `<option value="${esc(f.name)}">Tel: ${esc(f.phone || "N/A")} | ${esc(f.neighborhood)}</option>`).join("");
+    } catch(e){}
+  }
+
+  document.addEventListener("input", e => {
+    if(e.target && e.target.id === "inp-client") {
+      var val = e.target.value.trim().toLowerCase();
+      try {
+        var favs = JSON.parse(localStorage.getItem("express_clients_favs") || "{}");
+        if(favs[val]) {
+          var f = favs[val];
+          if(document.getElementById("inp-phone")) document.getElementById("inp-phone").value = f.phone || "";
+          if(document.getElementById("inp-street")) document.getElementById("inp-street").value = f.street || "";
+          if(document.getElementById("inp-number")) document.getElementById("inp-number").value = f.number || "";
+          if(document.getElementById("input-neighborhood")) document.getElementById("input-neighborhood").value = f.neighborhood || "";
+        }
+      } catch(err){}
+    }
+  });
 
   document.getElementById("login-screen").style.display = "flex";
   document.getElementById("auth-form").setAttribute("autocomplete", "on");
@@ -614,7 +733,16 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
       orderSources.set(sourceKey, new Map(orders.map(o => [o.id, o])));
       const merged = new Map();
       orderSources.forEach(source => source.forEach((value,key) => merged.set(key,value)));
-      data.orders = Array.from(merged.values());
+      var newOrdersList = Array.from(merged.values());
+      
+      // DISPARAR ALERTA SE HOUVER NOVO PEDIDO NA FILA
+      if (lastOrderCount > 0 && newOrdersList.length > lastOrderCount) {
+        playBeep();
+        toast("🔔 Novo pedido ou cotação recebida no sistema!", "warn");
+      }
+      lastOrderCount = newOrdersList.length;
+      data.orders = newOrdersList;
+
       if (role === "courier") {
         const activeOrder = data.orders.find(o => o.status === "run" && o.courierId === actor);
         if (activeOrder && trackingOrderId !== activeOrder.id) startGpsTracking(activeOrder.id);
@@ -648,6 +776,8 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
       setAuthFeedback("", "info");
       view = role === "courier" ? "available" : "dashboard";
       startDataListeners(); render();
+      refreshSavedClientsDatalist();
+      checkUrlTracking();
     })();
     try { await sessionInitPromise; } finally { sessionInitPromise = null; }
   }
@@ -848,12 +978,12 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
   function isWeekend(){ return [0,6].includes(new Date().getDay()); }
 
   function items(){
-    if (role === "store") return [["dashboard","⌂","Visão geral"],["new","＋","Pedir motoboy"],["quotes","💬","Cotações"],["profile","⚙️","Meu Perfil"],["open","◷","Em aberto"],["done","✓","Concluídos"],["summary","▤","Meu resumo"]];
-    else if (role === "courier") return [["available","＋","Disponíveis"],["quotes","💬","Cotações"],["run","◷","Em execução"],["done","✓","Concluídos"],["summary","▤","Meu resumo"]];
-    else return [["dashboard","⌂","Visão geral"],["all","▣","Todos os pedidos"],["quotes","💬","Cotações"],["rates","R$","Tabela de Taxas"],["registry","♙","Cadastros Globais"]];
+    if (role === "store") return [["dashboard","⌂","Visão geral"],["new","＋","Pedir motoboy"],["quotes","💬","Cotações"],["reports","📊","Relatórios e Caixa"],["profile","⚙️","Meu Perfil"],["open","◷","Em aberto"],["done","✓","Concluídos"],["summary","▤","Meu resumo"]];
+    else if (role === "courier") return [["available","＋","Disponíveis"],["quotes","💬","Cotações"],["reports","📊","Relatórios e Caixa"],["run","◷","Em execução"],["done","✓","Concluídos"],["summary","▤","Meu resumo"]];
+    else return [["dashboard","⌂","Visão geral"],["all","▣","Todos os pedidos"],["quotes","💬","Cotações"],["reports","📊","Relatórios e Caixa"],["rates","R$","Tabela de Taxas"],["registry","♙","Cadastros Globais"]];
   }
 
-  function title(){ return ({dashboard:"Visão geral",new:"Solicitar motoboy",quotes:"Mural de Cotações",profile:"Meu Perfil e Endereço",open:"Pedidos em aberto",available:"Pedidos disponíveis",run:"Em execução",done:"Concluídos",summary:"Resumo diário",rates:"Tabela de Taxas",registry:"Cadastros Globais"})[view]||"Visão geral"; }
+  function title(){ return ({dashboard:"Visão geral",new:"Solicitar motoboy",quotes:"Mural de Cotações",reports:"Relatórios de Desempenho e Caixa",profile:"Meu Perfil e Endereço",open:"Pedidos em aberto",available:"Pedidos disponíveis",run:"Em execução",done:"Concluídos",summary:"Resumo diário",rates:"Tabela de Taxas",registry:"Cadastros Globais"})[view]||"Visão geral"; }
   function toast(s,t){ var e=document.createElement("div"); e.className="toast "+(t||""); e.textContent=s; document.getElementById("toasts").appendChild(e); setTimeout(()=>e.remove(),4000); }
   function empty(a,b){ return '<div class="empty"><b>'+a+'</b>'+b+'</div>'; }
   function stat(a,b,c,d){ return '<div class="stat"><div class="stat-top">'+a+'<span class="stat-icon">'+d+'</span></div><div class="stat-value">'+b+'</div><div class="stat-sub">'+c+'</div></div>'; }
@@ -915,27 +1045,30 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
                ` <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny" style="background:var(--mint);">${gpsBtnText}</a>`;
     }
 
-    /* BOTÕES DE PAGAMENTO SIMULTÂNEO */
     if (o.status === "done") {
       if (o.paid) {
-        action = '<span class="tag green">✓ Pago (Confirmado)</span>';
+        action = '<span class="tag green">✓ Pago (Confirmado pelo Motoboy)</span>';
       } else {
-        if (role === "store") {
-          action = '<button type="button" class="btn primary tiny" data-action="toggle-pay" data-id="'+o.id+'">💰 Informar Pagamento</button>';
-        } else if (role === "courier" || role === "admin") {
-          action = '<button type="button" class="btn primary tiny" data-action="toggle-pay" data-id="'+o.id+'">💵 Confirmar Pagamento / Pago</button>';
+        if (role === "courier" || role === "admin") {
+          action = '<button type="button" class="btn primary tiny" data-action="toggle-pay" data-id="'+o.id+'">💵 Confirmar Recebimento / Pago</button>';
+        } else if (role === "store") {
+          action = '<span class="tag gray">Aguardando confirmação de pagamento pelo motoboy</span>';
         }
       }
     }
     
     if (role === "store" && o.status === "run" && !o.picked && canCancelFree) action += ` <button type="button" class="btn danger tiny" data-action="cancel-free" data-id="${o.id}">⚠️ Cancelar Sem Custo (Atraso)</button>`;
 
+    // LINK DE RASTREIO PÚBLICO PARA COMPARTILHAR COM O CLIENTE FINAL
+    var trackingLink = `${window.location.origin}${window.location.pathname}#track=${o.id}`;
+    var trackingShareHtml = `<div style="margin-top:6px; background:#f0f5f1; padding:6px 8px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:10px;">🔗 <b>Link para Cliente Rastrear:</b></span> <a href="${trackingLink}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny" style="font-size:9px; background:#fff;">Abrir Rastreio Público</a></div>`;
+
     var gpsTrackingInfo = (canLoc(o) && o.location && o.status === "run") ? `<div class="gps" style="margin-top:6px; background:var(--mint); padding:6px; border-radius:6px;">📍 <b>Motoboy em trânsito:</b> <a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" style="color:var(--dark); font-weight:bold;">Acompanhar no Mapa</a></div>` : "";
     var payLabel = o.paymentMethod === "card" ? "💳 Máquina de Cartão" : "💵 Dinheiro / PIX";
     var rainTag = o.rain ? `<span class="tag orange">🌧️ Dia Chuvoso</span>` : "";
     var serviceBadge = o.serviceType === "collection" ? '<span class="tag orange">🔄 COLETA (Cliente ➔ Loja)</span>' : '<span class="tag bluetag">🚚 ENTREGA (Loja ➔ Cliente)</span>';
 
-    return '<article class="order"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>'+esc(o.clientStreet)+', '+esc(o.clientNumber)+' - '+esc(o.clientNeighborhood)+'</h3><div class="order-store">Cliente: <b>'+esc(o.client)+'</b> ('+esc(o.phone)+') '+ (o.clientReference ? '· Ref: '+esc(o.clientReference) : '') +'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div><div style="font-size:9px; color:var(--muted)">'+payLabel+'</div></div></div><div class="meta"><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+rainTag+' '+pickupTimerHtml+'</div>'+bidsHtml+gpsTrackingInfo+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
+    return '<article class="order"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>'+esc(o.clientStreet)+', '+esc(o.clientNumber)+' - '+esc(o.clientNeighborhood)+'</h3><div class="order-store">Cliente: <b>'+esc(o.client)+'</b> '+ (o.phone ? '('+esc(o.phone)+')' : '') +' '+ (o.clientReference ? '· Ref: '+esc(o.clientReference) : '') +'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div><div style="font-size:9px; color:var(--muted)">'+payLabel+'</div></div></div><div class="meta"><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+rainTag+' '+pickupTimerHtml+'</div>'+trackingShareHtml+bidsHtml+gpsTrackingInfo+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
   }
 
   function render(){
@@ -955,8 +1088,9 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
   function show(){
     if(view==="dashboard") return dashboard();
     if(view==="new" && role==="store") { openOrderSheet(); return dashboard(); }
+    if(view==="reports") return reportsView();
     if(view==="profile" && role==="store") return profileView();
-    if(view==="all" && role==="admin") return listView("all");
+    if(view==="all" && role === "admin") return listView("all");
     if(view==="open"||view==="available") return listView("open");
     if(view==="quotes") return quotesView();
     if(view==="run"||view==="done") return listView(view);
@@ -964,6 +1098,46 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     if(view==="rates" && role==="admin") return ratesView();
     if(view==="registry" && role==="admin") return registry();
     return dashboard();
+  }
+
+  function reportsView(){
+    var os = mine();
+    var doneOrders = os.filter(o => o.status === "done");
+    var totalValue = doneOrders.reduce((acc, o) => acc + o.fee, 0);
+    var paidValue = doneOrders.filter(o => o.paid).reduce((acc, o) => acc + o.fee, 0);
+    var pendingValue = doneOrders.filter(o => !o.paid).reduce((acc, o) => acc + o.fee, 0);
+
+    return `
+      <div class="head"><div><h1>Relatórios de Desempenho e Caixa</h1><p>Fechamento consolidado e auditoria financeira de entregas.</p></div></div>
+      <div class="grid stats">
+        ${stat("Total de Entregas", os.length, "Histórico geral", "▣")}
+        ${stat("Faturamento Concluído", cash(totalValue), "Valor acumulado", "✓")}
+        ${stat("Valores Pagos", cash(paidValue), "Confirmados em caixa", "$")}
+        ${stat("Acertos Pendentes", cash(pendingValue), "Aguardando quitação", "◷")}
+      </div>
+      <section class="panel">
+        <div class="panel-head"><h2>Detalhamento do Caixa</h2></div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Código</th><th>Data</th><th>Cliente</th><th>Bairro</th><th>Taxa</th><th>Status Pagamento</th></tr>
+            </thead>
+            <tbody>
+              ${doneOrders.length ? doneOrders.map(o => `
+                <tr>
+                  <td><b>${esc(o.orderCode || o.id)}</b></td>
+                  <td>${date(o.created)}</td>
+                  <td>${esc(o.client)}</td>
+                  <td>${esc(o.clientNeighborhood)}</td>
+                  <td><b>${cash(o.fee)}</b></td>
+                  <td>${o.paid ? '<span class="tag green">Pago</span>' : '<span class="tag orange">Pendente</span>'}</td>
+                </tr>
+              `).join("") : '<tr><td colspan="6" style="text-align:center; color:var(--muted);">Nenhuma entrega concluída registrada.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    `;
   }
 
   function profileView(){
@@ -1036,7 +1210,7 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
   function listView(status){
     var arr = role === "store" ? (status==="all"?mine():mine().filter(o => status==="open"?o.status==="open":o.status===status)) : role === "courier" ? (status==="open"?data.orders.filter(o => o.status==="open"):mine().filter(o => o.status===status)) : (status==="all"?data.orders:today().filter(o => o.status===status));
     arr.sort((a,b) => b.created-a.created); var t = status === "all" ? "Todos os pedidos" : status === "open" ? (role==="store"?"Pedidos em aberto":"Pedidos disponíveis") : status === "run" ? "Em execução" : "Concluídos";
-    return '<div class="head"><div><h1>'+t+'</h1><p>'+(status==="all"?"Todos os pedidos registrados.":status==="open"?"Aceite uma corrida para iniciá-la.":status==="run"?"Corridas em andamento com GPS ativo.":"Corridas finalizadas hoje.")+'</p></div>'+(role==="store"&&status==="open"?'<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>':"")+'</div>'+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhum pedido","Nenhuma corrida nesta etapa"));
+    return '<div class="head"><div><h1>'+t+'</h1><p>'+(status==="all"?"Todos os pedidos registrados.":status==="open"?"Aceite uma corrida para iniciá-la.":status==="run"?"Corridas em andamento com GPS ativo.":"Corridas finalizadas hoje.")+'</p></div>'+(role === "store" && status === "open" ? '<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>' : "")+'</div>'+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhum pedido","Nenhuma corrida nesta etapa"));
   }
 
   function quotesView(){
@@ -1112,7 +1286,7 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     if (action === "finish") {
       stopGpsTracking();
       await update(ref(db, "orders/" + id), { status: "done", completed: Date.now(), paid: false });
-      toast("Entrega concluída! Aguardando confirmação de pagamento."); view = "done"; render();
+      toast("Entrega concluída! Aguardando o motoboy confirmar o recebimento."); view = "done"; render();
     }
     if (action === "cancel") {
       if(!confirm("Deseja cancelar esta corrida e retorná-la para a fila?")) return;
@@ -1129,9 +1303,8 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
       toast("Pedido cancelado sem custo por atraso."); render();
     }
     if (action === "toggle-pay") {
-      var nextPaid = !o.paid;
-      await update(ref(db, "orders/" + id), { paid: nextPaid });
-      toast(nextPaid ? "💰 Pagamento confirmado simultaneamente!" : "Pagamento redefinido para pendente.");
+      await update(ref(db, "orders/" + id), { paid: true });
+      toast("💵 Recebimento confirmado pelo motoboy! Pagamento finalizado.");
     }
     if (action === "save-rates") {
       var zones = {};
@@ -1162,39 +1335,52 @@ button,[data-nav],[data-action],a.btn{touch-action:manipulation;-webkit-tap-high
     if (!s || role !== "store") return toast("Entre com uma conta de lojista para solicitar uma entrega.", "warn");
     if (!s.address) { closeOrderSheet(); toast("Cadastre o endereço da sua loja em 'Meu Perfil' antes de pedir um motoboy.", "warn"); view = "profile"; render(); return; }
     
+    var serviceType = f.serviceType.value;
+    var serviceTypeText = serviceType === "collection" ? "🔄 COLETA / BUSCA (Busca no Cliente ➔ Traz na Loja)" : "🚚 ENTREGA (Retira na Loja ➔ Leva no Cliente)";
+    var clientStreet = f.clientStreet.value.trim();
+    var clientNumber = f.clientNumber.value.trim();
+    var clientNeighborhood = f.clientNeighborhood.value.trim();
+    var clientName = f.elements.namedItem("client").value.trim();
+    var clientPhone = f.elements.namedItem("phone").value.trim();
+
+    if(!clientStreet || !clientNumber || !clientNeighborhood) { 
+      return toast("Preencha a rua, número e bairro do cliente.", "warn"); 
+    }
+
+    var isQuote = f.isQuote.checked;
+    var selectedZone = f.selectedZone.value;
+    var p = f.paymentMethod.value;
+    var b = f.bag.checked;
+    var k = f.bank.checked;
+    var finalFee = isQuote ? 0 : calculateFee(p, false, b, k, selectedZone);
+
+    var confirmMsg = `Confirma a solicitação abaixo?\n\n` +
+                     `📌 TIPO: ${serviceTypeText}\n` +
+                     `📍 DESTINO: ${clientStreet}, nº ${clientNumber} - ${clientNeighborhood}\n` +
+                     `👤 CLIENTE: ${clientName}\n` +
+                     `💰 VALOR: ${isQuote ? "Sob Cotação" : cash(finalFee)}`;
+
+    if (!confirm(confirmMsg)) return;
+
+    // SALVAR CLIENTE NOS FAVORITOS (AUTOCOMPLETE)
+    saveClientFavorite(clientName, clientPhone, clientStreet, clientNumber, clientNeighborhood);
+
     var submitButton = f.querySelector('button[type="submit"]');
     if (submitButton.disabled) return;
     submitButton.disabled = true; submitButton.textContent = "Salvando...";
     
     var editId = document.getElementById("edit-order-id").value;
-    var serviceType = f.serviceType.value;
-    var clientStreet = f.clientStreet.value.trim();
-    var clientNumber = f.clientNumber.value.trim();
-    var clientNeighborhood = f.clientNeighborhood.value.trim();
-    var clientReference = f.clientReference.value.trim();
-
-    if(!clientStreet || !clientNumber || !clientNeighborhood) { 
-      submitButton.disabled = false; submitButton.textContent = "Confirmar e Enviar Pedido →"; 
-      return toast("Preencha a rua, número e bairro do cliente.", "warn"); 
-    }
-
-    var selectedZone = f.selectedZone.value;
-    var isQuote = f.isQuote.checked;
-    var p = f.paymentMethod.value;
-    var b = f.bag.checked;
-    var k = f.bank.checked;
-    var finalFee = isQuote ? 0 : calculateFee(p, false, b, k, selectedZone);
     var code = editId ? undefined : ((isQuote ? "COT-" : "EXP-") + Math.floor(1000 + Math.random() * 9000));
 
     try {
       var orderPayload = {
         serviceType: serviceType,
-        client: f.elements.namedItem("client").value.trim(), 
-        phone: f.elements.namedItem("phone").value.trim(), 
+        client: clientName, 
+        phone: clientPhone, 
         clientStreet: clientStreet,
         clientNumber: clientNumber,
         clientNeighborhood: clientNeighborhood,
-        clientReference: clientReference,
+        clientReference: f.elements.namedItem("clientReference").value.trim(),
         address: `${clientStreet}, nº ${clientNumber} - ${clientNeighborhood}`,
         neighborhood: clientNeighborhood,
         selectedZone: selectedZone,
