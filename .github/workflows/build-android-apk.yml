@@ -34,6 +34,12 @@ jobs:
       - name: Instalar dependências
         run: npm install
 
+      - name: Preparar ícones do aplicativo
+        run: |
+          mkdir -p www/icons
+          curl -fL https://fmrpbr.github.io/Express/icons/icon-192.png -o www/icons/icon-192.png
+          curl -fL https://fmrpbr.github.io/Express/icons/icon-512.png -o www/icons/icon-512.png
+
       - name: Criar projeto Android
         run: npx cap add android
 
