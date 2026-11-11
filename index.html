@@ -1,44 +1,13 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<style>
-@font-face { font-family: "Optimistic"; font-style: normal; font-weight: 400 600; font-display: swap; src: url("/fonts/OptimisticAI_VF_Optimized.woff2") format("woff2"); }
-@font-face { font-family: "Optimistic Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/OptimisticMono_W_TextRegular.woff2") format("woff2"); }
-:where(html) { font-family: "Optimistic", system-ui, sans-serif; }
-:where(code, pre, kbd, samp) { font-family: "Optimistic Mono", ui-monospace, monospace; }
-</style>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover,interactive-widget=resizes-content">
 <meta name="theme-color" content="#EA1D2C">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Express Entregas">
-<title>Express Entregas — App Completo PWA com Som, WhatsApp e Rastreio</title>
-
-<!-- Injeção do Manifest PWA em Tempo de Execução -->
-<script>
-  (function() {
-    var manifest = {
-      "name": "Express Entregas Logística",
-      "short_name": "Express",
-      "start_url": "./",
-      "display": "standalone",
-      "background_color": "#1A1A1A",
-      "theme_color": "#EA1D2C",
-      "icons": [
-        { "src": "https://cdn-icons-png.flaticon.com/512/2972/2972185.png", "sizes": "192x192", "type": "image/png" },
-        { "src": "https://cdn-icons-png.flaticon.com/512/2972/2972185.png", "sizes": "512x512", "type": "image/png" }
-      ]
-    };
-    var stringManifest = JSON.stringify(manifest);
-    var blob = new Blob([stringManifest], {type: 'application/json'});
-    var manifestURL = URL.createObjectURL(blob);
-    var link = document.createElement('link');
-    link.rel = 'manifest';
-    link.href = manifestURL;
-    document.head.appendChild(link);
-  })();
-</script>
+<title>Express Entregas — Rastreio e Cotações</title>
 
 <style>
 :root{--ink:#1A1A1A;--muted:#717171;--line:#F0F0F0;--paper:#F7F7F7;--green:#00A868;--green-dark:#007A4A;--mint:#E8F7EF;--orange:#E85D04;--orangebg:#FFF1E6;--red:#EA1D2C;--red-dark:#C8102E;--redbg:#FDECEC;--blue:#175CD3;--bluebg:#EFF8FF;--purple:#6941C6;--purplebg:#F4F3FF;--black:#1A1A1A;--primary:#EA1D2C;--primary-dark:#C8102E;--yellow:#FFC800;--radius:20px}
@@ -46,7 +15,7 @@
 .app{min-height:100dvh;display:flex;flex-direction:column;background:#fff;max-width:480px;margin:0 auto;position:relative;box-shadow:0 0 0 1px #E5E7EB,0 20px 60px rgba(0,0,0,.08);overflow:hidden}
 .main{min-width:0;flex:1;display:flex;flex-direction:column;background:var(--paper);overflow-y:auto;order:1}
 
-/* Estilos de Mapa e Hero iFood incorporados */
+/* Layout Hero Estilo iFood */
 .map-hero{position:relative;height:210px;flex-shrink:0;overflow:hidden;background:#FFE9E9;background-image:linear-gradient(#FFE1E1 1px,transparent 1px),linear-gradient(90deg,#FFE1E1 1px,transparent 1px);background-size:28px 28px}
 .map-hero:before{content:"";position:absolute;inset:0;background:radial-gradient(520px 200px at 20% 20%,rgba(255,255,255,.9),transparent 60%),radial-gradient(400px 180px at 85% 70%,rgba(255,255,255,.7),transparent 60%)}
 .map-hero:after{content:"";position:absolute;left:-10%;top:42%;width:130%;height:18px;background:#fff;border-radius:99px;transform:rotate(-8deg);box-shadow:0 0 0 1px #E6E9E6}
@@ -61,7 +30,7 @@
 .selectbox small{display:block;color:var(--muted);font-size:8px;font-weight:800;letter-spacing:.06em}.selectbox select{border:0;outline:0;background:transparent;font-size:11px;font-weight:700;max-width:118px}
 .avatar{width:40px;height:40px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px;flex-shrink:0;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 
-/* Menu inferior fixo com segurança contra sobreposição de janelas */
+/* Menu inferior fixo sem conflito com modais */
 .side{background:#fff;border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom));display:block;order:10;position:sticky;bottom:0;z-index:50}
 .brand,.nav-title,.side-note{display:none}
 .nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
@@ -76,7 +45,7 @@
 .buttons{display:flex;gap:8px;flex-wrap:wrap}
 .btn{border:1px solid transparent;border-radius:14px;padding:12px 16px;font-size:13px;font-weight:750;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;min-height:46px;transition:transform .12s,box-shadow .12s}
 .btn:active{transform:scale(.98)}
-.primary{background:var(--primary);color:#fff;box-shadow:0 8px 20px rgba(234,29,44,.28)}.secondary{background:#F2F3F5;border-color:transparent;color:#111}.soft{background:var(--mint);color:var(--green-dark)}.warning{background:var(--orangebg);color:var(--orange)}.danger{background:var(--redbg);color:var(--red)}.purple{background:var(--purplebg);color:var(--purple)}.whatsapp{background:#25D366;color:#fff;box-shadow:0 6px 16px rgba(37,211,102,.28)}.tiny{padding:8px 12px;font-size:11px;min-height:36px;border-radius:10px}.btn.full{width:100%}
+.primary{background:var(--primary);color:#fff;box-shadow:0 8px 20px rgba(234,29,44,.28)}.secondary{background:#F2F3F5;border-color:transparent;color:#111}.soft{background:var(--mint);color:var(--green-dark)}.warning{background:var(--orangebg);color:var(--orange)}.danger{background:var(--redbg);color:var(--red)}.purple{background:var(--purplebg);color:var(--purple)}.tiny{padding:8px 12px;font-size:11px;min-height:36px;border-radius:10px}.btn.full{width:100%}
 
 .grid{display:grid;gap:12px}.stats{grid-template-columns:repeat(2,1fr);margin-bottom:16px}
 .stat,.panel,.order{background:#fff;border:1px solid var(--line);border-radius:20px}
@@ -109,7 +78,14 @@
 .chip{background:#F8F9FA;border:1px solid #F0F1F2;border-radius:14px;padding:13px 14px;font-size:12px;color:#667085;display:flex;justify-content:space-between}
 .info{padding:12px 14px;background:#EFF8FF;color:#175CD3;border-radius:14px;font-size:12px;margin-bottom:12px}
 
+.bid-box{background:#F8F9FA;border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:10px;display:grid;gap:8px}
+.bid-item{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:8px 12px;border-radius:10px;border:1px solid var(--line);font-size:12px}
+
 .toastbox{position:fixed;right:16px;bottom:96px;z-index:400;display:grid;gap:8px;left:16px;justify-items:center}.toast{background:#1A1A1A;color:#fff;padding:12px 16px;border-radius:14px;font-size:12px;max-width:420px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,.25);text-align:center}.toast.warn{background:#7A2E0E}
+
+.weather-alert { padding: 12px 16px; border-radius: 14px; font-size: 12px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.weather-alert.rain-active { background: var(--redbg); color: var(--red); border: 1px solid #FECDC2; }
+.weather-alert.rain-possible { background: var(--orangebg); color: var(--orange); border: 1px solid #FEE2E2; }
 
 .mobile-sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);z-index:200;display:none;align-items:flex-end;justify-content:center}
 .mobile-sheet-overlay.active{display:flex}
@@ -139,6 +115,10 @@
 #auth-feedback{display:none;margin-top:12px;padding:12px;border-radius:12px;border:1px solid #A6F4C5;background:#ECFDF3;color:#067647;font-size:12px;line-height:1.5}
 #auth-feedback.error{display:block;background:#FEF3F2;border-color:#FECDC2;color:#B42318}
 #auth-feedback.info{display:block}
+
+/* Tela de Rastreio Externo (#track) */
+#public-track-screen{position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);z-index:500;display:none;padding:20px;overflow-y:auto;align-items:center;justify-content:center}
+.track-box{background:#fff;color:#111;border-radius:24px;padding:26px;width:100%;max-width:480px;display:grid;gap:16px;box-shadow:0 20px 40px rgba(0,0,0,.3)}
 
 @media(min-width:900px){
   body{background:#E9EBEE}
@@ -193,8 +173,6 @@
     var ln = document.getElementById("label-name"), an = document.getElementById("auth-name");
     if(ln) ln.textContent = r === "store" ? "Nome do Estabelecimento" : "Nome Completo";
     if(an) an.placeholder = r === "store" ? "Ex: Restaurante Central" : "Ex: João Silva";
-    var fb = document.getElementById("auth-feedback");
-    if(fb){ fb.textContent = ""; fb.className = "info"; fb.style.display = "none"; }
   }
 
   function setAuthTabLocal(mode){
@@ -204,9 +182,7 @@
     if(rg) rg.className = "auth-tab " + (mode === "register" ? "active" : "");
     var fn = document.getElementById("field-name"), btn = document.getElementById("auth-submit-btn");
     if(fn) fn.style.display = mode === "register" ? "grid" : "none";
-    if(btn) btn.textContent = mode === "register" ? "Criar Conta Express →" : "Entrar no app →";
-    var fb = document.getElementById("auth-feedback");
-    if(fb){ fb.textContent = ""; fb.className = "info"; fb.style.display = "none"; }
+    if(btn) btn.textContent = mode === "register" ? "Criar Conta Express →" : "Acessar Painel Express →";
   }
 
   function togglePasswordLocal(){
@@ -214,9 +190,10 @@
     if(input) input.type = input.type === "password" ? "text" : "password";
   }
 
-  function openSheetLocal(){
+  function openSheetLocal(editId){
     var o = document.getElementById("order-sheet-overlay");
     if(o) o.classList.add("active");
+    if(window.__express && window.__express.prepareSheet) window.__express.prepareSheet(editId);
   }
 
   function closeSheetLocal(){
@@ -231,17 +208,15 @@
     var ui = e.target.closest ? e.target.closest("[data-login-role],[data-auth-tab],[data-toggle-password],[data-open-sheet],[data-close-sheet]") : null;
     if(ui){
       if(ui.hasAttribute("data-login-role")){
-        var rTarget = ui.dataset.loginRole;
-        selectLoginRoleLocal(rTarget);
-        if(window.__expressModuleReady && window.__express && window.__express.selectLoginRole) window.__express.selectLoginRole(rTarget);
+        selectLoginRoleLocal(ui.dataset.loginRole);
+        if(window.__expressModuleReady && window.__express && window.__express.selectLoginRole) window.__express.selectLoginRole(ui.dataset.loginRole);
       } else if(ui.hasAttribute("data-auth-tab")){
-        var mTarget = ui.dataset.authTab;
-        setAuthTabLocal(mTarget);
-        if(window.__expressModuleReady && window.__express && window.__express.setAuthTab) window.__express.setAuthTab(mTarget);
+        setAuthTabLocal(ui.dataset.authTab);
+        if(window.__expressModuleReady && window.__express && window.__express.setAuthTab) window.__express.setAuthTab(ui.dataset.authTab);
       } else if(ui.hasAttribute("data-toggle-password")){
         togglePasswordLocal();
       } else if(ui.hasAttribute("data-open-sheet")){
-        openSheetLocal();
+        openSheetLocal(ui.dataset.editId || null);
       } else if(ui.hasAttribute("data-close-sheet")){
         closeSheetLocal();
       }
@@ -258,6 +233,12 @@
     if(act){
       if(!window.__expressModuleReady || !window.__express || !window.__express.doAction){ showLoading(); return; }
       window.__express.doAction(act.dataset.action, act.dataset.id); return;
+    }
+
+    var adm = e.target.closest ? e.target.closest("[data-admin-login]") : null;
+    if(adm){
+      if(!window.__expressModuleReady || !window.__express || !window.__express.loginAsAdmin){ showLoading(); return; }
+      window.__express.loginAsAdmin(); return;
     }
 
     var out = e.target.closest ? e.target.closest("[data-logout]") : null;
@@ -314,67 +295,81 @@
         <input type="text" id="auth-extra" placeholder="(27) 99999-9999">
       </div>
 
-      <button type="submit" class="btn primary full" style="margin-top:10px;" id="auth-submit-btn">Entrar no app →</button>
+      <button type="submit" class="btn primary full" style="margin-top:10px;" id="auth-submit-btn">Acessar Painel Express →</button>
     </form>
     <div id="auth-feedback" role="status" aria-live="polite"></div>
+    <button type="button" class="btn secondary tiny full" style="margin-top:15px; width:100%" data-admin-login>🔒 Entrar como Administrador</button>
   </div>
 </div>
 
-<!-- Modal para Novo Pedido -->
+<!-- Tela de Rastreio Público (#track) -->
+<div id="public-track-screen">
+  <div class="track-box">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h2 style="margin:0; font-size:18px;">🔗 Rastreio de Entrega</h2>
+      <button type="button" class="btn secondary tiny" id="btn-close-track">✕ Fechar</button>
+    </div>
+    <div id="public-track-content" style="display:grid; gap:10px; font-size:13px;"></div>
+  </div>
+</div>
+
+<!-- Modal para Novo Pedido / Edição / Cotação -->
 <div id="order-sheet-overlay" class="mobile-sheet-overlay">
   <div class="mobile-sheet-card">
     <div class="sheet-header">
-      <div>
-        <h3>Solicitar motoboy</h3>
-        <span style="font-size:11px;color:#667085;display:block;font-weight:600">Origem • Destino • Cálculo por Bairro</span>
-      </div>
+      <h3 id="sheet-title-text">🚀 Solicitar Motoboy</h3>
       <button type="button" class="sheet-close-btn" data-close-sheet aria-label="Fechar">✕</button>
     </div>
     <form id="mobile-order-form" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
+      <input type="hidden" id="edit-order-id" value="">
       <div class="sheet-body">
         
-        <div class="field full">
-          <label><b>Tipo de Serviço</b></label>
-          <select name="serviceType" id="service-type-select" style="font-weight:bold; background:var(--mint); color:var(--green-dark);">
+        <div class="section-title" style="margin-top:2px;">📍 1. Endereço Completo do Destino</div>
+        <div class="formgrid">
+          <div class="field" style="grid-column: 1 / span 2;">
+            <label>Rua / Logradouro</label>
+            <input name="clientStreet" id="inp-street" required placeholder="Ex: Av. Venâncio Flores">
+          </div>
+          <div class="field">
+            <label>Número</label>
+            <input name="clientNumber" id="inp-number" required placeholder="Ex: 123">
+          </div>
+          <div class="field">
+            <label>Bairro / Localidade</label>
+            <input name="clientNeighborhood" id="input-neighborhood" required placeholder="Bairro" autocomplete="off">
+          </div>
+          <div class="field full">
+            <label>Ponto de Referência (Opcional)</label>
+            <input name="clientReference" id="inp-ref" placeholder="Próximo à praça">
+          </div>
+        </div>
+
+        <div class="field full" style="margin-top:5px; background:var(--paper); padding:10px; border-radius:12px;">
+          <label>Região / Taxa Específica</label>
+          <select name="selectedZone" id="zone-select-mobile">
+            <option value="">Standard — Sede e Bairros (Padrão)</option>
+          </select>
+        </div>
+
+        <div class="field full" style="margin-top:5px; background:var(--mint); padding:10px; border-radius:12px;">
+          <label style="color:var(--green-dark); font-weight:800;">⚠️ 2. Tipo de Serviço</label>
+          <select name="serviceType" id="service-type-select" style="font-weight:bold; background:#fff; color:var(--green-dark); margin-top:4px;">
             <option value="delivery">🚚 Entrega (Retira na Loja ➔ Leva no Cliente)</option>
             <option value="collection">🔄 Coleta / Busca (Busca no Cliente ➔ Traz na Loja)</option>
           </select>
         </div>
 
-        <div class="section-title" style="margin-top:2px; color:var(--dark);">📍 1. Endereço Completo do Cliente</div>
-        <div class="formgrid">
-          <div class="field" style="grid-column: 1 / span 2;">
-            <label>Rua / Logradouro</label>
-            <input name="clientStreet" required placeholder="Ex: Av. Venâncio Flores">
-          </div>
-          <div class="field">
-            <label>Número</label>
-            <input name="clientNumber" required placeholder="Ex: 123 ou S/N">
-          </div>
-          <div class="field">
-            <label>Bairro / Localidade</label>
-            <input name="clientNeighborhood" id="input-neighborhood" list="neighborhood-options" required placeholder="Bairro" autocomplete="off">
-            <datalist id="neighborhood-options"></datalist>
-          </div>
-          <div class="field full">
-            <label>Ponto de Referência (Opcional)</label>
-            <input name="clientReference" placeholder="Ex: Próximo à praça, portão preto">
-          </div>
+        <div class="field full">
+          <label>Nome do Cliente (Com sugestão de favoritos)</label>
+          <input name="client" id="inp-client" list="saved-clients-list" required placeholder="João da Silva">
+          <datalist id="saved-clients-list"></datalist>
+        </div>
+        <div class="field full">
+          <label>Telefone / WhatsApp</label>
+          <input name="phone" id="inp-phone" placeholder="(27) 99999-9999">
         </div>
 
-        <div class="section-title" style="margin-top:8px; color:var(--dark);">👤 2. Dados do Cliente e Pagamento</div>
-        <div class="formgrid">
-          <div class="field">
-            <label>Nome do Cliente</label>
-            <input name="client" required placeholder="Ex: João da Silva">
-          </div>
-          <div class="field">
-            <label>Telefone / WhatsApp</label>
-            <input name="phone" required placeholder="(27) 99999-9999">
-          </div>
-        </div>
-
-        <div class="field full" style="margin-top:8px;">
+        <div class="field full">
           <label>Forma de Pagamento da Corrida</label>
           <select name="paymentMethod" id="payment-select-mobile">
             <option value="money">💵 Dinheiro / PIX / Online</option>
@@ -383,25 +378,32 @@
         </div>
 
         <div class="field full">
-          <label>Observações / Itens do Pedido</label>
-          <input name="notes" placeholder="Ex: Chamar na campainha 2, levar troco para 50">
+          <label>Observações</label>
+          <input name="notes" id="inp-notes" placeholder="Ex: Chamar campainha">
         </div>
 
-        <div class="section" style="padding:10px 0;">
+        <div class="section" style="padding:10px 0; background:var(--purplebg); padding:10px; border-radius:12px;">
+          <label class="check" style="background:#fff; border-color:var(--purple);">
+            <input type="checkbox" name="isQuote" id="chk-is-quote"> 
+            <span style="font-weight:bold; color:var(--purple);">💬 Solicitar Cotação de Preço aos Motoboys</span>
+          </label>
+        </div>
+
+        <div class="section" style="padding:10px 0;" id="section-addons">
           <div class="section-title">Adicionais da Corrida</div>
           <div class="checks">
             <label class="check"><input type="checkbox" name="bag" id="chk-bag-mob"> 🎒 Mochila Cheia (+R$10)</label>
-            <label class="check"><input type="checkbox" name="bank" id="chk-bank-mob"> 🏦 Banco / Lotérica (+R$10)</label>
+            <label class="check"><input type="checkbox" name="bank" id="chk-bank-mob"> 🏦 Banco / Lotérica</label>
           </div>
         </div>
 
-        <div class="price">
-          <span>Tarifa Estimada da Corrida:</span>
+        <div class="price" id="box-price-display">
+          <span>Tarifa Estimada:</span>
           <b id="quote-price-mobile">R$ 7,00</b>
         </div>
       </div>
       <div class="sheet-footer">
-        <button type="submit" id="btn-submit-order" class="btn primary full" style="padding:14px; font-size:13px;">Confirmar e Enviar Pedido →</button>
+        <button type="submit" id="btn-submit-order" class="btn primary full">Confirmar e Enviar Pedido →</button>
       </div>
     </form>
   </div>
@@ -418,18 +420,18 @@
       <nav id="nav" class="nav"></nav>
     </div>
     <div class="side-note">
-      <b>Operação Direta</b>
-      Conectando lojistas e motoboys em tempo real.
+      <b>Operação Completa</b>
+      Rastreio, cotações e relatórios integrados.
     </div>
   </aside>
 
   <div class="main">
-    <!-- Header Hero Gráfico Estilo iFood -->
+    <!-- Banner Hero Gráfico Estilo iFood -->
     <div class="map-hero">
       <div class="map-road-2"></div>
       <div class="map-float">
         <div class="live"></div>
-        <span>Sistema Online • <b>Pronto</b></span>
+        <span>Sistema Online • <b>Ativo</b></span>
       </div>
     </div>
 
@@ -454,7 +456,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
   import { getDatabase, ref, set, update, push, get, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDBYL2nsHXAyBaTUOp0A08rlINxUqVdAyg",
@@ -505,68 +507,117 @@
   let actor = "";
   let currentUser = null;
   let unsubscribers = [];
+  let orderSources = new Map();
+  let pendingProfileWrite = null;
+  let sessionInitPromise = null;
+  let activeSessionUid = null;
+  let adminLoginRequested = false;
   let busy = false;
   let currentAuthMode = window.__expressAuthMode || "login";
   let currentLoginRole = window.__expressLoginRole || "store";
   let view = "dashboard";
   let watchId = null;
   let trackingOrderId = null;
-  let previousOrderCount = 0;
+  let lastOrderCount = 0;
 
-  function playNotificationSound() {
+  window.addEventListener("hashchange", checkUrlTracking);
+  function checkUrlTracking(){
+    let hash = window.location.hash;
+    if(hash.startsWith("#track=")) {
+      openPublicTracker(hash.replace("#track=", ""));
+    }
+  }
+
+  function openPublicTracker(orderId) {
+    let screen = document.getElementById("public-track-screen");
+    let box = document.getElementById("public-track-content");
+    screen.style.display = "flex";
+    box.innerHTML = '<p>Carregando informações da entrega...</p>';
+    
+    get(ref(db, "orders/" + orderId)).then(snap => {
+      if(!snap.exists()) { box.innerHTML = '<p style="color:var(--red);">Pedido não encontrado.</p>'; return; }
+      let o = snap.val();
+      let st = o.status === "open" ? "Aguardando Motoboy" : o.status === "run" ? "Em Trânsito / Rota" : o.status === "done" ? "Entregue" : "Em Cotação";
+      let gpsInfo = (o.location && o.status === "run") ? `<a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" class="btn primary full" style="margin-top:10px;">🗺️ Ver Localização Exata no Mapa</a>` : '<p style="color:var(--muted); text-align:center;">Deslocamento GPS ainda não iniciado.</p>';
+      
+      box.innerHTML = `
+        <div style="background:#F2F3F5; padding:12px; border-radius:12px;">
+          <div style="font-size:10px; color:var(--muted);">CÓDIGO: <b>${esc(o.orderCode || o.id)}</b></div>
+          <div style="font-size:15px; font-weight:bold; margin:4px 0;">Loja: ${esc(o.storeName)}</div>
+          <div style="font-size:12px; color:#555;">Destino: ${esc(o.clientStreet)}, nº ${esc(o.clientNumber)} - ${esc(o.clientNeighborhood)}</div>
+        </div>
+        <div style="background:var(--mint); padding:12px; border-radius:12px; text-align:center;">
+          <span style="font-size:11px; color:var(--green-dark); display:block; font-weight:700;">STATUS ATUAL:</span>
+          <b style="font-size:15px; color:var(--green-dark);">${st}</b>
+          <div style="font-size:12px; margin-top:4px;">Motoboy: <b>${esc(o.courierName || "Aguardando")}</b></div>
+        </div>
+        ${gpsInfo}
+      `;
+    }).catch(() => { box.innerHTML = '<p style="color:var(--red);">Erro ao carregar rastreio.</p>'; });
+  }
+
+  document.getElementById("btn-close-track").addEventListener("click", () => {
+    document.getElementById("public-track-screen").style.display = "none";
+    window.location.hash = "";
+  });
+
+  function playBeep() {
     try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
-      
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-      
+      let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      let osc = audioCtx.createOscillator();
+      let gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
       osc.connect(gain);
-      gain.connect(ctx.destination);
+      gain.connect(audioCtx.destination);
       osc.start();
-      osc.stop(ctx.currentTime + 0.4);
+      osc.stop(audioCtx.currentTime + 0.3);
     } catch(e) {}
   }
 
-  function requestNotificationPermission() {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
+  function saveClientFavorite(clientName, clientPhone, clientStreet, clientNumber, clientNeighborhood) {
+    if(!clientName) return;
+    try {
+      let favs = JSON.parse(localStorage.getItem("express_clients_favs") || "{}");
+      favs[clientName.toLowerCase()] = { name: clientName, phone: clientPhone || "", street: clientStreet || "", number: clientNumber || "", neighborhood: clientNeighborhood || "" };
+      localStorage.setItem("express_clients_favs", JSON.stringify(favs));
+      refreshSavedClientsDatalist();
+    } catch(e){}
   }
 
-  function triggerPushNotification(title, body) {
-    playNotificationSound();
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(title, { body: body, icon: "https://cdn-icons-png.flaticon.com/512/2972/2972185.png" });
-    }
+  function refreshSavedClientsDatalist() {
+    let datalist = document.getElementById("saved-clients-list");
+    if(!datalist) return;
+    try {
+      let favs = JSON.parse(localStorage.getItem("express_clients_favs") || "{}");
+      datalist.innerHTML = Object.values(favs).map(f => `<option value="${esc(f.name)}">Tel: ${esc(f.phone || "N/A")} | ${esc(f.neighborhood)}</option>`).join("");
+    } catch(e){}
   }
 
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      const swCode = `
-        self.addEventListener('install', e => self.skipWaiting());
-        self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
-        self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
-      `;
-      const blob = new Blob([swCode], {type: 'application/javascript'});
-      navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
-    });
-  }
+  document.addEventListener("input", e => {
+    if(e.target && e.target.id === "inp-client") {
+      let val = e.target.value.trim().toLowerCase();
+      try {
+        let favs = JSON.parse(localStorage.getItem("express_clients_favs") || "{}");
+        if(favs[val]) {
+          let f = favs[val];
+          if(document.getElementById("inp-phone")) document.getElementById("inp-phone").value = f.phone || "";
+          if(document.getElementById("inp-street")) document.getElementById("inp-street").value = f.street || "";
+          if(document.getElementById("inp-number")) document.getElementById("inp-number").value = f.number || "";
+          if(document.getElementById("input-neighborhood")) document.getElementById("input-neighborhood").value = f.neighborhood || "";
+        }
+      } catch(err){}
+    }
+  });
 
   window.selectLoginRole = function(r) {
     currentLoginRole = r; window.__expressLoginRole = r;
     setAuthFeedback("", "info");
-    const s = document.getElementById("btn-login-store"), c = document.getElementById("btn-login-courier");
+    let s = document.getElementById("btn-login-store"), c = document.getElementById("btn-login-courier");
     if(s) s.className = "role-btn " + (r === "store" ? "active" : "");
     if(c) c.className = "role-btn " + (r === "courier" ? "active" : "");
-    const ln = document.getElementById("label-name"), an = document.getElementById("auth-name");
+    let ln = document.getElementById("label-name"), an = document.getElementById("auth-name");
     if(ln) ln.textContent = r === "store" ? "Nome do Estabelecimento" : "Nome Completo";
     if(an) an.placeholder = r === "store" ? "Ex: Restaurante Central" : "Ex: João Silva";
   };
@@ -577,50 +628,78 @@
     document.getElementById("tab-login").className = "auth-tab " + (mode === "login" ? "active" : "");
     document.getElementById("tab-register").className = "auth-tab " + (mode === "register" ? "active" : "");
     document.getElementById("field-name").style.display = mode === "register" ? "grid" : "none";
-    document.getElementById("auth-submit-btn").textContent = mode === "register" ? "Criar Conta Express →" : "Entrar no app →";
+    document.getElementById("auth-submit-btn").textContent = mode === "register" ? "Criar Conta Express →" : "Acessar Painel Express →";
   };
 
   window.togglePassword = function() {
-    const input = document.getElementById("auth-password");
+    let input = document.getElementById("auth-password");
     input.type = input.type === "password" ? "text" : "password";
+  };
+
+  window.loginAsAdmin = async function() {
+    let email = document.getElementById("auth-email").value.trim();
+    let password = document.getElementById("auth-password").value;
+    if (!email || !password) return toast("Informe o e-mail e a senha de administrador.", "warn");
+    try {
+      setAuthFeedback("Verificando acesso...", "info");
+      adminLoginRequested = true;
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      adminLoginRequested = false;
+      setAuthFeedback(authError(err), "error");
+      toast(authError(err), "warn");
+    }
   };
 
   window.logout = async function() {
     stopGpsTracking();
     stopDataListeners();
     try { await signOut(auth); } catch (err) {}
-    currentUser = null; actor = ""; role = "store"; data.orders = [];
+    currentUser = null; actor = ""; role = "store"; data.orders = []; data.stores = []; data.couriers = [];
     document.getElementById("login-screen").style.display = "flex";
   };
 
+  function authError(err) {
+    let code = err && err.code;
+    let messages = {
+      "auth/invalid-email":"E-mail inválido.", "auth/user-not-found":"Conta não encontrada.",
+      "auth/wrong-password":"Senha incorreta.", "auth/invalid-credential":"E-mail ou senha incorretos.",
+      "auth/email-already-in-use":"Este e-mail já está cadastrado.", "auth/weak-password":"A senha deve ter pelo menos 6 caracteres.",
+      "auth/too-many-requests":"Muitas tentativas. Tente novamente mais tarde."
+    };
+    return messages[code] || (err && err.message) || "Falha na autenticação.";
+  }
+
   function setAuthFeedback(message, type) {
-    const box = document.getElementById("auth-feedback");
+    let box = document.getElementById("auth-feedback");
     if (!box) return;
     box.textContent = message || "";
     box.className = type === "error" ? "error" : "info";
     box.style.display = message ? "block" : "none";
   }
 
-  function stopDataListeners() { unsubscribers.forEach(fn => { try { fn(); } catch (_) {} }); unsubscribers = []; data.orders = []; }
+  function stopDataListeners() { unsubscribers.forEach(fn => { try { fn(); } catch (_) {} }); unsubscribers = []; orderSources.clear(); data.orders = []; }
   
-  function listenOrders() {
+  function listenOrders(sourceKey) {
     unsubscribers.push(onValue(ref(db, "orders"), snap => {
-      const raw = snap.val() || {};
+      let raw = snap.val() || {};
       let orders = Object.entries(raw).map(([id, value]) => ({ id, ...value }));
-      
-      const openCount = orders.filter(o => o.status === "open").length;
-      if (role === "courier" && openCount > previousOrderCount && previousOrderCount !== 0) {
-        triggerPushNotification("🚨 Nova corrida disponível!", "Uma nova solicitação de entrega entrou na fila.");
-      }
-      previousOrderCount = openCount;
-
       if (role === "store") orders = orders.filter(o => o.storeId === actor);
-      if (role === "courier") orders = orders.filter(o => o.status === "open" || o.courierId === actor);
-
-      data.orders = orders;
+      if (role === "courier") orders = orders.filter(o => o.status === "open" || o.status === "cotacao" || o.courierId === actor || o.status === "cancelado_cotacao");
+      orderSources.set(sourceKey, new Map(orders.map(o => [o.id, o])));
+      let merged = new Map();
+      orderSources.forEach(source => source.forEach((value,key) => merged.set(key,value)));
+      let newOrdersList = Array.from(merged.values());
+      
+      if (lastOrderCount > 0 && newOrdersList.length > lastOrderCount) {
+        playBeep();
+        toast("🔔 Novo pedido ou cotação recebida!", "warn");
+      }
+      lastOrderCount = newOrdersList.length;
+      data.orders = newOrdersList;
 
       if (role === "courier") {
-        const activeOrder = data.orders.find(o => o.status === "run" && o.courierId === actor);
+        let activeOrder = data.orders.find(o => o.status === "run" && o.courierId === actor);
         if (activeOrder && trackingOrderId !== activeOrder.id) startGpsTracking(activeOrder.id);
         else if (!activeOrder && trackingOrderId) stopGpsTracking();
       }
@@ -630,131 +709,193 @@
 
   async function initializeSession(user) {
     if (!user) return;
-    currentUser = user;
-    const storeSnap = await get(ref(db, "stores/" + user.uid));
-    const courierSnap = await get(ref(db, "couriers/" + user.uid));
-
-    if (storeSnap.exists()) { role = "store"; actor = user.uid; }
-    else if (courierSnap.exists()) { role = "courier"; actor = user.uid; }
-    else { await signOut(auth); setAuthFeedback("Cadastro não encontrado para esta conta.", "error"); return; }
-
-    document.getElementById("login-screen").style.display = "none";
-    requestNotificationPermission();
-    view = role === "courier" ? "available" : "dashboard";
-    startDataListeners();
-    render();
+    if (sessionInitPromise) return sessionInitPromise;
+    if (activeSessionUid === user.uid && currentUser) return;
+    sessionInitPromise = (async () => {
+      if (pendingProfileWrite) await pendingProfileWrite;
+      currentUser = user;
+      let token = await getIdTokenResult(user, true);
+      let isAdmin = token.claims && token.claims.admin === true;
+      if (adminLoginRequested && !isAdmin) { await signOut(auth); throw new Error("Esta conta não possui permissão de administrador."); }
+      if (isAdmin) { role = "admin"; actor = "admin"; }
+      else {
+        let storeSnap = await get(ref(db, "stores/" + user.uid));
+        let courierSnap = await get(ref(db, "couriers/" + user.uid));
+        if (storeSnap.exists()) { role = "store"; actor = user.uid; }
+        else if (courierSnap.exists()) { role = "courier"; actor = user.uid; }
+        else { await signOut(auth); throw new Error("Cadastro não encontrado para esta conta."); }
+      }
+      activeSessionUid = user.uid;
+      adminLoginRequested = false;
+      document.getElementById("login-screen").style.display = "none";
+      setAuthFeedback("", "info");
+      view = role === "courier" ? "available" : "dashboard";
+      startDataListeners(); render();
+      refreshSavedClientsDatalist();
+      checkUrlTracking();
+    })();
+    try { await sessionInitPromise; } finally { sessionInitPromise = null; }
   }
 
   function startDataListeners() {
     stopDataListeners();
     if (!currentUser) return;
-    if (role === "store") {
-      unsubscribers.push(onValue(ref(db, "stores/" + actor), snap => {
-        const v = snap.val();
-        data.stores = v ? [{id:actor, ...v}] : [];
-        render();
-      }));
+    if (role === "admin") {
+      unsubscribers.push(onValue(ref(db, "stores"), snap => { let v=snap.val()||{}; data.stores=Object.entries(v).map(([id,x])=>({id,...x})); render(); }));
+      unsubscribers.push(onValue(ref(db, "couriers"), snap => { let v=snap.val()||{}; data.couriers=Object.entries(v).map(([id,x])=>({id,...x})); render(); }));
+      listenOrders("admin");
+    } else if (role === "store") {
+      unsubscribers.push(onValue(ref(db,"stores/"+actor), snap => { let v=snap.val(); data.stores = v ? [{id:actor,...v}] : []; render(); }));
+      listenOrders("store");
     } else {
-      unsubscribers.push(onValue(ref(db, "couriers/" + actor), snap => {
-        const v = snap.val();
-        data.couriers = v ? [{id:actor, ...v}] : [];
-        render();
-      }));
+      unsubscribers.push(onValue(ref(db,"couriers/"+actor), snap => { let v=snap.val(); data.couriers = v ? [{id:actor,...v}] : []; render(); }));
+      listenOrders("courier");
     }
-    unsubscribers.push(onValue(ref(db, "config/rates"), snap => {
-      const value = snap.val();
+    unsubscribers.push(onValue(ref(db,"config/rates"), snap => {
+      let value = snap.val();
       if (value) data.rates = { ...defaultRates, ...value, zones: { ...defaultRates.zones, ...(value.zones || {}) } };
-      refreshNeighborhoodOptions(); render();
+      refreshZoneSelect(); render();
     }));
-    listenOrders();
   }
 
   document.getElementById("auth-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     if (busy) return;
-    const email = document.getElementById("auth-email").value.trim().toLowerCase();
-    const password = document.getElementById("auth-password").value;
-    const name = document.getElementById("auth-name").value.trim() || email.split("@")[0];
-    const phone = document.getElementById("auth-extra").value.trim();
-    const submit = document.getElementById("auth-submit-btn");
+    let email = document.getElementById("auth-email").value.trim().toLowerCase();
+    let password = document.getElementById("auth-password").value;
+    let name = document.getElementById("auth-name").value.trim() || email.split("@")[0];
+    let phone = document.getElementById("auth-extra").value.trim();
+    let submit = document.getElementById("auth-submit-btn");
     
     if (currentAuthMode === "register" && (!name || !phone)) return toast("Informe nome e telefone para criar a conta.", "warn");
     busy = true; submit.disabled = true; submit.textContent = "Aguarde...";
-    setAuthFeedback(currentAuthMode === "register" ? "Criando sua conta..." : "Verificando seus dados...", "info");
+    setAuthFeedback(currentAuthMode === "register" ? "Criando sua conta..." : "Verificando dados...", "info");
 
     try {
       if (currentAuthMode === "register") {
-        const credential = await createUserWithEmailAndPassword(auth, email, password);
-        const profile = { name, phone, email, address: "", created: Date.now() };
-        const path = currentLoginRole === "store" ? "stores" : "couriers";
+        let releaseProfileWait;
+        pendingProfileWrite = new Promise(resolve => { releaseProfileWait = resolve; });
+        let credential = await createUserWithEmailAndPassword(auth, email, password);
+        let profile = { name, phone, email, address: "", created: Date.now() };
+        let path = currentLoginRole === "store" ? "stores" : "couriers";
         if (path === "couriers") profile.vehicle = "Moto";
-        await set(ref(db, path + "/" + credential.user.uid), profile);
+        try { await set(ref(db, path + "/" + credential.user.uid), profile); }
+        finally { releaseProfileWait(); pendingProfileWrite = null; }
         await initializeSession(credential.user);
       } else {
-        const credential = await signInWithEmailAndPassword(auth, email, password);
-        await initializeSession(credential.user);
+        await signInWithEmailAndPassword(auth, email, password);
       }
     } catch (err) {
-      setAuthFeedback("Falha na autenticação: " + (err.message || "Tente novamente"), "error");
+      if (pendingProfileWrite) pendingProfileWrite = null;
+      setAuthFeedback(authError(err), "error");
     } finally {
       busy = false; submit.disabled = false;
-      submit.textContent = currentAuthMode === "register" ? "Criar Conta Express →" : "Entrar no app →";
+      submit.textContent = currentAuthMode === "register" ? "Criar Conta Express →" : "Acessar Painel Express →";
     }
   });
 
   onAuthStateChanged(auth, async user => {
     if (!user) {
-      currentUser = null;
+      currentUser = null; activeSessionUid = null;
       stopDataListeners();
-      document.getElementById("login-screen").style.display = "flex";
+      if (!adminLoginRequested) document.getElementById("login-screen").style.display = "flex";
       return;
     }
-    await initializeSession(user);
+    try { await initializeSession(user); }
+    catch (err) { setAuthFeedback(authError(err), "error"); document.getElementById("login-screen").style.display = "flex"; }
   });
 
-  window.openOrderSheet = function() {
-    const store = person();
+  window.openOrderSheet = function(editId) {
+    let store = person();
     if (role === "store" && store && !store.address) {
       if(!confirm("⚠️ Você ainda não cadastrou o endereço da sua loja no seu perfil.\nDeseja cadastrar agora?")) return;
       view = "profile"; render(); return;
     }
     document.getElementById("order-sheet-overlay").classList.add("active");
+    prepareSheet(editId);
   };
 
   window.closeOrderSheet = function() {
     document.getElementById("order-sheet-overlay").classList.remove("active");
+    document.getElementById("edit-order-id").value = "";
+    document.getElementById("mobile-order-form").reset();
+    document.getElementById("sheet-title-text").textContent = "🚀 Solicitar Motoboy";
   };
 
-  function refreshNeighborhoodOptions() {
-    const list = document.getElementById("neighborhood-options");
-    if (list) list.innerHTML = Object.keys(data.rates.zones || defaultRates.zones).map(n => '<option value="'+esc(n)+'"></option>').join("");
+  function prepareSheet(editId) {
+    if (!editId) {
+      document.getElementById("edit-order-id").value = "";
+      document.getElementById("sheet-title-text").textContent = "🚀 Solicitar Motoboy";
+      document.getElementById("btn-submit-order").textContent = "Confirmar e Enviar Pedido →";
+      return;
+    }
+    let o = data.orders.find(x => x.id === editId);
+    if (!o) return;
+    document.getElementById("edit-order-id").value = o.id;
+    document.getElementById("sheet-title-text").textContent = "✏️ Editar Solicitação";
+    document.getElementById("btn-submit-order").textContent = "Salvar Alterações →";
+    
+    document.getElementById("service-type-select").value = o.serviceType || "delivery";
+    document.getElementById("inp-client").value = o.client || "";
+    document.getElementById("inp-phone").value = o.phone || "";
+    document.getElementById("inp-street").value = o.clientStreet || "";
+    document.getElementById("inp-number").value = o.clientNumber || "";
+    document.getElementById("input-neighborhood").value = o.clientNeighborhood || "";
+    document.getElementById("inp-ref").value = o.clientReference || "";
+    document.getElementById("payment-select-mobile").value = o.paymentMethod || "money";
+    document.getElementById("inp-notes").value = o.notes || "";
+    document.getElementById("zone-select-mobile").value = o.selectedZone || "";
+    document.getElementById("chk-is-quote").checked = o.status === "cotacao";
+    document.getElementById("chk-bag-mob").checked = !!o.bag;
+    document.getElementById("chk-bank-mob").checked = !!o.bank;
+    recalculateMobileFee();
+  }
+  window.__express = window.__express || {};
+  window.__express.prepareSheet = prepareSheet;
+
+  function refreshZoneSelect() {
+    let select = document.getElementById("zone-select-mobile");
+    if (select) {
+      let zones = data.rates.zones || defaultRates.zones;
+      select.innerHTML = '<option value="">Standard — Sede e Bairros (Padrão)</option>' +
+        Object.keys(zones).filter(z => z !== "Sede e Bairros (Padrão)").map(z => `<option value="${esc(z)}">${esc(z)} — ${cash(zones[z])}</option>`).join("");
+    }
   }
 
   function recalculateMobileFee() {
-    refreshNeighborhoodOptions();
-    const p = document.getElementById("payment-select-mobile").value;
-    const b = document.getElementById("chk-bag-mob").checked;
-    const k = document.getElementById("chk-bank-mob").checked;
-    const total = calculateFee(p, false, b, k, document.getElementById("input-neighborhood").value);
-    document.getElementById("quote-price-mobile").textContent = cash(total);
+    refreshZoneSelect();
+    let isQuote = document.getElementById("chk-is-quote").checked;
+    let priceBox = document.getElementById("box-price-display");
+    let editId = document.getElementById("edit-order-id").value;
+    let btnSubmit = document.getElementById("btn-submit-order");
+
+    if(isQuote) {
+      priceBox.style.display = "none";
+      btnSubmit.textContent = editId ? "💬 Salvar Alterações da Cotação →" : "💬 Publicar Cotação para Motoboys →";
+    } else {
+      priceBox.style.display = "flex";
+      btnSubmit.textContent = editId ? "Salvar Alterações →" : "Confirmar e Enviar Pedido →";
+      let p = document.getElementById("payment-select-mobile").value;
+      let b = document.getElementById("chk-bag-mob").checked;
+      let k = document.getElementById("chk-bank-mob").checked;
+      let zoneVal = document.getElementById("zone-select-mobile").value;
+      let total = calculateFee(p, false, b, k, zoneVal);
+      document.getElementById("quote-price-mobile").textContent = cash(total);
+    }
   }
 
-  document.addEventListener("change", e => {
-    if(e.target && (e.target.id === "payment-select-mobile" || e.target.id === "chk-bag-mob" || e.target.id === "chk-bank-mob" || e.target.id === "input-neighborhood")) {
-      recalculateMobileFee();
-    }
-  });
+  document.getElementById("mobile-order-form").addEventListener("change", recalculateMobileFee);
 
-  function calculateFee(paymentMethod, isRain, isBag, isBank, neighborhood) {
-    const zones = data.rates.zones || defaultRates.zones;
-    const zoneName = Object.keys(zones).find(name => name.toLocaleLowerCase("pt-BR") === String(neighborhood || "").trim().toLocaleLowerCase("pt-BR"));
-    let base = zoneName ? Number(zones[zoneName]) : Number(zones["Sede e Bairros (Padrão)"] || 7);
-    const hour = new Date().getHours();
+  function calculateFee(paymentMethod, isRain, isBag, isBank, selectedZone) {
+    let zones = data.rates.zones || defaultRates.zones;
+    let base = selectedZone && zones[selectedZone] ? Number(zones[selectedZone]) : Number(zones["Sede e Bairros (Padrão)"] || 7);
+    let hour = new Date().getHours();
     if (paymentMethod === "card") base = Math.max(base, 10);
     if (hour >= 23) base = Math.max(base, 10);
     else if (hour >= 18) base += Number(data.rates.night ?? 3);
     if (isRain) base = Math.max(base, 10);
-    if (isBank) base += Number(data.rates.bankService || 10);
+    if ([0,6].includes(new Date().getDay())) base = Math.max(base, paymentMethod === "card" ? 10 : 7);
+    if (isBank) base = Math.max(base, Number(data.rates.bankService || 10));
     if (isBag) base += Number(data.rates.bag ?? 10);
     return Math.max(0, Math.round(base * 100) / 100);
   }
@@ -770,7 +911,7 @@
           location: { lat: position.coords.latitude, lng: position.coords.longitude, updatedAt: Date.now() }
         });
       } catch (err) {}
-    }, err => {}, { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 });
+    }, () => {}, { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 });
   }
 
   function stopGpsTracking() {
@@ -785,64 +926,91 @@
   function cash(x){ return (Number(x)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
   function date(x){ return x ? new Date(x).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "—"; }
   function initials(x){ return String(x||"EE").split(/\s+/).slice(0,2).map(v => v[0]).join("").toUpperCase(); }
-  function person(){ const a = role === "store" ? data.stores : data.couriers; return a.find(x => x.id === actor) || a[0] || null; }
-  function isToday(timestamp){ const d = new Date(); d.setHours(0,0,0,0); return Number(timestamp) >= d.getTime(); }
-  function mine(){ return data.orders.filter(o => role === "store" ? o.storeId === actor : o.courierId === actor); }
+  function person(){ let a = role === "store" ? data.stores : role === "courier" ? data.couriers : []; return a.find(x => x.id === actor) || a[0] || null; }
+  function isToday(timestamp){ let d = new Date(); d.setHours(0,0,0,0); return Number(timestamp) >= d.getTime(); }
+  function today(){ return data.orders.filter(o => isToday(o.created)); }
+  function mine(){ return data.orders.filter(o => role === "store" ? o.storeId === actor : role === "courier" ? o.courierId === actor : true); }
 
   function items(){
-    if (role === "store") return [["dashboard","⌂","Visão geral"],["new","＋","Pedir motoboy"],["profile","⚙️","Meu Perfil"],["open","◷","Em aberto"],["done","✓","Concluídos"]];
-    else return [["available","＋","Disponíveis"],["run","◷","Em execução"],["done","✓","Concluídos"]];
+    if (role === "store") return [["dashboard","⌂","Visão geral"],["new","＋","Pedir motoboy"],["quotes","💬","Cotações"],["reports","📊","Relatórios"],["profile","⚙️","Perfil"],["open","◷","Em aberto"],["done","✓","Concluídos"]];
+    else if (role === "courier") return [["available","＋","Disponíveis"],["quotes","💬","Cotações"],["reports","📊","Relatórios"],["run","◷","Em execução"],["done","✓","Concluídos"]];
+    else return [["dashboard","⌂","Visão geral"],["all","▣","Todos"],["quotes","💬","Cotações"],["reports","📊","Relatórios"],["rates","R$","Taxas"],["registry","♙","Cadastros"]];
   }
 
-  function title(){ return ({dashboard:"Visão geral",new:"Solicitar motoboy",profile:"Perfil e Endereço",open:"Pedidos em aberto",available:"Pedidos disponíveis",run:"Em execução",done:"Concluídos"})[view]||"Visão geral"; }
-  function toast(s,t){ const e=document.createElement("div"); e.className="toast "+(t||""); e.textContent=s; document.getElementById("toasts").appendChild(e); setTimeout(()=>e.remove(),4000); }
+  function title(){ return ({dashboard:"Visão geral",new:"Solicitar motoboy",quotes:"Mural de Cotações",reports:"Relatórios de Caixa",profile:"Perfil da Loja",open:"Pedidos em aberto",available:"Pedidos disponíveis",run:"Em execução",done:"Concluídos",rates:"Tabela de Taxas",registry:"Cadastros Globais"})[view]||"Visão geral"; }
+  function toast(s,t){ let e=document.createElement("div"); e.className="toast "+(t||""); e.textContent=s; document.getElementById("toasts").appendChild(e); setTimeout(()=>e.remove(),4000); }
   function empty(a,b){ return '<div class="empty"><b>'+a+'</b>'+b+'</div>'; }
-
-  function sendWhatsAppMsg(o) {
-    const serviceTitle = o.serviceType === "collection" ? "Coleta / Busca" : "Entrega";
-    const msg = `Olá ${o.client}! A sua solicitação de *${serviceTitle}* (Pedido ${o.orderCode || o.id}) foi registrada com sucesso!\n\n📍 *Endereço:* ${o.clientStreet}, nº ${o.clientNumber} - ${o.clientNeighborhood}\n💳 *Valor:* ${cash(o.fee)}\n\nAcompanhe o seu motoboy em tempo real pelo sistema Express Entregas.`;
-    const cleanPhone = String(o.phone || "").replace(/\D/g, "");
-    const targetPhone = cleanPhone.length <= 11 ? "55" + cleanPhone : cleanPhone;
-    window.open(`https://api.whatsapp.com/send?phone=${targetPhone}&text=${encodeURIComponent(msg)}`, '_blank');
-  }
+  function stat(a,b,c,d){ return '<div class="stat"><div class="stat-top">'+a+'</div><div class="stat-value">'+b+'</div><div class="stat-sub">'+c+'</div></div>'; }
+  function canLoc(o){ return role === "admin" || o.storeId === actor || (role === "courier" && o.courierId === actor); }
 
   function card(o){
-    const st = o.status === "open" ? "Aguardando motoboy" : o.status === "run" ? (o.picked ? "Coletado · Em trânsito" : "Aguardando recolha") : "Entregue";
-    const tag = o.status === "open" ? "orange" : o.status === "run" ? "bluetag" : "green";
+    let st = o.status === "open" ? "Aguardando motoboy" : o.status === "cotacao" ? "Em Cotação" : o.status === "cancelado_cotacao" ? "Cancelado" : o.status === "run" ? (o.picked ? "Coletado · em trânsito" : "Aguardando coleta") : "Entregue";
+    let tag = o.status === "open" ? "orange" : o.status === "cotacao" ? "purpletag" : o.status === "cancelado_cotacao" ? "gray" : o.status === "run" ? "bluetag" : "green";
     let action = "";
 
-    if(role === "courier" && o.status === "open") action = data.orders.some(x => x.status === "run" && x.courierId === actor) ? '<span class="tag gray">Finalize a corrida atual</span>' : '<button type="button" class="btn primary tiny" data-action="accept" data-id="'+o.id+'">Aceitar corrida</button>';
+    let pickupTimerHtml = "";
+    let canCancelFree = false;
+    if (o.status === "run" && !o.picked && o.accepted) {
+      let remainingMinutes = 25 - Math.floor((Date.now() - o.accepted) / 60000);
+      if (remainingMinutes > 0) pickupTimerHtml = `<span style="font-size:11px; color:var(--green-dark); font-weight:bold;">⏱️ Chegada: ${remainingMinutes} min</span>`;
+      else { pickupTimerHtml = `<span style="font-size:11px; color:var(--red); font-weight:bold;">⚠️ Limite 25 min excedido!</span>`; canCancelFree = true; }
+    }
+
+    if (role === "store" && (o.status === "open" || o.status === "cotacao")) {
+      action += `<button type="button" class="btn secondary tiny" data-open-sheet data-edit-id="${o.id}">✏️ Editar</button>`;
+      action += `<button type="button" class="btn danger tiny" data-action="cancel-quote" data-id="${o.id}">🗑️ Cancelar</button>`;
+    }
+
+    if(role === "courier" && o.status === "open") action += data.orders.some(x => x.status === "run" && x.courierId === actor) ? '<span class="tag gray">Finalize a corrida atual</span>' : '<button type="button" class="btn primary tiny" data-action="accept" data-id="'+o.id+'">Aceitar corrida</button>';
     
-    if(role === "courier" && o.status === "run") {
-      let mapUrl = "";
-      if (!o.picked) {
-        const originAddr = o.serviceType === "collection" ? `${o.clientStreet}, ${o.clientNumber} - ${o.clientNeighborhood}` : `${o.storeAddress || "Loja"}`;
-        mapUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(originAddr)}&travelmode=bicycling`;
-      } else {
-        const destAddr = o.serviceType === "collection" ? `${o.storeAddress || "Loja"}` : `${o.clientStreet}, ${o.clientNumber} - ${o.clientNeighborhood}`;
-        mapUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destAddr)}&travelmode=bicycling`;
+    let bidsHtml = "";
+    if (o.status === "cotacao") {
+      let bids = o.bids || {};
+      if (role === "store" || role === "admin") {
+        let bidList = Object.entries(bids).map(([cId, b]) => `<div class="bid-item"><span><b>${esc(b.courierName)}</b>: <b style="color:var(--green-dark)">${cash(b.amount)}</b></span><button type="button" class="btn primary tiny" data-action="accept-bid" data-id="${o.id}" data-courier="${cId}" data-amount="${b.amount}" data-cname="${esc(b.courierName)}">Aceitar</button></div>`).join("");
+        bidsHtml = `<div class="bid-box"><div style="font-size:11px; font-weight:bold; color:var(--purple)">💬 Propostas (${Object.keys(bids).length}):</div>${bidList || '<span style="font-size:11px; color:var(--muted)">Aguardando motoboys...</span>'}</div>`;
+      } else if (role === "courier") {
+        let myBid = bids[actor];
+        if (myBid) {
+          bidsHtml = `<div class="bid-box" style="background:var(--purplebg);"><span style="font-size:11px; color:var(--purple)">Sua proposta: <b>${cash(myBid.amount)}</b></span></div>`;
+        } else {
+          bidsHtml = `<div class="bid-box"><span style="font-size:11px; font-weight:bold;">Enviar Proposta de Valor:</span><div style="display:flex; gap:6px; margin-top:4px;"><input type="number" id="bid-input-${o.id}" placeholder="R$" style="width:110px;"><button type="button" class="btn purple tiny" data-action="send-bid" data-id="${o.id}">Enviar</button></div></div>`;
+        }
       }
-      const gpsBtnText = !o.picked ? "🗺️ GPS: Ir à Coleta" : "🗺️ GPS: Ir ao Destino";
+    }
+
+    if(role === "courier" && o.status === "run") {
+      let mapUrl = !o.picked ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(o.serviceType === "collection" ? `${o.clientStreet}, ${o.clientNumber}` : (o.storeAddress || "Loja"))}&travelmode=bicycling` : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(o.serviceType === "collection" ? (o.storeAddress || "Loja") : `${o.clientStreet}, ${o.clientNumber}`)}&travelmode=bicycling`;
+      let gpsBtnText = !o.picked ? "🗺️ GPS: Ir à Coleta" : "🗺️ GPS: Ir ao Destino";
 
       action = (o.picked ? '<button type="button" class="btn primary tiny" data-action="finish" data-id="'+o.id+'">Confirmar Entrega</button>' : '<button type="button" class="btn soft tiny" data-action="picked" data-id="'+o.id+'">Confirmei Retirada</button><button type="button" class="btn danger tiny" data-action="cancel" data-id="'+o.id+'">Cancelar</button>') +
                ` <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny" style="background:var(--mint);">${gpsBtnText}</a>`;
     }
 
-    const serviceBadge = o.serviceType === "collection" ? '<span class="tag orange">🔄 COLETA (Cliente ➔ Loja)</span>' : '<span class="tag bluetag">🚚 ENTREGA (Loja ➔ Cliente)</span>';
-    const whatsappBtn = `<button type="button" class="btn whatsapp tiny" data-action="whatsapp" data-id="${o.id}">💬 WhatsApp</button>`;
+    if (o.status === "done") {
+      action = o.paid ? '<span class="tag green">✓ Pago Confirmado</span>' : (role === "courier" || role === "admin" ? '<button type="button" class="btn primary tiny" data-action="toggle-pay" data-id="'+o.id+'">💵 Confirmar Recebimento</button>' : '<span class="tag gray">Aguardando acerto do motoboy</span>');
+    }
+    
+    if (role === "store" && o.status === "run" && !o.picked && canCancelFree) action += ` <button type="button" class="btn danger tiny" data-action="cancel-free" data-id="${o.id}">⚠️ Cancelar Sem Custo</button>`;
 
-    return '<article class="order"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>'+esc(o.clientStreet)+', nº '+esc(o.clientNumber)+' - '+esc(o.clientNeighborhood)+'</h3><div class="order-store">Cliente: <b>'+esc(o.client)+'</b> ('+esc(o.phone)+') '+ (o.clientReference ? '· Ref: '+esc(o.clientReference) : '') +'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+cash(o.fee)+'</div></div></div><div class="meta"><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+'</div><div class="footer"><div class="buttons">'+action+' '+whatsappBtn+'</div></div></article>';
+    let trackingLink = `${window.location.origin}${window.location.pathname}#track=${o.id}`;
+    let trackingShareHtml = `<div style="margin-top:8px; background:#F2F3F5; padding:8px 10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px;">🔗 <b>Rastreio Cliente:</b></span> <a href="${trackingLink}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny" style="background:#fff;">Abrir Link</a></div>`;
+    let gpsTrackingInfo = (canLoc(o) && o.location && o.status === "run") ? `<div class="gps" style="margin-top:6px; background:var(--mint); padding:8px; border-radius:10px;">📍 <b>Motoboy em trânsito:</b> <a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" style="color:var(--green-dark); font-weight:bold;">Acompanhar Mapa</a></div>` : "";
+    let serviceBadge = o.serviceType === "collection" ? '<span class="tag orange">🔄 COLETA</span>' : '<span class="tag bluetag">🚚 ENTREGA</span>';
+
+    return '<article class="order"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>'+esc(o.clientStreet)+', '+esc(o.clientNumber)+' - '+esc(o.clientNeighborhood)+'</h3><div class="order-store">Cliente: <b>'+esc(o.client)+'</b> '+ (o.phone ? '('+esc(o.phone)+')' : '') +'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div><div class="meta"><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+pickupTimerHtml+'</div>'+trackingShareHtml+bidsHtml+gpsTrackingInfo+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
   }
 
   function render(){
-    const label = role === "store" ? "Lojista" : "Motoboy";
-    const people = role === "store" ? data.stores : data.couriers;
-    if(people.length && !people.some(p => p.id === actor)) actor = people[0].id;
+    let label = role === "store" ? "Lojista" : role === "courier" ? "Motoboy" : "Administrador";
+    let people = role === "store" ? data.stores : role === "courier" ? data.couriers : [{id:"admin",name:"Administrador"}];
+    if(role === "admin") actor = "admin"; if(people.length && !people.some(p => p.id === actor)) actor = people[0].id;
 
     document.getElementById("nav").innerHTML = items().map(n => '<button type="button" class="'+(view===n[0]?"active":"")+'" data-nav="'+n[0]+'"><span>'+n[1]+'</span>'+n[2]+'</button>').join("");
-    document.getElementById("role").innerHTML = [["store","Lojista"],["courier","Motoboy"]].map(x => '<option value="'+x[0]+'" '+(role===x[0]?"selected":"")+'>'+x[1]+'</option>').join("");
+    document.getElementById("role").innerHTML = [["store","Lojista"],["courier","Motoboy"],["admin","Administrador"]].map(x => '<option value="'+x[0]+'" '+(role===x[0]?"selected":"")+'>'+x[1]+'</option>').join("");
     document.getElementById("actor").innerHTML = people.map(p => '<option value="'+esc(p.id)+'" '+(p.id===actor?"selected":"")+'>'+esc(p.name)+'</option>').join("");
-    document.getElementById("avatar").textContent = initials((person()||{}).name);
+    document.getElementById("actor").disabled = role === "admin" || !people.length;
+    document.getElementById("avatar").textContent = initials(role === "admin" ? "Admin" : (person()||{}).name);
     document.getElementById("crumb").textContent = label + " / " + title(); document.getElementById("page-title").textContent = title();
     document.getElementById("content").innerHTML = show();
   }
@@ -850,15 +1018,50 @@
   function show(){
     if(view==="dashboard") return dashboard();
     if(view==="new" && role==="store") { openOrderSheet(); return dashboard(); }
+    if(view==="reports") return reportsView();
     if(view==="profile" && role==="store") return profileView();
+    if(view==="all" && role === "admin") return listView("all");
     if(view==="open"||view==="available") return listView("open");
+    if(view==="quotes") return quotesView();
     if(view==="run"||view==="done") return listView(view);
+    if(view==="summary") return summaryView();
+    if(view==="rates" && role==="admin") return ratesView();
+    if(view==="registry" && role==="admin") return registry();
     return dashboard();
   }
 
+  function reportsView(){
+    let os = mine();
+    let doneOrders = os.filter(o => o.status === "done");
+    let totalValue = doneOrders.reduce((acc, o) => acc + o.fee, 0);
+    let paidValue = doneOrders.filter(o => o.paid).reduce((acc, o) => acc + o.fee, 0);
+    let pendingValue = doneOrders.filter(o => !o.paid).reduce((acc, o) => acc + o.fee, 0);
+
+    return `
+      <div class="head"><div><h1>Relatórios e Caixa</h1><p>Fechamento financeiro e histórico de entregas.</p></div></div>
+      <div class="grid stats">
+        ${stat("Total Entregas", os.length, "Geral", "▣")}
+        ${stat("Faturamento", cash(totalValue), "Acumulado", "✓")}
+        ${stat("Valores Pagos", cash(paidValue), "Confirmados", "$")}
+        ${stat("Pendentes", cash(pendingValue), "Aguardando", "◷")}
+      </div>
+      <section class="panel">
+        <div class="panel-head"><h2>Auditoria de Entregas</h2></div>
+        <div class="list">
+          ${doneOrders.length ? doneOrders.map(o => `
+            <div class="chip">
+              <span><b>${esc(o.orderCode || o.id)}</b> — ${esc(o.client)} (${esc(o.clientNeighborhood)})</span>
+              <span><b>${cash(o.fee)}</b> ${o.paid ? '<span class="tag green" style="margin-left:6px;">Pago</span>' : '<span class="tag orange" style="margin-left:6px;">Pendente</span>'}</span>
+            </div>
+          `).join("") : '<div class="empty"><b>Nenhuma entrega concluída</b></div>'}
+        </div>
+      </section>
+    `;
+  }
+
   function profileView(){
-    const s = person() || { name: "", phone: "", address: "" };
-    return `<div class="head"><div><h1>Perfil e Endereço da Loja</h1><p>Cadastre o endereço fixo do seu estabelecimento para organizar as rotas.</p></div></div>
+    let s = person() || { name: "", phone: "", address: "" };
+    return `<div class="head"><div><h1>Perfil e Endereço da Loja</h1><p>Defina o endereço fixo para base das coletas e entregas.</p></div></div>
     <form id="store-profile-form" class="panel">
       <div class="field full" style="margin-bottom:10px;">
         <label>Nome do Estabelecimento</label>
@@ -870,7 +1073,7 @@
       </div>
       <div class="field full" style="margin-bottom:15px;">
         <label><b>Endereço Completo da Loja (Rua, Número, Bairro)</b></label>
-        <input type="text" id="prof-address" value="${esc(s.address || "")}" required placeholder="Ex: Av. Venâncio Flores, 450 - Centro">
+        <input type="text" id="prof-address" value="${esc(s.address || "")}" required placeholder="Ex: Av. Central, 450 - Centro">
       </div>
       <button type="submit" class="btn primary full">Salvar Alterações do Perfil →</button>
     </form>`;
@@ -880,66 +1083,129 @@
     if (e.target.id === "store-profile-form") {
       e.preventDefault();
       if (!currentUser || role !== "store") return;
-      const name = document.getElementById("prof-name").value.trim();
-      const phone = document.getElementById("prof-phone").value.trim();
-      const address = document.getElementById("prof-address").value.trim();
+      let name = document.getElementById("prof-name").value.trim();
+      let phone = document.getElementById("prof-phone").value.trim();
+      let address = document.getElementById("prof-address").value.trim();
       try {
         await update(ref(db, "stores/" + actor), { name, phone, address });
-        toast("Perfil e endereço atualizados com sucesso!");
+        toast("Perfil atualizado com sucesso!");
         view = "dashboard"; render();
       } catch(err) { toast("Erro ao salvar: " + err.message, "warn"); }
     }
   });
 
   function dashboard(){
-    const os = mine().filter(o => isToday(o.created));
-    const run = os.filter(o => o.status==="run");
-    const recent = os.slice().sort((a,b) => b.created-a.created).slice(0,5);
+    let os = mine().filter(o => isToday(o.created)), op = os.filter(o => o.status==="open"), run = os.filter(o => o.status==="run"), done = os.filter(o => o.status==="done"), unpaid = done.filter(o => !o.paid);
+    
+    let storeProfileWarning = "";
+    if (role === "store") {
+      let st = person();
+      if (!st || !st.address) {
+        storeProfileWarning = `<div class="info">⚠️ <b>Atenção Lojista:</b> Você ainda não cadastrou o endereço da sua loja. <a href="#" data-nav="profile" style="font-weight:bold; text-decoration:underline;">Clique aqui para configurar</a>.</div>`;
+      }
+    }
 
-    return '<div class="head"><div><h1>Olá, '+esc((person()||{}).name.split(" ")[0])+' 👋</h1><p>Acompanhe suas solicitações logísticas.</p></div>'+(role === "store" ? '<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>' : "")+'</div><div class="grid stats"><div class="stat"><div class="stat-top">Pedidos Hoje</div><div class="stat-value">'+os.length+'</div></div><div class="stat"><div class="stat-top">Em Andamento</div><div class="stat-value">'+run.length+'</div></div></div><section class="panel"><div class="panel-head"><h2>Atividade recente</h2></div>'+(recent.length?'<div class="list">'+recent.map(card).join("")+'</div>':empty("Sem pedidos hoje","As solicitações aparecerão aqui."))+'</section>';
+    let stats = stat("Pedidos Hoje",os.length,"Registros","▣")+stat(role==="store"?"Em Aberto":"Disponíveis",op.length,"Na fila","＋")+stat("Em Andamento",run.length,"Ativas","◷")+stat("Não Acertados",unpaid.length,cash(unpaid.reduce((n,o)=>n+o.fee,0)),"R$");
+    let recent = os.slice().sort((a,b) => b.created-a.created).slice(0,4);
+
+    return storeProfileWarning + 
+           '<div class="head"><div><h1>Olá, '+esc((person()||{name:"Admin"}).name.split(" ")[0])+' 👋</h1><p>Acompanhe suas solicitações logísticas em tempo real.</p></div>'+(role === "store" ? '<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>' : "")+'</div><div class="grid stats">'+stats+'</div><section class="panel"><div class="panel-head"><h2>Atividade recente</h2></div>'+(recent.length?'<div class="list">'+recent.map(card).join("")+'</div>':empty("Sem pedidos hoje","As solicitações aparecerão aqui."))+'</section>';
   }
 
   function listView(status){
-    let arr = role === "store" ? mine().filter(o => status==="open"?o.status==="open":o.status===status) : (status==="open"?data.orders.filter(o => o.status==="open"):mine().filter(o => o.status===status));
+    let arr = role === "store" ? (status==="all"?mine():mine().filter(o => status==="open"?o.status==="open":o.status===status)) : role === "courier" ? (status==="open"?data.orders.filter(o => o.status==="open"):mine().filter(o => o.status===status)) : (status==="all"?data.orders:today().filter(o => o.status===status));
     arr.sort((a,b) => b.created-a.created);
-    return '<div class="head"><div><h1>'+(status==="open"?"Pedidos em Aberto":"Concluídos")+'</h1></div>'+(role==="store"&&status==="open"?'<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>':"")+'</div>'+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhum pedido","Nenhuma corrida nesta etapa"));
+    let t = status === "open" ? (role==="store"?"Pedidos em Aberto":"Disponíveis") : status === "run" ? "Em Execução" : "Concluídos";
+    return '<div class="head"><div><h1>'+t+'</h1></div>'+(role === "store" && status === "open" ? '<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>' : "")+'</div>'+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhum pedido","Nenhuma corrida nesta etapa"));
+  }
+
+  function quotesView(){
+    let arr = data.orders.filter(o => o.status === "cotacao" || o.status === "cancelado_cotacao");
+    if (role === "store") arr = arr.filter(o => o.storeId === actor);
+    arr.sort((a,b) => b.created-a.created);
+    return '<div class="head"><div><h1>Mural de Cotações</h1><p>Orçamentos e propostas especiais.</p></div>'+(role==="store"?'<button type="button" class="btn primary" data-open-sheet>＋ Pedir Cotação</button>':"")+'</div>'+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhuma cotação ativa","As solicitações aparecerão aqui."));
+  }
+
+  function summaryView(){
+    let os = mine().filter(o => isToday(o.created)), done = os.filter(o => o.status==="done"), paid = done.filter(o => o.paid), unpaid = os.filter(o => o.status!=="done"||!o.paid);
+    return '<div class="head"><div><h1>Resumo Diário</h1></div></div><div class="grid stats">'+stat("Serviços",os.length,"Hoje","▣")+stat("Concluídos",done.length,cash(done.reduce((n,o)=>n+o.fee,0)),"✓")+stat("Pagos",paid.length,cash(paid.reduce((n,o)=>n+o.fee,0)),"$")+stat("Em Aberto",unpaid.length,cash(unpaid.reduce((n,o)=>n+o.fee,0)),"◷")+'</div>';
+  }
+
+  function ratesView(){
+    let r = data.rates, z = Object.keys(r.zones);
+    return '<div class="head"><div><h1>Tabela de Taxas</h1></div><button type="button" class="btn primary" data-action="save-rates">Salvar Taxas</button></div><div class="panel"><div class="rate">'+z.map(n => '<div style="display:grid;grid-template-columns:1fr 120px;gap:8px;align-items:center;margin-bottom:8px;"><label>'+esc(n)+'</label><input type="number" data-zone="'+esc(n)+'" value="'+Number(r.zones[n])+'"></div>').join("")+'</div></div>';
+  }
+
+  function registry(){
+    return '<div class="head"><div><h1>Cadastros Globais</h1></div></div><div class="grid cols"><section class="panel"><h2>Lojistas ('+data.stores.length+')</h2><div class="list">'+data.stores.map(s => '<div class="chip"><b>'+esc(s.name)+'</b></div>').join("")+'</div></section><section class="panel"><h2>Motoboys ('+data.couriers.length+')</h2><div class="list">'+data.couriers.map(c => '<div class="chip"><b>'+esc(c.name)+'</b></div>').join("")+'</div></section></div>';
   }
 
   async function act(action, id) {
-    const o = data.orders.find(x => x.id === id);
-    if (!o && action !== "whatsapp") return toast("Pedido não encontrado.", "warn");
-
-    if (action === "whatsapp") {
-      sendWhatsAppMsg(o);
-      return;
+    let o = data.orders.find(x => x.id === id);
+    if (action !== "save-rates" && !o) return toast("Pedido não encontrado.", "warn");
+    
+    if (action === "send-bid") {
+      let input = document.getElementById("bid-input-" + id);
+      let amount = Number(input ? input.value : 0);
+      if (!amount || amount <= 0) return toast("Informe um valor válido.", "warn");
+      await update(ref(db, `orders/${id}/bids/${actor}`), { amount: amount, courierName: (person()||{}).name || "Motoboy", timestamp: Date.now() });
+      toast("Proposta enviada!"); render();
     }
+    
+    if (action === "accept-bid") {
+      let btn = document.querySelector(`[data-action="accept-bid"][data-id="${id}"]`);
+      if (!btn) return;
+      if (!confirm(`Confirmar contratação por ${cash(btn.dataset.amount)}?`)) return;
+      await update(ref(db, "orders/" + id), { status: "open", courierId: btn.dataset.courier, courierName: btn.dataset.cname, fee: Number(btn.dataset.amount), accepted: Date.now() });
+      toast("Cotação aceita! Enviada para a fila de abertos."); view = "open"; render();
+    }
+
+    if (action === "cancel-quote") {
+      if(!confirm("Deseja cancelar este orçamento?")) return;
+      await update(ref(db, "orders/" + id), { status: "cancelado_cotacao" });
+      toast("Orçamento cancelado."); render();
+    }
+
     if (action === "accept") {
-      if (data.orders.some(x => x.status === "run" && x.courierId === actor)) return toast("Finalize sua corrida atual antes de aceitar outra.", "warn");
+      if (data.orders.some(x => x.status === "run" && x.courierId === actor)) return toast("Finalize a corrida atual.", "warn");
+      let isRaining = confirm("Está chovendo no trajeto?\n\nOK: Aplicar taxa de chuva\nCancelar: Tarifa normal");
+      let newFee = isRaining && !o.rain ? calculateFee(o.paymentMethod, true, o.bag, o.bank, o.selectedZone) : o.fee;
       try {
-        const result = await runTransaction(ref(db, "orders/" + id), current => {
+        let result = await runTransaction(ref(db, "orders/" + id), current => {
           if (!current || current.status !== "open") return;
-          return { ...current, status:"run", courierId:actor, courierName:(person()||{}).name||"Motoboy", accepted:Date.now() };
+          return { ...current, status:"run", courierId:actor, courierName:(person()||{}).name||"Motoboy", accepted:Date.now(), rain:isRaining, fee:newFee };
         });
         if (!result.committed) throw new Error("Corrida já aceita por outro motoboy.");
-        toast("Corrida aceita! Use o botão GPS para iniciar a rota.");
+        toast("Corrida aceita! Use o botão GPS.");
         startGpsTracking(id);
         view = "run"; render();
       } catch(err) { toast(err.message, "warn"); }
     }
     if (action === "picked") {
       await update(ref(db, "orders/" + id), { picked: Date.now() });
-      toast("Retirada confirmada! Rota atualizada para o destino."); render();
+      toast("Retirada confirmada!"); render();
     }
     if (action === "finish") {
       stopGpsTracking();
-      await update(ref(db, "orders/" + id), { status: "done", completed: Date.now() });
+      await update(ref(db, "orders/" + id), { status: "done", completed: Date.now(), paid: false });
       toast("Entrega concluída!"); view = "done"; render();
     }
     if (action === "cancel") {
-      if(!confirm("Deseja cancelar esta corrida?")) return;
+      if(!confirm("Deseja cancelar e retornar para a fila?")) return;
       stopGpsTracking();
-      await update(ref(db, "orders/" + id), { status: "open", courierId: null, courierName: null, accepted: null, picked: null, location: null });
+      let revertStatus = o.bids && Object.keys(o.bids).length > 0 ? "cotacao" : "open";
+      await update(ref(db, "orders/" + id), { status: revertStatus, courierId: null, courierName: null, accepted: null, picked: null, location: null });
       toast("Corrida retornada para a fila."); render();
+    }
+    if (action === "toggle-pay") {
+      await update(ref(db, "orders/" + id), { paid: true });
+      toast("Recebimento confirmado!");
+    }
+    if (action === "save-rates") {
+      let zones = {};
+      document.querySelectorAll("[data-zone]").forEach(x => { zones[x.dataset.zone] = Math.max(0, Number(x.value) || 0); });
+      await set(ref(db, "config/rates"), { zones: zones, night: 3, rain: 3, weekend: 2, bag: 10, bankService: 10 });
+      toast("Taxas salvas com sucesso!");
     }
   }
 
@@ -949,49 +1215,70 @@
     selectLoginRole: function(r){ window.selectLoginRole(r); },
     setAuthTab: function(m){ window.setAuthTab(m); },
     togglePassword: function(){ window.togglePassword(); },
-    logout: function(){ window.logout(); },
-    openSheet: function(){ window.openOrderSheet(); },
+    loginAsAdmin: function(){ return window.loginAsAdmin(); },
+    logout: function(){ return window.logout(); },
+    openSheet: function(id){ window.openOrderSheet(id); },
     closeSheet: function(){ window.closeOrderSheet(); }
   };
 
   document.getElementById("mobile-order-form").addEventListener("submit", async e => {
     e.preventDefault();
-    const f = e.target, s = person();
+    let f = e.target, s = person();
     if (!s || role !== "store") return toast("Entre com uma conta de lojista.", "warn");
-    if (!s.address) { closeOrderSheet(); toast("Cadastre o endereço da sua loja em 'Meu Perfil'.", "warn"); view = "profile"; render(); return; }
+    if (!s.address) { closeOrderSheet(); view = "profile"; render(); return toast("Cadastre o endereço da sua loja em Perfil.", "warn"); }
+    
+    let serviceType = f.serviceType.value;
+    let clientStreet = f.clientStreet.value.trim();
+    let clientNumber = f.clientNumber.value.trim();
+    let clientNeighborhood = f.clientNeighborhood.value.trim();
+    let clientName = f.elements.namedItem("client").value.trim();
+    let clientPhone = f.elements.namedItem("phone").value.trim();
 
-    const submitButton = f.querySelector('button[type="submit"]');
-    submitButton.disabled = true; submitButton.textContent = "Enviando pedido...";
+    if(!clientStreet || !clientNumber || !clientNeighborhood) return toast("Preencha rua, número e bairro.", "warn");
 
-    const serviceType = f.serviceType.value;
-    const clientStreet = f.clientStreet.value.trim();
-    const clientNumber = f.clientNumber.value.trim();
-    const clientNeighborhood = f.clientNeighborhood.value.trim();
-    const clientReference = f.clientReference.value.trim();
+    let isQuote = f.isQuote.checked;
+    let selectedZone = f.selectedZone.value;
+    let p = f.paymentMethod.value;
+    let b = f.bag.checked;
+    let k = f.bank.checked;
+    let finalFee = isQuote ? 0 : calculateFee(p, false, b, k, selectedZone);
 
-    if(!clientStreet || !clientNumber || !clientNeighborhood) {
-      submitButton.disabled = false; submitButton.textContent = "Confirmar e Enviar Pedido →";
-      return toast("Preencha rua, número e bairro do cliente.", "warn");
-    }
+    saveClientFavorite(clientName, clientPhone, clientStreet, clientNumber, clientNeighborhood);
 
-    const p = f.paymentMethod.value;
-    const b = f.bag.checked;
-    const k = f.bank.checked;
-    const finalFee = calculateFee(p, false, b, k, clientNeighborhood);
-    const code = "EXP-" + Math.floor(1000 + Math.random() * 9000);
+    let submitButton = f.querySelector('button[type="submit"]');
+    submitButton.disabled = true; submitButton.textContent = "Salvando...";
+    
+    let editId = document.getElementById("edit-order-id").value;
+    let code = editId ? undefined : ((isQuote ? "COT-" : "EXP-") + Math.floor(1000 + Math.random() * 9000));
 
     try {
-      await set(push(ref(db, "orders")), {
-        orderCode: code, storeId: s.id, storeName: s.name, storeAddress: s.address,
-        serviceType: serviceType, client: f.elements.namedItem("client").value.trim(),
-        phone: f.elements.namedItem("phone").value.trim(), clientStreet: clientStreet,
-        clientNumber: clientNumber, clientNeighborhood: clientNeighborhood,
-        clientReference: clientReference, address: `${clientStreet}, nº ${clientNumber} - ${clientNeighborhood}`,
-        neighborhood: clientNeighborhood, paymentMethod: p, notes: f.elements.namedItem("notes").value.trim(),
-        bag: b, bank: k, fee: finalFee, status: "open", created: Date.now(), location: null
-      });
-      f.reset(); recalculateMobileFee(); closeOrderSheet(); toast("Pedido enviado!"); view = "open"; render();
-    } catch(err) { toast("Não foi possível enviar: " + err.message, "warn"); }
+      let orderPayload = {
+        serviceType: serviceType, client: clientName, phone: clientPhone, 
+        clientStreet: clientStreet, clientNumber: clientNumber, clientNeighborhood: clientNeighborhood,
+        clientReference: f.elements.namedItem("clientReference").value.trim(),
+        address: `${clientStreet}, nº ${clientNumber} - ${clientNeighborhood}`,
+        neighborhood: clientNeighborhood, selectedZone: selectedZone,
+        paymentMethod: p, notes: f.elements.namedItem("notes").value.trim(), 
+        rain: false, bag: b, bank: k, fee: finalFee, status: isQuote ? "cotacao" : "open"
+      };
+
+      if (editId) {
+        await update(ref(db, "orders/" + editId), orderPayload);
+        toast("Atualizado com sucesso!");
+      } else {
+        orderPayload.orderCode = code;
+        orderPayload.storeId = s.id;
+        orderPayload.storeName = s.name;
+        orderPayload.storeAddress = s.address;
+        orderPayload.created = Date.now();
+        orderPayload.location = null;
+        orderPayload.paid = false;
+        await set(push(ref(db, "orders")), orderPayload);
+        toast(isQuote ? "Cotação publicada!" : "Pedido enviado!"); 
+      }
+      closeOrderSheet(); 
+      view = isQuote ? "quotes" : "open"; render();
+    } catch(err) { toast("Erro ao enviar: " + err.message, "warn"); }
     finally { submitButton.disabled = false; submitButton.textContent = "Confirmar e Enviar Pedido →"; }
   });
 
