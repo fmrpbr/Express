@@ -872,8 +872,9 @@
     if (!o) return;
     document.getElementById("edit-order-id").value = o.id;
     document.getElementById("sheet-title-text").textContent = o.status === "cotacao_aceita" ? "📋 Completar pedido contratado" : "✏️ Editar Solicitação";
+    document.getElementById("mobile-order-form").dataset.mode = o.status === "cotacao" ? "quote" : "delivery";
     document.getElementById("mobile-order-form").dataset.completingQuote = o.status === "cotacao_aceita" ? "true" : "false";
-    configureOrderFormMode(false,o.status === "cotacao_aceita");
+    configureOrderFormMode(o.status === "cotacao",o.status === "cotacao_aceita");
     document.getElementById("btn-submit-order").textContent = "Salvar Alterações →";
     
     document.getElementById("service-type-select").value = o.serviceType || "delivery";
