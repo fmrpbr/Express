@@ -44,6 +44,8 @@
 .nav button.active{background:var(--primary);color:#fff;box-shadow:0 6px 16px rgba(234,29,44,.28)}
 @keyframes availablePulse{0%,100%{transform:scale(1);filter:drop-shadow(0 0 0 rgba(234,29,44,0))}50%{transform:scale(1.22);filter:drop-shadow(0 0 7px rgba(234,29,44,.75))}}
 .nav button .nav-pulse{color:var(--red);animation:availablePulse 1s ease-in-out infinite}
+@keyframes gpsPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,168,104,.35);transform:scale(1)}50%{box-shadow:0 0 0 6px rgba(0,168,104,0);transform:scale(1.04)}}
+.gps-start-pulse{animation:gpsPulse 1.1s ease-in-out infinite;border:1px solid #9AE6C3!important}
 .nav button.active .nav-pulse{color:#fff}
 .nav-count{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 5px;border-radius:99px;background:var(--red);color:#fff;font-size:10px;font-weight:900}
 .queue-green{border-left:5px solid #16A34A!important}.queue-yellow{border-left:5px solid #EAB308!important}.queue-red{border-left:5px solid #DC2626!important}
@@ -954,6 +956,7 @@
   function esc(x){ return String(x==null?"":x).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
   function cash(x){ return (Number(x)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
   function date(x){ return x ? new Date(x).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "—"; }
+  function elapsedLabel(ms){ let total=Math.max(0,Math.floor(Number(ms||0)/1000)); let h=Math.floor(total/3600), m=Math.floor((total%3600)/60), sec=total%60; return (h?String(h).padStart(2,"0")+":":"")+String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0"); }
   function localDateInputValue(){ let d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
   function formatServiceDate(value){ if(!value) return "Não informada"; let p=String(value).split("-"); return p.length===3 ? `${p[2]}/${p[1]}/${p[0]}` : value; }
   function serviceTypeLabel(type){ return type==="collection" ? "Recolha (Cliente → Loja)" : type==="roundtrip" ? "Recolha e entrega (2 viagens)" : "Entrega (Loja → Cliente)"; }
@@ -993,6 +996,11 @@
     let tag = o.status === "open" ? "orange" : o.status === "cotacao" ? "purpletag" : o.status === "cancelado_cotacao" ? "gray" : o.status === "run" ? "bluetag" : "green";
     let action = "";
 
+    let runDurationHtml = "";
+    if (o.accepted && (o.status === "run" || o.status === "done")) {
+      let duration = o.status === "done" ? Number(o.durationMs || (Number(o.completed||Date.now()) - Number(o.accepted))) : Date.now() - Number(o.accepted);
+      runDurationHtml = `<span style="font-size:12px;font-weight:800;color:${o.status==="done"?"var(--green-dark)":"var(--blue)"};">⏱️ ${o.status==="done"?"Tempo da corrida":"Tempo em execução"}: ${elapsedLabel(duration)}</span>`;
+    }
     let pickupTimerHtml = "";
     let canCancelFree = false;
     if (o.status === "run" && !o.picked && o.accepted) {
@@ -1036,12 +1044,12 @@
           ? '<button type="button" class="btn primary tiny" data-action="roundtrip-step" data-step="3" data-id="'+o.id+'">Iniciar 2ª viagem</button>'
           : '<button type="button" class="btn primary tiny" data-action="finish" data-id="'+o.id+'">Confirmar entrega ao cliente</button>';
         action = stepAction + '<button type="button" class="btn danger tiny" data-action="cancel" data-id="'+o.id+'">Cancelar</button>' +
-          ` <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny" style="background:var(--mint);">🗺️ GPS: ${tripStage===1 ? "Ir à Loja" : "Ir ao Cliente"}</a>`;
+          ` <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny gps-start-pulse" style="background:var(--mint);">🗺️ GPS: ${tripStage===1 ? "Ir à Loja" : "Ir ao Cliente"}</a>`;
       } else {
         let mapUrl = !o.picked ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(o.serviceType === "collection" ? `${o.clientStreet}, ${o.clientNumber}` : (o.storeAddress || "Loja"))}&travelmode=bicycling` : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(o.serviceType === "collection" ? (o.storeAddress || "Loja") : `${o.clientStreet}, ${o.clientNumber}`)}&travelmode=bicycling`;
         let gpsBtnText = !o.picked ? "🗺️ GPS: Ir à Coleta" : "🗺️ GPS: Ir ao Destino";
         action = (o.picked ? '<button type="button" class="btn primary tiny" data-action="finish" data-id="'+o.id+'">Confirmar Entrega</button>' : '<button type="button" class="btn soft tiny" data-action="picked" data-id="'+o.id+'">Confirmei Retirada</button><button type="button" class="btn danger tiny" data-action="cancel" data-id="'+o.id+'">Cancelar</button>') +
-                 ` <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny" style="background:var(--mint);">${gpsBtnText}</a>`;
+                 ` <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny gps-start-pulse" style="background:var(--mint);">${gpsBtnText}</a>`;
       }
     }
 
@@ -1056,7 +1064,7 @@
     let gpsTrackingInfo = (canLoc(o) && o.location && o.status === "run") ? `<div class="gps" style="margin-top:6px; background:var(--mint); padding:8px; border-radius:10px;">📍 <b>Motoboy em trânsito:</b> <a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" style="color:var(--green-dark); font-weight:bold;">Acompanhar Mapa</a></div>` : "";
     let serviceBadge = o.serviceType === "collection" ? '<span class="tag orange">🔄 RECOLHA</span>' : o.serviceType === "roundtrip" ? '<span class="tag purpletag">🔁 2 VIAGENS</span>' : '<span class="tag bluetag">🚚 ENTREGA</span>';
 
-    return '<article class="order '+queueClass+'"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+esc(o.clientStreet)+', '+esc(o.clientNumber)+' - '+esc(o.clientNeighborhood)+'</h3><div class="order-store">Cliente: <b>'+esc(o.client)+'</b> '+ (o.phone ? '('+esc(o.phone)+')' : '') +'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>'+queueBadge+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+pickupTimerHtml+'</div>'+trackingShareHtml+bidsHtml+gpsTrackingInfo+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
+    return '<article class="order '+queueClass+'"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+esc(o.clientStreet)+', '+esc(o.clientNumber)+' - '+esc(o.clientNeighborhood)+'</h3><div class="order-store">Cliente: <b>'+esc(o.client)+'</b> '+ (o.phone ? '('+esc(o.phone)+')' : '') +'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>'+queueBadge+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+pickupTimerHtml+' '+runDurationHtml+'</div>'+trackingShareHtml+bidsHtml+gpsTrackingInfo+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
   }
 
   function render(){
@@ -1179,6 +1187,10 @@
     if(currentUser && role === "courier" && view === "available") render();
   }, 60000);
 
+  setInterval(() => {
+    if(currentUser && role === "courier" && view === "run") render();
+  }, 1000);
+
   function listView(status){
     let arr = role === "store" ? (status==="all"?mine():mine().filter(o => status==="open"?o.status==="open":o.status===status)) : role === "courier" ? (status==="open"?data.orders.filter(o => o.status==="open"):mine().filter(o => o.status===status)) : (status==="all"?data.orders:today().filter(o => o.status===status));
     if(role === "courier" && status === "open"){
@@ -1267,7 +1279,9 @@
     }
     if (action === "finish") {
       stopGpsTracking();
-      await update(ref(db, "orders/" + id), { status: "done", completed: Date.now(), paid: false });
+      let completedAt = Date.now();
+      let durationMs = o.accepted ? Math.max(0, completedAt - Number(o.accepted)) : 0;
+      await update(ref(db, "orders/" + id), { status: "done", completed: completedAt, durationMs, paid: false });
       toast("Entrega concluída!"); view = "done"; render();
     }
     if (action === "cancel") {
