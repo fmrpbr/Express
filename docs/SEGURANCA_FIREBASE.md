@@ -137,3 +137,32 @@ Cada função deve verificar o usuário autenticado, o perfil real no banco, a p
 As regras atualmente abertas não devem ser substituídas por regras genéricas que liberem `orders` para qualquer usuário autenticado. Também não devem ser aplicadas regras de bloqueio total antes da migração, pois o aplicativo atual depende dos caminhos existentes.
 
 **Este documento é um plano de implementação. Não é um arquivo de regras pronto para publicação e não altera o Firebase em produção.**
+
+
+## Compatibilidade com o plano Firebase Spark
+
+O projeto está atualmente no plano Spark. A arquitetura desta fase deve respeitar essa condição:
+
+- Firebase Authentication (métodos de login compatíveis), Realtime Database, Hosting e FCM podem ser usados dentro das respectivas cotas e limitações.
+- Cloud Functions não podem ser implantadas enquanto o projeto permanecer no Spark. A implantação exige Blaze.
+- O Realtime Database no Spark inclui atualmente 1 GB de armazenamento e 10 GB/mês de downloads. Acompanhar o consumo, especialmente porque listeners amplos aumentam downloads.
+- FCM é um serviço sem custo, mas o envio confiável de notificações deve partir de um ambiente servidor confiável. Não colocar credenciais de servidor nem chaves privadas no aplicativo.
+- Não vincular faturamento nem alterar o plano sem autorização expressa do proprietário.
+
+### Estratégia enquanto permanecer no Spark
+
+1. Desenvolver e testar as regras do Realtime Database no Emulator Suite.
+2. Separar caminhos de leitura para cada perfil e limitar cada consulta ao conjunto necessário.
+3. Usar validações nas regras para impedir alterações de campos protegidos, validar propriedade e restringir transições simples de estado quando isso puder ser feito com segurança.
+4. Não confiar em variáveis locais como `role`, `actor` ou `storeId` recebidas do cliente. Usar `auth.uid` e dados de perfil protegidos.
+5. Não expor o registro canônico de pedidos no rastreamento público. Um token aleatório não deve liberar o caminho privado do pedido.
+6. Para operações que exigem lógica de servidor, transações em múltiplos caminhos, geração segura de tokens e notificações automáticas, manter a implementação bloqueada até haver backend confiável. Isso pode ser Cloud Functions após autorização para Blaze ou um servidor externo administrado separadamente.
+7. Enquanto não houver backend, não declarar como concluídos pagamentos automatizados, agendamentos com lembretes garantidos, notificações push com app fechado ou sincronização segura de índices.
+
+### Limite importante
+
+As regras do Realtime Database podem validar o estado final de gravações e restringir caminhos, mas não transformam um cliente controlado pelo usuário em servidor confiável. Se uma operação precisar executar várias gravações de forma indivisível ou gerar efeitos externos, ela deve ser executada e validada no backend.
+
+Referências oficiais:
+- Planos Firebase: https://firebase.google.com/docs/projects/billing/firebase-pricing-plans?hl=pt-br
+- Cotas e cobrança do Realtime Database: https://firebase.google.com/docs/database/usage/billing
