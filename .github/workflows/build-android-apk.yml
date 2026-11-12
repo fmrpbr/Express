@@ -35,6 +35,9 @@ jobs:
       - name: Instalar dependências
         run: npm install
 
+      - name: Preparar configuração Firebase de teste
+        run: cp www/firebase-config.example.js www/firebase-config.js
+
       - name: Preparar ícones do aplicativo
         run: |
           mkdir -p www/icons
