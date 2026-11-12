@@ -1,0 +1,2 @@
+# Firebase local/test config (never commit credentials or project config)
+www/firebase-config.js
