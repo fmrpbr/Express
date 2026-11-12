@@ -36,15 +36,15 @@ Construir uma segunda versão instalável em paralelo à versão atual, com dado
 ## Etapas e critérios de aceite
 ### Fase 0 — isolamento
 - [x] Criar branch independente.
-- [ ] Separar identificador Android e nome da versão de teste.
+- [x] Separar identificador Android e nome da versão de teste. O app usa `com.fmrpbr.express.v2` e nome `Express Entregas 2.0 (Teste)`, permitindo instalação paralela.
 - [ ] Definir projeto Firebase de teste e configuração por ambiente.
-- [ ] Garantir que build de teste não aponte para produção.
+- [x] Bloquear no código a inicialização se o projeto configurado for o Firebase de produção. O APK de CI usa configuração vazia e mostra instrução até ser conectado ao Firebase de teste.
 
 ### Fase 1 — base e testes automatizados
 - [ ] Executar a suíte atual do Emulator Suite e corrigir falhas.
 - [ ] Criar testes de regras para loja A/B, motoboy A/B, administrador e visitante.
 - [ ] Criar testes de transição de estados, concorrência e dados públicos.
-- [ ] CI deve compilar e testar sem publicar em produção.
+- [x] Workflow de APK isolado configurado para a branch V2 e artifact próprio. Workflow de testes do Emulator Suite criado; execução ainda precisa ser confirmada.
 
 ### Fase 2 — autenticação e segurança
 - [ ] Criar perfis protegidos e autorização por UID/claims.
@@ -75,3 +75,13 @@ Construir uma segunda versão instalável em paralelo à versão atual, com dado
 
 ## Estado atual
 A branch foi criada a partir de `feature/agendamentos-express`, preservando os ajustes e documentos de segurança existentes. A V2 ainda não está implementada nem conectada a um Firebase de teste. O arquivo `database.rules.json` é um rascunho restritivo e não deve ser publicado no banco atual. A suíte do Emulator Suite ainda precisa ser executada.
+
+## Implementação já registrada na V2
+
+- Branch criada a partir de `feature/agendamentos-express`.
+- O identificador Android foi alterado para permitir instalação paralela.
+- O HTML não contém mais configuração nem URL de banco de produção para inicialização; a V2 bloqueia explicitamente o projectId de produção.
+- Configuração de teste é carregada de `www/firebase-config.js`, ignorada pelo Git, com modelo em `www/firebase-config.example.js`.
+- Workflow de APK dispara somente na branch V2 e publica artifact com nome próprio.
+- Workflow independente foi criado para executar as regras no Firebase Emulator Suite.
+- Nenhum banco Firebase foi criado ou alterado. Nenhum APK foi confirmado como compilado ou testado em aparelho nesta etapa.
