@@ -1,6 +1,6 @@
 {
-  "name": "express-entregas-android",
-  "version": "1.0.0",
+  "name": "express-entregas-android-v2",
+  "version": "2.0.0",
   "private": true,
   "description": "Aplicativo Android Express Entregas",
   "scripts": {
