@@ -1,0 +1,73 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "profiles": {
+      "stores": {
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || auth.token.admin === true)",
+          ".write": false
+        }
+      },
+      "couriers": {
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || auth.token.admin === true)",
+          ".write": false
+        }
+      }
+    },
+
+    "orders": {
+      "$orderId": {
+        ".read": "auth != null && (auth.token.admin === true || data.child('storeId').val() === auth.uid || data.child('courierId').val() === auth.uid)",
+        ".write": false
+      }
+    },
+
+    "storeOrders": {
+      "$storeUid": {
+        ".read": "auth != null && (auth.uid === $storeUid || auth.token.admin === true)",
+        ".write": false
+      }
+    },
+
+    "courierOrders": {
+      "$courierUid": {
+        ".read": "auth != null && (auth.uid === $courierUid || auth.token.admin === true)",
+        ".write": false
+      }
+    },
+
+    "availableOrders": {
+      ".read": "auth != null && (root.child('profiles/couriers').child(auth.uid).exists() || auth.token.admin === true)",
+      ".write": false
+    },
+
+    "quoteBoard": {
+      ".read": "auth != null && (root.child('profiles/couriers').child(auth.uid).exists() || auth.token.admin === true)",
+      ".write": false
+    },
+
+    "publicTracking": {
+      "$token": {
+        ".read": "data.exists()",
+        ".write": false
+      }
+    },
+
+    "courierPresence": {
+      ".read": "auth != null",
+      "$courierUid": {
+        ".write": false
+      }
+    },
+
+    "config": {
+      "rates": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.token.admin === true"
+      }
+    }
+  }
+}
