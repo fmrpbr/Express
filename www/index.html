@@ -1368,7 +1368,9 @@
         return { ...current, status: "cotacao_aceita", courierId: selectedCourier, assignedCourierId: selectedCourier, courierName: bid.courierName || btn.dataset.cname, fee: Number(bid.amount), agreedFee: Number(bid.amount), quoteAcceptedAt: Date.now() };
       });
       if (!result.committed) return toast("Esta cotação já foi aceita ou alterada. Atualize a tela.", "warn");
-      await syncPublicTracking(id, result.snapshot.val());
+      const acceptedOrder = result.snapshot.val();
+      data.orders = data.orders.map(item => item.id === id ? { id, ...acceptedOrder } : item);
+      await syncPublicTracking(id, acceptedOrder);
       toast("Proposta aceita. Complete os dados do cliente para encaminhar ao motoboy."); view = "dashboard"; render(); window.openOrderSheet(id, "complete-quote");
     }
 
