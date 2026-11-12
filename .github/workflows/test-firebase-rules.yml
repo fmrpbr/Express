@@ -1,0 +1,39 @@
+name: Testar regras Firebase - V2
+
+on:
+  push:
+    branches: [v2.0-testes-reais]
+    paths:
+      - 'database.rules.json'
+      - 'firebase.json'
+      - 'tests/firebase-rules/**'
+      - '.github/workflows/test-firebase-rules.yml'
+  pull_request:
+    branches: [v2.0-testes-reais]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  firebase-rules:
+    name: Emulator Suite e testes de autorização
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/firebase-rules/package.json
+
+      - name: Instalar dependências de teste
+        working-directory: tests/firebase-rules
+        run: npm install
+
+      - name: Executar regras no Firebase Emulator
+        working-directory: tests/firebase-rules
+        run: npm test
