@@ -95,6 +95,7 @@ Cada função deve verificar o usuário autenticado, o perfil real no banco, a p
 - [x] Identificar caminhos e operações existentes.
 - [x] Registrar a arquitetura de destino.
 - [ ] Definir o contrato de dados dos índices e cartões públicos.
+- [x] Criar um primeiro arquivo de regras restritivas em `database.rules.json` (rascunho, não publicar).
 - [ ] Definir e implementar as funções de backend.
 - [ ] Adaptar o aplicativo para consultar os novos caminhos.
 
@@ -166,3 +167,32 @@ As regras do Realtime Database podem validar o estado final de gravações e res
 Referências oficiais:
 - Planos Firebase: https://firebase.google.com/docs/projects/billing/firebase-pricing-plans?hl=pt-br
 - Cotas e cobrança do Realtime Database: https://firebase.google.com/docs/database/usage/billing
+
+
+## Arquivo inicial de regras
+
+Foi criado `database.rules.json` na raiz do repositório. Ele é um **rascunho restritivo de destino**, com bloqueio padrão de leitura e gravação e liberações pontuais de leitura para os caminhos previstos na arquitetura.
+
+### O que este rascunho permite
+
+- Perfil: leitura pelo próprio usuário ou administrador.
+- Pedido canônico: leitura individual somente pela loja proprietária, motoboy atribuído ou administrador.
+- Índices da loja e do motoboy: leitura somente pelo titular ou administrador.
+- Mural de corridas e quadro de cotações: leitura por motoboy com perfil em `profiles/couriers/{uid}) ou administrador.
+- Rastreamento público: leitura somente do registro localizado pelo token, desde que exista. O conteúdo desse nó deve conter exclusivamente campos públicos minimizados.
+- Presença: leitura por usuários autenticados.
+- Taxas: leitura autenticada e gravação somente por administrador.
+
+### O que permanece bloqueado
+
+Todas as gravações ficam bloqueadas neste rascunho, inclusive cadastro/alteração de perfil, pedidos, propostas, presença e rastreamento. As gravações devem ser reabertas somente depois de definir validações compatíveis ou mover operações sensíveis para um backend confiável.
+
+### Atenção antes de usar
+
+1. O aplicativo atual ainda lê caminhos antigos, como `stores/{uid}`, `couriers/{uid}` e `orders` pela raiz. Essas regras não são compatíveis com a versão atual do app.
+2. Os novos caminhos `profiles`, `storeOrders`, `courierOrders`, `availableOrders`, `quoteBoard` e `publicTracking` ainda precisam ser implementados e populados.
+3. A leitura individual de `orders/{orderId}` não autoriza uma consulta à raiz `orders`. O app precisa mudar suas consultas.
+4. A condição do rastreamento pressupõe tokens longos, aleatórios e impossíveis de adivinhar. Não use o ID do pedido como token.
+5. A regra de presença só libera leitura; a gravação continua bloqueada intencionalmente.
+6. Este arquivo não foi aplicado ao Firebase, não foi validado no Emulator Suite e **não deve ser publicado no console** enquanto o aplicativo não estiver adaptado.
+
