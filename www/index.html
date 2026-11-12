@@ -841,7 +841,7 @@
 
   window.openOrderSheet = function(editId, mode) {
     let store = person();
-    if (role === "store" && store && !store.address) {
+    if (role === "store" && mode !== "quote" && store && !store.address) {
       if(!confirm("⚠️ Você ainda não cadastrou o endereço da sua loja no seu perfil.\nDeseja cadastrar agora?")) return;
       view = "profile"; render(); return;
     }
@@ -1287,6 +1287,10 @@
   // Atualiza a idade e a prioridade da fila mesmo sem novas alterações no Firebase.
   setInterval(() => {
     if(currentUser && role === "courier" && view === "available") render();
+  }, 60000);
+
+  setInterval(() => {
+    if(currentUser && role === "store" && (view === "dashboard" || view === "open")) render();
   }, 60000);
 
   setInterval(() => {
