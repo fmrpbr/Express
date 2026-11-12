@@ -18,6 +18,11 @@
 :root{--ink:#1A1A1A;--muted:#717171;--line:#F0F0F0;--paper:#F7F7F7;--green:#00A868;--green-dark:#007A4A;--mint:#E8F7EF;--orange:#E85D04;--orangebg:#FFF1E6;--red:#EA1D2C;--red-dark:#C8102E;--redbg:#FDECEC;--blue:#175CD3;--bluebg:#EFF8FF;--purple:#6941C6;--purplebg:#F4F3FF;--black:#1A1A1A;--primary:#EA1D2C;--primary-dark:#C8102E;--yellow:#FFC800;--radius:20px}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}body{margin:0;background:#E9EBEE;color:var(--ink);font:14px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}button,input,select{font:inherit}button{cursor:pointer;border:0}img{max-width:100%}
 .app{min-height:100dvh;display:flex;flex-direction:column;background:#fff;max-width:480px;margin:0 auto;position:relative;box-shadow:0 0 0 1px #E5E7EB,0 20px 60px rgba(0,0,0,.08);overflow:hidden}
+/* Reserva o espaço da barra de status nos aparelhos Android, sem alterar a versão web */
+.native-app .app{margin-top:28px;min-height:calc(100dvh - 28px)}
+@supports (padding-top: env(safe-area-inset-top)){
+  .native-app .app{margin-top:max(28px,env(safe-area-inset-top));min-height:calc(100dvh - max(28px,env(safe-area-inset-top)))}
+}
 .main{min-width:0;flex:1;display:flex;flex-direction:column;background:var(--paper);overflow-y:auto;order:1}
 
 /* Layout Hero Estilo iFood */
@@ -535,6 +540,8 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
   import { getDatabase, ref, set, update, push, get, onValue, runTransaction, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
+  if (window.Capacitor?.isNativePlatform?.()) document.documentElement.classList.add("native-app");
 
   const firebaseConfig = window.EXPRESS_FIREBASE_CONFIG || {};
   if (!firebaseConfig.apiKey || !firebaseConfig.projectId || firebaseConfig.projectId === "express-entregas-86e3e") {
