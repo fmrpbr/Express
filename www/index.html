@@ -1444,6 +1444,7 @@
   }
 
   window.__express = {
+    prepareSheet: prepareSheet,
     setView: function(v){ view = v; render(); },
     doAction: function(a, id){ return act(a, id).catch(err => toast(err.message, "warn")); },
     enablePush: function(){ return enablePushNotifications().catch(err => toast(err.message || "Falha ao ativar notificações.", "warn")); },
