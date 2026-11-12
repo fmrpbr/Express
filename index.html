@@ -976,7 +976,7 @@
       action += `<button type="button" class="btn danger tiny" data-action="cancel-quote" data-id="${o.id}">🗑️ Cancelar</button>`;
     }
 
-    if(role === "courier" && o.status === "open") action += data.orders.some(x => x.status === "run" && x.courierId === actor) ? '<span class="tag gray">Finalize a corrida atual</span>' : '<button type="button" class="btn primary tiny" data-action="accept" data-id="'+o.id+'">Aceitar corrida</button>';
+    if(role === "courier" && o.status === "open" && (!o.courierId || o.courierId === actor)) action += data.orders.some(x => x.status === "run" && x.courierId === actor) ? '<span class="tag gray">Finalize a corrida atual</span>' : '<button type="button" class="btn primary tiny" data-action="accept" data-id="'+o.id+'">Aceitar corrida</button>';
     
     let bidsHtml = "";
     if (o.status === "cotacao") {
@@ -1128,7 +1128,7 @@
   }
 
   function listView(status){
-    let arr = role === "store" ? (status==="all"?mine():mine().filter(o => status==="open"?o.status==="open":o.status===status)) : role === "courier" ? (status==="open"?data.orders.filter(o => o.status==="open"):mine().filter(o => o.status===status)) : (status==="all"?data.orders:today().filter(o => o.status===status));
+    let arr = role === "store" ? (status==="all"?mine():mine().filter(o => status==="open"?o.status==="open":o.status===status)) : role === "courier" ? (status==="open"?data.orders.filter(o => o.status==="open" && (!o.courierId || o.courierId===actor)):mine().filter(o => o.status===status)) : (status==="all"?data.orders:today().filter(o => o.status===status));
     arr.sort((a,b) => b.created-a.created);
     let t = status === "open" ? (role==="store"?"Pedidos em Aberto":"Disponíveis") : status === "run" ? "Em Execução" : "Concluídos";
     return '<div class="head"><div><h1>'+t+'</h1></div>'+(role === "store" && status === "open" ? '<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>' : "")+'</div>'+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhum pedido","Nenhuma corrida nesta etapa"));
@@ -1160,19 +1160,47 @@
     if (action !== "save-rates" && !o) return toast("Pedido não encontrado.", "warn");
     
     if (action === "send-bid") {
+      if (role !== "courier") return toast("Apenas motoboys podem enviar propostas.", "warn");
       let input = document.getElementById("bid-input-" + id);
       let amount = Number(input ? input.value : 0);
-      if (!amount || amount <= 0) return toast("Informe um valor válido.", "warn");
-      await update(ref(db, `orders/${id}/bids/${actor}`), { amount: amount, courierName: (person()||{}).name || "Motoboy", timestamp: Date.now() });
-      toast("Proposta enviada!"); render();
+      if (!Number.isFinite(amount) || amount <= 0) return toast("Informe um valor válido.", "warn");
+      try {
+        let result = await runTransaction(ref(db, "orders/" + id), current => {
+          if (!current || current.status !== "cotacao") return;
+          let bids = { ...(current.bids || {}) };
+          bids[actor] = { amount, courierName: (person() || {}).name || "Motoboy", timestamp: Date.now() };
+          return { ...current, bids };
+        });
+        if (!result.committed) throw new Error("Esta cotação não está mais disponível.");
+        toast("Proposta enviada!"); render();
+      } catch (err) { toast(err.message || "Não foi possível enviar a proposta.", "warn"); }
     }
     
     if (action === "accept-bid") {
       let btn = document.querySelector(`[data-action="accept-bid"][data-id="${id}"]`);
-      if (!btn) return;
-      if (!confirm(`Confirmar contratação por ${cash(btn.dataset.amount)}?`)) return;
-      await update(ref(db, "orders/" + id), { status: "open", courierId: btn.dataset.courier, courierName: btn.dataset.cname, fee: Number(btn.dataset.amount), accepted: Date.now() });
-      toast("Cotação aceita! Enviada para a fila de abertos."); view = "open"; render();
+      if (!btn || (role !== "store" && role !== "admin")) return;
+      if (role === "store" && o.storeId !== actor) return toast("Você não pode contratar por outra loja.", "warn");
+      if (!confirm("Confirmar a contratação deste motoboy?")) return;
+      try {
+        let result = await runTransaction(ref(db, "orders/" + id), current => {
+          if (!current || current.status !== "cotacao") return;
+          let bid = current.bids && current.bids[btn.dataset.courier];
+          let amount = Number(bid && bid.amount);
+          if (!bid || !Number.isFinite(amount) || amount <= 0) return;
+          return {
+            ...current,
+            status: "open",
+            courierId: btn.dataset.courier,
+            courierName: bid.courierName || "Motoboy",
+            fee: amount,
+            accepted: Date.now(),
+            quoteAccepted: Date.now()
+          };
+        });
+        if (!result.committed) throw new Error("A cotação mudou ou já foi contratada. Atualize a tela.");
+        toast("Motoboy escolhido! A corrida ficou reservada para ele confirmar.");
+        view = "open"; render();
+      } catch (err) { toast(err.message || "Não foi possível aceitar a proposta.", "warn"); }
     }
 
     if (action === "cancel-quote") {
@@ -1188,6 +1216,7 @@
       try {
         let result = await runTransaction(ref(db, "orders/" + id), current => {
           if (!current || current.status !== "open") return;
+          if (current.courierId && current.courierId !== actor) return;
           return { ...current, status:"run", courierId:actor, courierName:(person()||{}).name||"Motoboy", accepted:Date.now(), rain:isRaining, fee:newFee };
         });
         if (!result.committed) throw new Error("Corrida já aceita por outro motoboy.");
@@ -1278,6 +1307,11 @@
       };
 
       if (editId) {
+        let existing = data.orders.find(x => x.id === editId);
+        if (role !== "store" || !existing || existing.storeId !== actor) throw new Error("Você não tem permissão para editar este pedido.");
+        if (!["open", "cotacao"].includes(existing.status) || existing.courierId || existing.paid) throw new Error("Este pedido não pode mais ser editado porque já foi contratado ou está em andamento.");
+        orderPayload.status = existing.status;
+        orderPayload.fee = existing.status === "cotacao" ? 0 : finalFee;
         await update(ref(db, "orders/" + editId), orderPayload);
         toast("Atualizado com sucesso!");
       } else {
