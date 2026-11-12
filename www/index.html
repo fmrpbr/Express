@@ -160,6 +160,7 @@
   .side{position:static!important;transform:none;width:auto}
   .main{padding-bottom:0}
 }
+  .dashboard-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.dashboard-section{margin-top:14px}.dashboard-section .panel-head{display:flex;align-items:center;justify-content:space-between}.section-count{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 8px;border-radius:20px;background:var(--paper);font-weight:800;font-size:12px}
 </style>
 </head>
 <body>
@@ -896,7 +897,7 @@
   window.__express.prepareSheet = prepareSheet;
 
   function configureOrderFormMode(isQuote, completing){
-    ["field-street","field-number","field-reference","field-client","field-phone","field-payment","field-zone","field-notes","section-addons","field-neighborhood"].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isQuote?"none":"";});
+    ["field-street","field-number","field-reference","field-client","field-phone","field-payment","field-zone","field-notes","section-addons"].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isQuote?"none":"";});
     const city=document.getElementById("field-city");if(city)city.style.display=isQuote?"":"none";
     ["inp-street","inp-number","inp-client"].forEach(id=>{const el=document.getElementById(id);if(el)el.required=!isQuote;});
     const ci=document.getElementById("quote-city");if(ci)ci.required=isQuote;
@@ -1265,21 +1266,22 @@
   });
 
   function dashboard(){
-    let os = mine().filter(o => isToday(o.created)), op = os.filter(o => o.status==="open"), run = os.filter(o => o.status==="run"), done = os.filter(o => o.status==="done"), unpaid = done.filter(o => !o.paid);
-    
-    let storeProfileWarning = "";
-    if (role === "store") {
-      let st = person();
-      if (!st || !st.address) {
-        storeProfileWarning = `<div class="info">⚠️ <b>Atenção Lojista:</b> Você ainda não cadastrou o endereço da sua loja. <a href="#" data-nav="profile" style="font-weight:bold; text-decoration:underline;">Clique aqui para configurar</a>.</div>`;
-      }
+    const os=mine();
+    const op=os.filter(o=>o.status==="open");
+    const run=os.filter(o=>o.status==="run");
+    const quotes=os.filter(o=>o.status==="cotacao"||o.status==="cotacao_aceita");
+    const done=os.filter(o=>o.status==="done");
+    const unpaid=done.filter(o=>!o.paid);
+    let storeProfileWarning="";
+    if(role==="store"){
+      const st=person();
+      if(!st||!st.address)storeProfileWarning='<div class="info">⚠️ <b>Atenção:</b> Cadastre o endereço da loja em <a href="#" data-nav="profile">Perfil</a>.</div>';
     }
-
-    let stats = stat("Pedidos Hoje",os.length,"Registros","▣")+stat(role==="store"?"Em Aberto":"Disponíveis",op.length,"Na fila","＋")+stat("Em Andamento",run.length,"Ativas","◷")+stat("Não Acertados",unpaid.length,cash(unpaid.reduce((n,o)=>n+o.fee,0)),"R$");
-    let recent = os.slice().sort((a,b) => b.created-a.created).slice(0,4);
-
-    return storeProfileWarning + 
-           '<div class="head"><div><h1>Olá, '+esc((person()||{name:"Admin"}).name.split(" ")[0])+' 👋</h1><p>Acompanhe suas solicitações logísticas em tempo real.</p></div>'+(role === "store" ? '<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>' : "")+'</div><div class="grid stats">'+stats+'</div><section class="panel"><div class="panel-head"><h2>Atividade recente</h2></div>'+(recent.length?'<div class="list">'+recent.map(card).join("")+'</div>':empty("Sem pedidos hoje","As solicitações aparecerão aqui."))+'</section>';
+    const stats=stat("Em execução",run.length,"Corridas ativas","◷")+stat("Em aberto",op.length,"Aguardando motoboy","＋")+stat("Aguardando cotação",quotes.length,"Propostas pendentes","💬")+stat("Não acertados",unpaid.length,cash(unpaid.reduce((n,o)=>n+Number(o.fee||0),0)),"R$");
+    const section=(title,list,emptyTitle,emptyText)=>'<section class="panel dashboard-section"><div class="panel-head"><h2>'+title+'</h2><span class="section-count">'+list.length+'</span></div>'+(list.length?'<div class="list">'+list.map(card).join("")+'</div>':empty(emptyTitle,emptyText))+'</section>';
+    const recent=os.slice().sort((a,b)=>Number(b.completed||b.cancelledAt||b.created||0)-Number(a.completed||a.cancelledAt||a.created||0)).slice(0,5);
+    const actions=role==="store"?'<div class="dashboard-actions"><button type="button" class="btn primary" data-open-sheet data-sheet-mode="delivery">＋ Pedir motoboy</button><button type="button" class="btn secondary" data-open-sheet data-sheet-mode="quote">💬 Pedir cotação</button></div>':"";
+    return storeProfileWarning+'<div class="head"><div><h1>Olá, '+esc((person()||{name:"Admin"}).name.split(" ")[0])+'</h1><p>Prioridade para o que precisa de atenção agora.</p></div>'+actions+'</div><div class="grid stats">'+stats+'</div>'+(role==="store"?section("Em execução",run.sort((a,b)=>Number(b.accepted||0)-Number(a.accepted||0)),"Nenhuma corrida em execução","As corridas aceitas aparecerão aqui.")+section("Em aberto",op.sort((a,b)=>Number(a.created||0)-Number(b.created||0)),"Nenhum pedido em aberto","Os pedidos aguardando motoboy aparecerão aqui.")+section("Aguardando cotação",quotes.sort((a,b)=>Number(b.created||0)-Number(a.created||0)),"Nenhuma cotação pendente","As propostas especiais aparecerão aqui."):"")+section("Atividade recente",recent,"Sem atividade recente","Os últimos pedidos aparecerão aqui.");
   }
 
   // Atualiza a idade e a prioridade da fila mesmo sem novas alterações no Firebase.
@@ -1305,7 +1307,7 @@
     let arr = data.orders.filter(o => o.status === "cotacao" || o.status === "cotacao_aceita" || o.status === "cancelado_cotacao");
     if (role === "store") arr = arr.filter(o => o.storeId === actor);
     arr.sort((a,b) => b.created-a.created);
-    return '<div class="head"><div><h1>Mural de Cotações</h1><p>Orçamentos e propostas especiais.</p></div>'+(role==="store"?'<button type="button" class="btn primary" data-open-sheet>＋ Pedir Cotação</button>':"")+'</div>'+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhuma cotação ativa","As solicitações aparecerão aqui."));
+    return '<div class="head"><div><h1>Mural de Cotações</h1><p>Orçamentos e propostas especiais.</p></div>'+(role==="store"?'<button type="button" class="btn primary" data-open-sheet data-sheet-mode="quote">＋ Pedir Cotação</button>':"")+'</div>'+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhuma cotação ativa","As solicitações aparecerão aqui."));
   }
 
   function summaryView(){
