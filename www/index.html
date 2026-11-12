@@ -1461,9 +1461,9 @@
     e.preventDefault();
     let f = e.target, s = person();
     if (!s || role !== "store") return toast("Entre com uma conta de lojista.", "warn");
-    if (!s.address) { closeOrderSheet(); view = "profile"; render(); return toast("Cadastre o endereço da sua loja em Perfil.", "warn"); }
-    
     let isQuote = f.dataset.mode === "quote";
+    if (!isQuote && !s.address) { closeOrderSheet(); view = "profile"; render(); return toast("Cadastre o endereço da sua loja em Perfil.", "warn"); }
+    
     let completingQuote = f.dataset.completingQuote === "true";
     let serviceType = f.serviceType.value;
     let city = f.elements.namedItem("city").value.trim();
