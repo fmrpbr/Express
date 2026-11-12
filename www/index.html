@@ -1174,6 +1174,11 @@
            '<div class="head"><div><h1>Olá, '+esc((person()||{name:"Admin"}).name.split(" ")[0])+' 👋</h1><p>Acompanhe suas solicitações logísticas em tempo real.</p></div>'+(role === "store" ? '<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>' : "")+'</div><div class="grid stats">'+stats+'</div><section class="panel"><div class="panel-head"><h2>Atividade recente</h2></div>'+(recent.length?'<div class="list">'+recent.map(card).join("")+'</div>':empty("Sem pedidos hoje","As solicitações aparecerão aqui."))+'</section>';
   }
 
+  // Atualiza a idade e a prioridade da fila mesmo sem novas alterações no Firebase.
+  setInterval(() => {
+    if(currentUser && role === "courier" && view === "available") render();
+  }, 60000);
+
   function listView(status){
     let arr = role === "store" ? (status==="all"?mine():mine().filter(o => status==="open"?o.status==="open":o.status===status)) : role === "courier" ? (status==="open"?data.orders.filter(o => o.status==="open"):mine().filter(o => o.status===status)) : (status==="all"?data.orders:today().filter(o => o.status===status));
     if(role === "courier" && status === "open"){
