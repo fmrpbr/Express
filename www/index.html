@@ -339,7 +339,7 @@
       <input type="hidden" id="edit-order-id" value="">
       <div class="sheet-body">
         
-        <div class="section-title" style="margin-top:2px;">📍 1. Endereço Completo do Destino</div>
+        <div class="section-title" style="margin-top:2px;">📍 1. Local do Serviço</div>
         <div class="formgrid">
           <div class="field" style="grid-column: 1 / span 2;">
             <label>Rua / Logradouro</label>
@@ -359,6 +359,11 @@
           </div>
         </div>
 
+        <div class="field full">
+          <label>Data prevista do serviço</label>
+          <input type="date" name="serviceDate" id="service-date" required>
+        </div>
+
         <div class="field full" style="margin-top:5px; background:var(--paper); padding:10px; border-radius:12px;">
           <label>Região / Taxa Específica</label>
           <select name="selectedZone" id="zone-select-mobile">
@@ -369,8 +374,9 @@
         <div class="field full" style="margin-top:5px; background:var(--mint); padding:10px; border-radius:12px;">
           <label style="color:var(--green-dark); font-weight:800;">⚠️ 2. Tipo de Serviço</label>
           <select name="serviceType" id="service-type-select" style="font-weight:bold; background:#fff; color:var(--green-dark); margin-top:4px;">
-            <option value="delivery">🚚 Entrega (Retira na Loja ➔ Leva no Cliente)</option>
-            <option value="collection">🔄 Coleta / Busca (Busca no Cliente ➔ Traz na Loja)</option>
+            <option value="collection">🔄 Recolha (Cliente → Loja)</option>
+            <option value="delivery">🚚 Entrega (Loja → Cliente)</option>
+            <option value="roundtrip">🔁 Recolha e entrega (2 viagens)</option>
           </select>
         </div>
 
@@ -839,6 +845,7 @@
       document.getElementById("edit-order-id").value = "";
       document.getElementById("sheet-title-text").textContent = "🚀 Solicitar Motoboy";
       document.getElementById("btn-submit-order").textContent = "Confirmar e Enviar Pedido →";
+      document.getElementById("service-date").value = localDateInputValue();
       return;
     }
     let o = data.orders.find(x => x.id === editId);
@@ -848,6 +855,7 @@
     document.getElementById("btn-submit-order").textContent = "Salvar Alterações →";
     
     document.getElementById("service-type-select").value = o.serviceType || "delivery";
+    document.getElementById("service-date").value = o.serviceDate || localDateInputValue();
     document.getElementById("inp-client").value = o.client || "";
     document.getElementById("inp-phone").value = o.phone || "";
     document.getElementById("inp-street").value = o.clientStreet || "";
@@ -937,6 +945,9 @@
   function esc(x){ return String(x==null?"":x).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
   function cash(x){ return (Number(x)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
   function date(x){ return x ? new Date(x).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "—"; }
+  function localDateInputValue(){ let d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+  function formatServiceDate(value){ if(!value) return "Não informada"; let p=String(value).split("-"); return p.length===3 ? `${p[2]}/${p[1]}/${p[0]}` : value; }
+  function serviceTypeLabel(type){ return type==="collection" ? "Recolha (Cliente → Loja)" : type==="roundtrip" ? "Recolha e entrega (2 viagens)" : "Entrega (Loja → Cliente)"; }
   function initials(x){ return String(x||"EE").split(/\s+/).slice(0,2).map(v => v[0]).join("").toUpperCase(); }
   function person(){ let a = role === "store" ? data.stores : role === "courier" ? data.couriers : []; return a.find(x => x.id === actor) || a[0] || null; }
   function isToday(timestamp){ let d = new Date(); d.setHours(0,0,0,0); return Number(timestamp) >= d.getTime(); }
@@ -956,7 +967,8 @@
   function canLoc(o){ return role === "admin" || o.storeId === actor || (role === "courier" && o.courierId === actor); }
 
   function card(o){
-    let st = o.status === "open" ? "Aguardando motoboy" : o.status === "cotacao" ? "Em Cotação" : o.status === "cancelado_cotacao" ? "Cancelado" : o.status === "run" ? (o.picked ? "Coletado · em trânsito" : "Aguardando coleta") : "Entregue";
+    let tripStage = Number(o.tripStage || 0);
+    let st = o.status === "open" ? "Aguardando motoboy" : o.status === "cotacao" ? "Em Cotação" : o.status === "cancelado_cotacao" ? "Cancelado" : o.status === "run" ? (o.serviceType === "roundtrip" ? (tripStage===0 ? "A caminho do cliente" : tripStage===1 ? "A caminho da loja" : tripStage===2 ? "Na loja · 2ª viagem" : "A caminho do cliente") : (o.picked ? "Coletado · em trânsito" : "Aguardando coleta")) : "Entregue";
     let tag = o.status === "open" ? "orange" : o.status === "cotacao" ? "purpletag" : o.status === "cancelado_cotacao" ? "gray" : o.status === "run" ? "bluetag" : "green";
     let action = "";
 
@@ -992,11 +1004,24 @@
     }
 
     if(role === "courier" && o.status === "run") {
-      let mapUrl = !o.picked ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(o.serviceType === "collection" ? `${o.clientStreet}, ${o.clientNumber}` : (o.storeAddress || "Loja"))}&travelmode=bicycling` : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(o.serviceType === "collection" ? (o.storeAddress || "Loja") : `${o.clientStreet}, ${o.clientNumber}`)}&travelmode=bicycling`;
-      let gpsBtnText = !o.picked ? "🗺️ GPS: Ir à Coleta" : "🗺️ GPS: Ir ao Destino";
-
-      action = (o.picked ? '<button type="button" class="btn primary tiny" data-action="finish" data-id="'+o.id+'">Confirmar Entrega</button>' : '<button type="button" class="btn soft tiny" data-action="picked" data-id="'+o.id+'">Confirmei Retirada</button><button type="button" class="btn danger tiny" data-action="cancel" data-id="'+o.id+'">Cancelar</button>') +
-               ` <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny" style="background:var(--mint);">${gpsBtnText}</a>`;
+      if (o.serviceType === "roundtrip") {
+        let destination = tripStage === 1 ? (o.storeAddress || "Loja") : `${o.clientStreet}, ${o.clientNumber} - ${o.clientNeighborhood}`;
+        let mapUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=bicycling`;
+        let stepAction = tripStage === 0
+          ? '<button type="button" class="btn soft tiny" data-action="roundtrip-step" data-step="1" data-id="'+o.id+'">Confirmar recolha no cliente</button>'
+          : tripStage === 1
+          ? '<button type="button" class="btn soft tiny" data-action="roundtrip-step" data-step="2" data-id="'+o.id+'">Confirmar entrega na loja</button>'
+          : tripStage === 2
+          ? '<button type="button" class="btn primary tiny" data-action="roundtrip-step" data-step="3" data-id="'+o.id+'">Iniciar 2ª viagem</button>'
+          : '<button type="button" class="btn primary tiny" data-action="finish" data-id="'+o.id+'">Confirmar entrega ao cliente</button>';
+        action = stepAction + '<button type="button" class="btn danger tiny" data-action="cancel" data-id="'+o.id+'">Cancelar</button>' +
+          ` <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny" style="background:var(--mint);">🗺️ GPS: ${tripStage===1 ? "Ir à Loja" : "Ir ao Cliente"}</a>`;
+      } else {
+        let mapUrl = !o.picked ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(o.serviceType === "collection" ? `${o.clientStreet}, ${o.clientNumber}` : (o.storeAddress || "Loja"))}&travelmode=bicycling` : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(o.serviceType === "collection" ? (o.storeAddress || "Loja") : `${o.clientStreet}, ${o.clientNumber}`)}&travelmode=bicycling`;
+        let gpsBtnText = !o.picked ? "🗺️ GPS: Ir à Coleta" : "🗺️ GPS: Ir ao Destino";
+        action = (o.picked ? '<button type="button" class="btn primary tiny" data-action="finish" data-id="'+o.id+'">Confirmar Entrega</button>' : '<button type="button" class="btn soft tiny" data-action="picked" data-id="'+o.id+'">Confirmei Retirada</button><button type="button" class="btn danger tiny" data-action="cancel" data-id="'+o.id+'">Cancelar</button>') +
+                 ` <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny" style="background:var(--mint);">${gpsBtnText}</a>`;
+      }
     }
 
     if (o.status === "done") {
@@ -1008,9 +1033,9 @@
     let trackingLink = `${window.location.origin}${window.location.pathname}#track=${o.id}`;
     let trackingShareHtml = `<div style="margin-top:8px; background:#F2F3F5; padding:8px 10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px;">🔗 <b>Rastreio Cliente:</b></span> <a href="${trackingLink}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny" style="background:#fff;">Abrir Link</a></div>`;
     let gpsTrackingInfo = (canLoc(o) && o.location && o.status === "run") ? `<div class="gps" style="margin-top:6px; background:var(--mint); padding:8px; border-radius:10px;">📍 <b>Motoboy em trânsito:</b> <a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" style="color:var(--green-dark); font-weight:bold;">Acompanhar Mapa</a></div>` : "";
-    let serviceBadge = o.serviceType === "collection" ? '<span class="tag orange">🔄 COLETA</span>' : '<span class="tag bluetag">🚚 ENTREGA</span>';
+    let serviceBadge = o.serviceType === "collection" ? '<span class="tag orange">🔄 RECOLHA</span>' : o.serviceType === "roundtrip" ? '<span class="tag purpletag">🔁 2 VIAGENS</span>' : '<span class="tag bluetag">🚚 ENTREGA</span>';
 
-    return '<article class="order"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>'+esc(o.clientStreet)+', '+esc(o.clientNumber)+' - '+esc(o.clientNeighborhood)+'</h3><div class="order-store">Cliente: <b>'+esc(o.client)+'</b> '+ (o.phone ? '('+esc(o.phone)+')' : '') +'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div><div class="meta"><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+pickupTimerHtml+'</div>'+trackingShareHtml+bidsHtml+gpsTrackingInfo+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
+    return '<article class="order"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+esc(o.clientStreet)+', '+esc(o.clientNumber)+' - '+esc(o.clientNeighborhood)+'</h3><div class="order-store">Cliente: <b>'+esc(o.client)+'</b> '+ (o.phone ? '('+esc(o.phone)+')' : '') +'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div><div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+pickupTimerHtml+'</div>'+trackingShareHtml+bidsHtml+gpsTrackingInfo+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
   }
 
   function render(){
@@ -1164,11 +1189,21 @@
       toast("Proposta enviada!"); render();
     }
     
+    if (action === "roundtrip-step") {
+      let nextStep = Number(document.querySelector(`[data-action="roundtrip-step"][data-id="${id}"]`)?.dataset.step || 0);
+      if (nextStep < 1 || nextStep > 3 || nextStep !== Number(o.tripStage || 0) + 1) return toast("Etapa da viagem inválida.", "warn");
+      let changes = { tripStage: nextStep };
+      if (nextStep === 1) changes.picked = Date.now();
+      await update(ref(db, "orders/" + id), changes);
+      toast(nextStep === 1 ? "Recolha no cliente confirmada." : nextStep === 2 ? "Entrega na loja confirmada." : "Segunda viagem iniciada.");
+      render();
+    }
+
     if (action === "accept-bid") {
       let btn = document.querySelector(`[data-action="accept-bid"][data-id="${id}"]`);
       if (!btn) return;
       if (!confirm(`Confirmar contratação por ${cash(btn.dataset.amount)}?`)) return;
-      await update(ref(db, "orders/" + id), { status: "open", courierId: btn.dataset.courier, courierName: btn.dataset.cname, fee: Number(btn.dataset.amount), accepted: Date.now() });
+      await update(ref(db, "orders/" + id), { status: "open", courierId: btn.dataset.courier, courierName: btn.dataset.cname, fee: Number(btn.dataset.amount), accepted: Date.now(), tripStage: o.serviceType === "roundtrip" ? 0 : null });
       toast("Cotação aceita! Enviada para a fila de abertos."); view = "open"; render();
     }
 
@@ -1185,7 +1220,7 @@
       try {
         let result = await runTransaction(ref(db, "orders/" + id), current => {
           if (!current || current.status !== "open") return;
-          return { ...current, status:"run", courierId:actor, courierName:(person()||{}).name||"Motoboy", accepted:Date.now(), rain:isRaining, fee:newFee };
+          return { ...current, status:"run", courierId:actor, courierName:(person()||{}).name||"Motoboy", accepted:Date.now(), rain:isRaining, fee:newFee, tripStage: current.serviceType === "roundtrip" ? 0 : null };
         });
         if (!result.committed) throw new Error("Corrida já aceita por outro motoboy.");
         toast("Corrida aceita! Use o botão GPS.");
@@ -1206,7 +1241,7 @@
       if(!confirm("Deseja cancelar e retornar para a fila?")) return;
       stopGpsTracking();
       let revertStatus = o.bids && Object.keys(o.bids).length > 0 ? "cotacao" : "open";
-      await update(ref(db, "orders/" + id), { status: revertStatus, courierId: null, courierName: null, accepted: null, picked: null, location: null });
+      await update(ref(db, "orders/" + id), { status: revertStatus, courierId: null, courierName: null, accepted: null, picked: null, location: null, tripStage: null });
       toast("Corrida retornada para a fila."); render();
     }
     if (action === "toggle-pay") {
@@ -1265,7 +1300,7 @@
 
     try {
       let orderPayload = {
-        serviceType: serviceType, client: clientName, phone: clientPhone, 
+        serviceType: serviceType, serviceDate: f.serviceDate.value, client: clientName, phone: clientPhone, 
         clientStreet: clientStreet, clientNumber: clientNumber, clientNeighborhood: clientNeighborhood,
         clientReference: f.elements.namedItem("clientReference").value.trim(),
         address: `${clientStreet}, nº ${clientNumber} - ${clientNeighborhood}`,
