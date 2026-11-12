@@ -216,10 +216,10 @@
     if(input) input.type = input.type === "password" ? "text" : "password";
   }
 
-  function openSheetLocal(editId){
+  function openSheetLocal(editId, mode){
     var o = document.getElementById("order-sheet-overlay");
     if(o) o.classList.add("active");
-    if(window.__express && window.__express.prepareSheet) window.__express.prepareSheet(editId);
+    if(window.__express && window.__express.prepareSheet) window.__express.prepareSheet(editId, mode || "delivery");
   }
 
   function closeSheetLocal(){
@@ -242,7 +242,7 @@
       } else if(ui.hasAttribute("data-toggle-password")){
         togglePasswordLocal();
       } else if(ui.hasAttribute("data-open-sheet")){
-        openSheetLocal(ui.dataset.editId || null);
+        openSheetLocal(ui.dataset.editId || null, ui.dataset.sheetMode || "delivery");
       } else if(ui.hasAttribute("data-close-sheet")){
         closeSheetLocal();
       } else if(ui.hasAttribute("data-enable-push")){
@@ -354,37 +354,37 @@
         
         <div class="section-title" style="margin-top:2px;">📍 1. Local do Serviço</div>
         <div class="formgrid">
-          <div class="field" style="grid-column: 1 / span 2;">
+          <div class="field" id="field-street" style="grid-column: 1 / span 2;">
             <label>Rua / Logradouro</label>
             <input name="clientStreet" id="inp-street" required placeholder="Ex: Av. Venâncio Flores">
           </div>
-          <div class="field">
+          <div class="field" id="field-number">
             <label>Número</label>
             <input name="clientNumber" id="inp-number" required placeholder="Ex: 123">
           </div>
-          <div class="field">
+          <div class="field" id="field-neighborhood">
             <label>Bairro / Localidade</label>
             <input name="clientNeighborhood" id="input-neighborhood" required placeholder="Bairro" autocomplete="off">
           </div>
-          <div class="field full">
+          <div class="field full" id="field-reference">
             <label>Ponto de Referência (Opcional)</label>
             <input name="clientReference" id="inp-ref" placeholder="Próximo à praça">
           </div>
         </div>
 
-        <div class="field full">
+        <div class="field full" id="field-service-date">
           <label>Data prevista do serviço</label>
           <input type="date" name="serviceDate" id="service-date" required>
         </div>
 
-        <div class="field full" style="margin-top:5px; background:var(--paper); padding:10px; border-radius:12px;">
+        <div class="field full" id="field-zone" style="margin-top:5px; background:var(--paper); padding:10px; border-radius:12px;">
           <label>Região / Taxa Específica</label>
           <select name="selectedZone" id="zone-select-mobile">
             <option value="">Standard — Sede e Bairros (Padrão)</option>
           </select>
         </div>
 
-        <div class="field full" style="margin-top:5px; background:var(--mint); padding:10px; border-radius:12px;">
+        <div class="field full" id="field-service-type" style="margin-top:5px; background:var(--mint); padding:10px; border-radius:12px;">
           <label style="color:var(--green-dark); font-weight:800;">⚠️ 2. Tipo de Serviço</label>
           <select name="serviceType" id="service-type-select" style="font-weight:bold; background:#fff; color:var(--green-dark); margin-top:4px;">
             <option value="collection">🔄 Recolha (Cliente → Loja)</option>
@@ -393,17 +393,17 @@
           </select>
         </div>
 
-        <div class="field full">
+        <div class="field full" id="field-client">
           <label>Nome do Cliente (Com sugestão de favoritos)</label>
           <input name="client" id="inp-client" list="saved-clients-list" required placeholder="João da Silva">
           <datalist id="saved-clients-list"></datalist>
         </div>
-        <div class="field full">
+        <div class="field full" id="field-phone">
           <label>Telefone / WhatsApp</label>
           <input name="phone" id="inp-phone" placeholder="(27) 99999-9999">
         </div>
 
-        <div class="field full">
+        <div class="field full" id="field-payment">
           <label>Forma de Pagamento da Corrida</label>
           <select name="paymentMethod" id="payment-select-mobile">
             <option value="money">💵 Dinheiro / PIX / Online</option>
@@ -411,12 +411,13 @@
           </select>
         </div>
 
-        <div class="field full">
+        <div class="field full" id="field-notes">
           <label>Observações</label>
           <input name="notes" id="inp-notes" placeholder="Ex: Chamar campainha">
         </div>
 
-        <div class="section" style="padding:10px 0; background:var(--purplebg); padding:10px; border-radius:12px;">
+        <div class="field full" id="field-city" style="display:none;"><label>Cidade</label><input id="quote-city" name="city" placeholder="Cidade do serviço"></div>
+        <div class="section" id="section-quote-toggle" style="display:none;padding:10px 0; background:var(--purplebg); padding:10px; border-radius:12px;">
           <label class="check" style="background:#fff; border-color:var(--purple);">
             <input type="checkbox" name="isQuote" id="chk-is-quote"> 
             <span style="font-weight:bold; color:var(--purple);">💬 Solicitar Cotação de Preço aos Motoboys</span>
@@ -837,14 +838,14 @@
     catch (err) { setAuthFeedback(authError(err), "error"); document.getElementById("login-screen").style.display = "flex"; }
   });
 
-  window.openOrderSheet = function(editId) {
+  window.openOrderSheet = function(editId, mode) {
     let store = person();
     if (role === "store" && store && !store.address) {
       if(!confirm("⚠️ Você ainda não cadastrou o endereço da sua loja no seu perfil.\nDeseja cadastrar agora?")) return;
       view = "profile"; render(); return;
     }
     document.getElementById("order-sheet-overlay").classList.add("active");
-    prepareSheet(editId);
+    prepareSheet(editId, mode || "delivery");
   };
 
   window.closeOrderSheet = function() {
@@ -854,21 +855,28 @@
     document.getElementById("sheet-title-text").textContent = "🚀 Solicitar Motoboy";
   };
 
-  function prepareSheet(editId) {
+  function prepareSheet(editId, mode) {
+    const quoteMode = !editId && mode === "quote";
+    document.getElementById("mobile-order-form").dataset.mode = quoteMode ? "quote" : "delivery";
+    document.getElementById("mobile-order-form").dataset.completingQuote = "false";
     if (!editId) {
       document.getElementById("edit-order-id").value = "";
       document.getElementById("sheet-title-text").textContent = "🚀 Solicitar Motoboy";
       document.getElementById("btn-submit-order").textContent = "Confirmar e Enviar Pedido →";
       document.getElementById("service-date").value = localDateInputValue();
+      configureOrderFormMode(quoteMode);
       return;
     }
     let o = data.orders.find(x => x.id === editId);
     if (!o) return;
     document.getElementById("edit-order-id").value = o.id;
-    document.getElementById("sheet-title-text").textContent = "✏️ Editar Solicitação";
+    document.getElementById("sheet-title-text").textContent = o.status === "cotacao_aceita" ? "📋 Completar pedido contratado" : "✏️ Editar Solicitação";
+    document.getElementById("mobile-order-form").dataset.completingQuote = o.status === "cotacao_aceita" ? "true" : "false";
+    configureOrderFormMode(false,o.status === "cotacao_aceita");
     document.getElementById("btn-submit-order").textContent = "Salvar Alterações →";
     
     document.getElementById("service-type-select").value = o.serviceType || "delivery";
+    document.getElementById("quote-city").value = o.city || "";
     document.getElementById("service-date").value = o.serviceDate || localDateInputValue();
     document.getElementById("inp-client").value = o.client || "";
     document.getElementById("inp-phone").value = o.phone || "";
@@ -887,6 +895,17 @@
   window.__express = window.__express || {};
   window.__express.prepareSheet = prepareSheet;
 
+  function configureOrderFormMode(isQuote, completing){
+    ["field-street","field-number","field-reference","field-client","field-phone","field-payment","field-zone","field-notes","section-addons","field-neighborhood"].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isQuote?"none":"";});
+    const city=document.getElementById("field-city");if(city)city.style.display=isQuote?"":"none";
+    ["inp-street","inp-number","inp-client"].forEach(id=>{const el=document.getElementById(id);if(el)el.required=!isQuote;});
+    const ci=document.getElementById("quote-city");if(ci)ci.required=isQuote;
+    const nb=document.getElementById("input-neighborhood");if(nb)nb.required=true;
+    const t=document.getElementById("section-quote-toggle");if(t)t.style.display="none";
+    const p=document.getElementById("box-price-display");if(p)p.style.display=isQuote?"none":"flex";
+    const b=document.getElementById("btn-submit-order");if(b)b.textContent=isQuote?"💬 Publicar cotação":"Confirmar e enviar pedido";
+    if(completing){["inp-street","inp-number","inp-client"].forEach(id=>{const el=document.getElementById(id);if(el)el.required=true;});if(ci)ci.required=false;if(b)b.textContent="Salvar dados e encaminhar ao motoboy →";}
+  }
   function refreshZoneSelect() {
     let select = document.getElementById("zone-select-mobile");
     if (select) {
@@ -898,7 +917,7 @@
 
   function recalculateMobileFee() {
     refreshZoneSelect();
-    let isQuote = document.getElementById("chk-is-quote").checked;
+    let isQuote = document.getElementById("mobile-order-form").dataset.mode === "quote";
     let priceBox = document.getElementById("box-price-display");
     let editId = document.getElementById("edit-order-id").value;
     let btnSubmit = document.getElementById("btn-submit-order");
@@ -1074,8 +1093,8 @@
       queueBadge = '<div><span class="queue-priority '+q.level+'">'+label+' · '+q.waitingMinutes+' min na fila</span></div>';
     }
     let tripStage = Number(o.tripStage || 0);
-    let st = o.status === "open" ? "Aguardando motoboy" : o.status === "cotacao" ? "Em Cotação" : o.status === "cancelado_cotacao" ? "Cancelado" : o.status === "run" ? (o.serviceType === "roundtrip" ? (tripStage===0 ? "A caminho do cliente" : tripStage===1 ? "A caminho da loja" : tripStage===2 ? "Na loja · 2ª viagem" : "A caminho do cliente") : (o.picked ? "Coletado · em trânsito" : "Aguardando coleta")) : "Entregue";
-    let tag = o.status === "open" ? "orange" : o.status === "cotacao" ? "purpletag" : o.status === "cancelado_cotacao" ? "gray" : o.status === "run" ? "bluetag" : "green";
+    let st = o.status === "open" ? "Aguardando motoboy" : o.status === "cotacao" ? "Em Cotação" : o.status === "cotacao_aceita" ? "Cotação aceita · Completar dados" : o.status === "cancelado_cotacao" || o.status === "cancelled" ? "Cancelado" : o.status === "run" ? (o.serviceType === "roundtrip" ? (tripStage===0 ? "A caminho do cliente" : tripStage===1 ? "A caminho da loja" : tripStage===2 ? "Na loja · 2ª viagem" : "A caminho do cliente") : (o.picked ? "Coletado · em trânsito" : "Aguardando coleta")) : "Entregue";
+    let tag = o.status === "open" ? "orange" : o.status === "cotacao" || o.status === "cotacao_aceita" ? "purpletag" : o.status === "cancelado_cotacao" || o.status === "cancelled" ? "gray" : o.status === "run" ? "bluetag" : "green";
     let action = "";
 
     let runDurationHtml = "";
@@ -1091,8 +1110,8 @@
       else { pickupTimerHtml = `<span style="font-size:11px; color:var(--red); font-weight:bold;">⚠️ Limite 25 min excedido!</span>`; canCancelFree = true; }
     }
 
-    if (role === "store" && (o.status === "open" || o.status === "cotacao")) {
-      action += `<button type="button" class="btn secondary tiny" data-open-sheet data-edit-id="${o.id}">✏️ Editar</button>`;
+    if (role === "store" && (o.status === "open" || o.status === "cotacao" || o.status === "cotacao_aceita")) {
+      action += o.status === "cotacao_aceita" ? `<button type="button" class="btn primary tiny" data-open-sheet data-edit-id="${o.id}">📋 Completar pedido</button>` : `<button type="button" class="btn secondary tiny" data-open-sheet data-edit-id="${o.id}">✏️ Editar</button>`;
       action += `<button type="button" class="btn danger tiny" data-action="cancel-quote" data-id="${o.id}">🗑️ Cancelar</button>`;
     }
 
@@ -1139,7 +1158,7 @@
       action = o.paid ? '<span class="tag green">✓ Pago Confirmado</span>' : (role === "courier" || role === "admin" ? '<button type="button" class="btn primary tiny" data-action="toggle-pay" data-id="'+o.id+'">💵 Confirmar Recebimento</button>' : '<span class="tag gray">Aguardando acerto do motoboy</span>');
     }
     
-    if (role === "store" && o.status === "run" && !o.picked && canCancelFree) action += ` <button type="button" class="btn danger tiny" data-action="cancel-free" data-id="${o.id}">⚠️ Cancelar Sem Custo</button>`;
+    if (role === "store" && o.status === "run" && !o.picked && canCancelFree) action += ` <button type="button" class="btn danger tiny" data-action="cancel-free" data-id="${o.id}">⚠️ Cancelar sem custo</button>`;
 
     let trackingShareHtml = (role === "store" || role === "admin") ? `<div style="margin-top:8px;background:#F2F3F5;padding:8px 10px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;"><span style="font-size:11px;">🔗 <b>Rastreio do cliente</b></span><button type="button" class="btn secondary tiny" data-action="share-whatsapp" data-id="${o.id}" style="background:#fff;">Compartilhar WhatsApp</button></div>` : "";
     let gpsTrackingInfo = (canLoc(o) && o.location && o.status === "run") ? `<div class="gps" style="margin-top:6px; background:var(--mint); padding:8px; border-radius:10px;">📍 <b>Motoboy em trânsito:</b> <a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" style="color:var(--green-dark); font-weight:bold;">Acompanhar Mapa</a></div>` : "";
@@ -1283,7 +1302,7 @@
   }
 
   function quotesView(){
-    let arr = data.orders.filter(o => o.status === "cotacao" || o.status === "cancelado_cotacao");
+    let arr = data.orders.filter(o => o.status === "cotacao" || o.status === "cotacao_aceita" || o.status === "cancelado_cotacao");
     if (role === "store") arr = arr.filter(o => o.storeId === actor);
     arr.sort((a,b) => b.created-a.created);
     return '<div class="head"><div><h1>Mural de Cotações</h1><p>Orçamentos e propostas especiais.</p></div>'+(role==="store"?'<button type="button" class="btn primary" data-open-sheet>＋ Pedir Cotação</button>':"")+'</div>'+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhuma cotação ativa","As solicitações aparecerão aqui."));
@@ -1336,11 +1355,22 @@
         if (!current || current.status !== "cotacao") return;
         const bid = current.bids && current.bids[selectedCourier];
         if (!bid || Number(bid.amount) !== Number(btn.dataset.amount)) return;
-        return { ...current, status: "open", courierId: selectedCourier, assignedCourierId: selectedCourier, courierName: bid.courierName || btn.dataset.cname, fee: Number(bid.amount), accepted: Date.now(), tripStage: current.serviceType === "roundtrip" ? 0 : null, quoteAcceptedAt: Date.now() };
+        return { ...current, status: "cotacao_aceita", courierId: selectedCourier, assignedCourierId: selectedCourier, courierName: bid.courierName || btn.dataset.cname, fee: Number(bid.amount), agreedFee: Number(bid.amount), quoteAcceptedAt: Date.now() };
       });
       if (!result.committed) return toast("Esta cotação já foi aceita ou alterada. Atualize a tela.", "warn");
       await syncPublicTracking(id, result.snapshot.val());
-      toast("Cotação reservada para o motoboy escolhido."); view = "open"; render();
+      toast("Proposta aceita. Complete os dados do cliente para encaminhar ao motoboy."); view = "dashboard"; render(); window.openOrderSheet(id, "complete-quote");
+    }
+
+    if (action === "cancel-free") {
+      if(role!=="store"||o.status!=="run"||o.picked||!o.accepted||Date.now()-Number(o.accepted)<25*60*1000)return toast("O cancelamento sem custo só fica disponível após 25 minutos sem retirada.","warn");
+      if(!confirm("O prazo de 25 minutos foi excedido e a retirada ainda não foi confirmada. Cancelar este pedido sem custo?"))return;
+      const result=await runTransaction(ref(db,"orders/"+id),current=>{
+        if(!current||current.status!=="run"||current.picked||!current.accepted||Date.now()-Number(current.accepted)<25*60*1000)return;
+        return {...current,status:"cancelled",cancelledAt:Date.now(),cancelledBy:actor,cancellationReason:"Prazo de espera de 25 minutos excedido sem retirada",paid:false,location:null};
+      });
+      if(!result.committed)return toast("Não foi possível cancelar. O pedido pode ter sido atualizado ou a retirada confirmada.","warn");
+      stopGpsTracking();await syncPublicTracking(id,result.snapshot.val());toast("Pedido cancelado sem custo.");render();
     }
 
     if (action === "cancel-quote") {
@@ -1420,23 +1450,25 @@
     if (!s || role !== "store") return toast("Entre com uma conta de lojista.", "warn");
     if (!s.address) { closeOrderSheet(); view = "profile"; render(); return toast("Cadastre o endereço da sua loja em Perfil.", "warn"); }
     
+    let isQuote = f.dataset.mode === "quote";
+    let completingQuote = f.dataset.completingQuote === "true";
     let serviceType = f.serviceType.value;
+    let city = f.elements.namedItem("city").value.trim();
     let clientStreet = f.clientStreet.value.trim();
     let clientNumber = f.clientNumber.value.trim();
     let clientNeighborhood = f.clientNeighborhood.value.trim();
     let clientName = f.elements.namedItem("client").value.trim();
     let clientPhone = f.elements.namedItem("phone").value.trim();
 
-    if(!clientStreet || !clientNumber || !clientNeighborhood) return toast("Preencha rua, número e bairro.", "warn");
-
-    let isQuote = f.isQuote.checked;
+    if(isQuote && (!city || !clientNeighborhood || !f.serviceDate.value)) return toast("Informe cidade, bairro e data do serviço.", "warn");
+    if(!isQuote && (!clientStreet || !clientNumber || !clientNeighborhood || !clientName)) return toast("Preencha os dados do cliente e o endereço completo.", "warn");
     let selectedZone = f.selectedZone.value;
     let p = f.paymentMethod.value;
     let b = f.bag.checked;
     let k = f.bank.checked;
     let finalFee = isQuote ? 0 : calculateFee(p, false, b, k, selectedZone);
 
-    saveClientFavorite(clientName, clientPhone, clientStreet, clientNumber, clientNeighborhood);
+    if(!isQuote && !completingQuote) saveClientFavorite(clientName, clientPhone, clientStreet, clientNumber, clientNeighborhood);
 
     let submitButton = f.querySelector('button[type="submit"]');
     submitButton.disabled = true; submitButton.textContent = "Salvando...";
@@ -1446,18 +1478,20 @@
 
     try {
       let orderPayload = {
-        serviceType: serviceType, serviceDate: f.serviceDate.value, client: clientName, phone: clientPhone, 
-        clientStreet: clientStreet, clientNumber: clientNumber, clientNeighborhood: clientNeighborhood,
-        clientReference: f.elements.namedItem("clientReference").value.trim(),
-        address: `${clientStreet}, nº ${clientNumber} - ${clientNeighborhood}`,
+        serviceType: serviceType, serviceDate: f.serviceDate.value, city: city, client: isQuote ? "" : clientName, phone: isQuote ? "" : clientPhone, 
+        clientStreet: isQuote ? "" : clientStreet, clientNumber: isQuote ? "" : clientNumber, clientNeighborhood: clientNeighborhood,
+        clientReference: isQuote ? "" : f.elements.namedItem("clientReference").value.trim(),
+        address: isQuote ? `${city} - ${clientNeighborhood}` : `${clientStreet}, nº ${clientNumber} - ${clientNeighborhood}`,
         neighborhood: clientNeighborhood, selectedZone: selectedZone,
-        paymentMethod: p, notes: f.elements.namedItem("notes").value.trim(), 
-        rain: false, bag: b, bank: k, fee: finalFee, status: isQuote ? "cotacao" : "open"
+        paymentMethod: isQuote ? "" : p, notes: isQuote ? "" : f.elements.namedItem("notes").value.trim(),
+        rain: false, bag: isQuote ? false : b, bank: isQuote ? false : k, fee: completingQuote ? Number(data.orders.find(o=>o.id===editId)?.agreedFee||0) : finalFee, status: isQuote ? "cotacao" : "open"
       };
 
       if (editId) {
+        if(completingQuote){const prior=data.orders.find(o=>o.id===editId)||{};orderPayload.assignedCourierId=prior.assignedCourierId;orderPayload.courierId=prior.courierId;orderPayload.courierName=prior.courierName;orderPayload.accepted=Date.now();orderPayload.quoteAcceptedAt=prior.quoteAcceptedAt;orderPayload.agreedFee=prior.agreedFee;orderPayload.tripStage=serviceType==="roundtrip"?0:null;}
         await update(ref(db, "orders/" + editId), orderPayload);
-        toast("Atualizado com sucesso!");
+        await syncPublicTracking(editId,{...data.orders.find(o=>o.id===editId),...orderPayload});
+        toast(completingQuote ? "Pedido completo e encaminhado ao motoboy." : "Atualizado com sucesso!");
       } else {
         orderPayload.orderCode = code;
         orderPayload.trackingToken = createTrackingToken();
