@@ -349,11 +349,6 @@
         </div>
       </div>
 
-      <div class="field full" id="field-extra">
-        <label id="label-extra">Telefone / WhatsApp</label>
-        <input type="text" id="auth-extra" placeholder="(27) 99999-9999">
-      </div>
-
       <button type="submit" class="btn primary full" style="margin-top:10px;" id="auth-submit-btn">Acessar Painel Express →</button>
     </form>
     <div id="auth-feedback" role="status" aria-live="polite"></div>
@@ -682,7 +677,8 @@
 
   document.addEventListener("input", e => {
     const target = e.target;
-    if (target && (target.matches('input:not([type="email"]):not([type="password"]):not([type="url"]):not([type="hidden"]):not([type="number"]):not([type="date"]):not([type="time"]), textarea'))) {
+    // Campos de login e criação de conta preservam a digitação original, inclusive nomes e senhas.
+    if (target && !target.closest("#auth-form") && (target.matches('input:not([type="email"]):not([type="password"]):not([type="url"]):not([type="hidden"]):not([type="number"]):not([type="date"]):not([type="time"]), textarea'))) {
       const upper = target.value.toLocaleUpperCase("pt-BR");
       if (upper !== target.value) {
         const start = target.selectionStart, end = target.selectionEnd;
@@ -1007,10 +1003,7 @@
     let email = document.getElementById("auth-email").value.trim().toLowerCase();
     let password = document.getElementById("auth-password").value;
     let name = document.getElementById("auth-name").value.trim() || email.split("@")[0];
-    let phone = document.getElementById("auth-extra").value.trim();
     let submit = document.getElementById("auth-submit-btn");
-    
-    if (currentAuthMode === "register" && (!name || !phone)) return toast("Informe nome e telefone para criar a conta.", "warn");
     busy = true; submit.disabled = true; submit.textContent = "Aguarde...";
     setAuthFeedback(currentAuthMode === "register" ? "Criando sua conta..." : "Verificando dados...", "info");
 
@@ -1019,7 +1012,7 @@
         let releaseProfileWait;
         pendingProfileWrite = new Promise(resolve => { releaseProfileWait = resolve; });
         let credential = await createUserWithEmailAndPassword(auth, email, password);
-        let profile = { name, phone, email, address: "", created: Date.now() };
+        let profile = { name, phone: "", email, address: "", created: Date.now() };
         let path = currentLoginRole === "store" ? "stores" : "couriers";
         if (path === "couriers") profile.vehicle = "Moto";
         try { await set(ref(db, path + "/" + credential.user.uid), profile); }
