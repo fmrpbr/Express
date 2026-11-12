@@ -196,3 +196,21 @@ Todas as gravações ficam bloqueadas neste rascunho, inclusive cadastro/altera�
 5. A regra de presença só libera leitura; a gravação continua bloqueada intencionalmente.
 6. Este arquivo não foi aplicado ao Firebase, não foi validado no Emulator Suite e **não deve ser publicado no console** enquanto o aplicativo não estiver adaptado.
 
+
+
+## Testes automatizados do rascunho
+
+Foi preparado um conjunto inicial de testes em `tests/firebase-rules/`. Ele cobre:
+
+- Isolamento de perfis de lojas.
+- Leitura de pedido pelo proprietário e bloqueio de pedido alheio.
+- Bloqueio de leitura da coleção inteira `orders`.
+- Acesso de motoboy ao mural reduzido e quadro de cotações.
+- Bloqueio do mural para lojas.
+- Rastreamento público por token existente, sem acesso ao pedido privado.
+- Bloqueio de gravações diretas em perfis, pedidos, índices e presença.
+- Acesso administrativo às taxas e aos pedidos.
+
+Para executar localmente, entre em `tests/firebase-rules`, instale as dependências com `npm install` e execute `npm test`. O Firebase Emulator Suite será iniciado pelo script. Os testes usam o projeto fictício `demo-express-entregas` e não conectam ao banco de produção.
+
+**Status:** arquivos de teste preparados, mas ainda não executados neste ambiente. A aprovação dos testes não significa que o app esteja adaptado; a migração do aplicativo e a validação com contas reais de teste continuam pendentes.
