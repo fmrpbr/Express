@@ -1420,7 +1420,7 @@
     return '<div class="head"><div><h1>Central de Alertas</h1><p>Avisos rápidos para quem está na operação.</p></div></div>' +
       (canSend ? '<form id="alert-form" class="panel"><div class="field full"><label for="alert-message">NOVO AVISO</label><textarea id="alert-message" rows="3" maxlength="120" required placeholder="DIGITE UM AVISO CURTO..."></textarea><small style="color:var(--muted)">ATÉ 120 CARACTERES. O AVISO FICA VISÍVEL POR 2 HORAS.</small></div><button type="submit" class="btn primary full">PUBLICAR AVISO</button></form>' : '') +
       '<section class="panel" style="margin-top:14px"><div class="panel-head"><h2>AVISOS ATIVOS</h2><span class="section-count">'+alerts.length+'</span></div>' +
-      (alerts.length ? '<div class="list">'+alerts.map(a => '<article class="order-card"><div class="order-head"><b>'+esc(a.senderRole === "courier" ? "MOTOBOY" : "LOJISTA")+' • '+esc(a.senderName || "USUÁRIO")+'</b><small>'+date(a.createdAt)+'</small></div><p style="margin:8px 0 0;font-weight:750">'+esc(a.message)+'</p></article>').join("")+'</div>' : empty("Nenhum aviso ativo","Quando alguém publicar um alerta, ele aparecerá aqui e na faixa superior.")) +
+      (alerts.length ? '<div class="list">'+alerts.map(a => '<article class="chip" style="display:grid;gap:6px;align-items:start"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>'+esc(a.senderRole === "courier" ? "MOTOBOY" : "LOJISTA")+' • '+esc(a.senderName || "USUÁRIO")+'</b><small>'+date(a.createdAt)+'</small></div><p style="margin:0;font-weight:750;color:var(--ink)">'+esc(a.message)+'</p></article>').join("")+'</div>' : empty("Nenhum aviso ativo","Quando alguém publicar um alerta, ele aparecerá aqui e na faixa superior.")) +
       '</section>';
   }
 
