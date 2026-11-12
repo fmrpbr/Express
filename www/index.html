@@ -349,6 +349,11 @@
         </div>
       </div>
 
+      <div class="field full" id="field-extra" style="display:none">
+        <label id="label-extra">Telefone / WhatsApp</label>
+        <input type="tel" id="auth-extra" placeholder="(27) 99999-9999">
+      </div>
+
       <button type="submit" class="btn primary full" style="margin-top:10px;" id="auth-submit-btn">Acessar Painel Express →</button>
     </form>
     <div id="auth-feedback" role="status" aria-live="polite"></div>
@@ -718,6 +723,7 @@
     document.getElementById("tab-login").className = "auth-tab " + (mode === "login" ? "active" : "");
     document.getElementById("tab-register").className = "auth-tab " + (mode === "register" ? "active" : "");
     document.getElementById("field-name").style.display = mode === "register" ? "grid" : "none";
+    document.getElementById("field-extra").style.display = mode === "register" ? "grid" : "none";
     document.getElementById("auth-submit-btn").textContent = mode === "register" ? "Criar Conta Express →" : "Acessar Painel Express →";
   };
 
@@ -1003,7 +1009,9 @@
     let email = document.getElementById("auth-email").value.trim().toLowerCase();
     let password = document.getElementById("auth-password").value;
     let name = document.getElementById("auth-name").value.trim() || email.split("@")[0];
+    let phone = document.getElementById("auth-extra").value.trim();
     let submit = document.getElementById("auth-submit-btn");
+    if (currentAuthMode === "register" && !phone) return toast("Informe o telefone para criar a conta.", "warn");
     busy = true; submit.disabled = true; submit.textContent = "Aguarde...";
     setAuthFeedback(currentAuthMode === "register" ? "Criando sua conta..." : "Verificando dados...", "info");
 
@@ -1012,7 +1020,7 @@
         let releaseProfileWait;
         pendingProfileWrite = new Promise(resolve => { releaseProfileWait = resolve; });
         let credential = await createUserWithEmailAndPassword(auth, email, password);
-        let profile = { name, phone: "", email, address: "", created: Date.now() };
+        let profile = { name, phone, email, address: "", created: Date.now() };
         let path = currentLoginRole === "store" ? "stores" : "couriers";
         if (path === "couriers") profile.vehicle = "Moto";
         try { await set(ref(db, path + "/" + credential.user.uid), profile); }
