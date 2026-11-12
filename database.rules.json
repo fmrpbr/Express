@@ -2,7 +2,6 @@
   "rules": {
     ".read": false,
     ".write": false,
-
     "profiles": {
       "stores": {
         "$uid": {
@@ -17,56 +16,92 @@
         }
       }
     },
-
     "orders": {
       "$orderId": {
         ".read": "auth != null && (auth.token.admin === true || data.child('storeId').val() === auth.uid || data.child('courierId').val() === auth.uid)",
         ".write": false
       }
     },
-
     "storeOrders": {
       "$storeUid": {
         ".read": "auth != null && (auth.uid === $storeUid || auth.token.admin === true)",
         ".write": false
       }
     },
-
     "courierOrders": {
       "$courierUid": {
         ".read": "auth != null && (auth.uid === $courierUid || auth.token.admin === true)",
         ".write": false
       }
     },
-
     "availableOrders": {
       ".read": "auth != null && (root.child('profiles/couriers').child(auth.uid).exists() || auth.token.admin === true)",
       ".write": false
     },
-
     "quoteBoard": {
       ".read": "auth != null && (root.child('profiles/couriers').child(auth.uid).exists() || auth.token.admin === true)",
       ".write": false
     },
-
     "publicTracking": {
       "$token": {
         ".read": "data.exists()",
         ".write": false
       }
     },
-
     "courierPresence": {
       ".read": "auth != null",
       "$courierUid": {
-        ".write": false
+        ".write": "auth != null && (auth.uid === $courierUid || auth.token.admin === true)",
+        ".validate": "newData.hasChildren(['registered','online','busy','lastSeen'])",
+        "registered": {
+          ".validate": "newData.isBoolean() && newData.val() === true"
+        },
+        "online": {
+          ".validate": "newData.isBoolean()"
+        },
+        "busy": {
+          ".validate": "newData.isBoolean()"
+        },
+        "lastSeen": {
+          ".validate": "newData.isNumber()"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     },
-
     "config": {
       "rates": {
         ".read": "auth != null",
         ".write": "auth != null && auth.token.admin === true"
+      }
+    },
+    "alerts": {
+      ".read": "auth != null",
+      "$alertId": {
+        ".write": "auth != null && !data.exists() && newData.child('senderId').val() === auth.uid && (newData.child('senderRole').val() === 'store' || newData.child('senderRole').val() === 'courier')",
+        ".validate": "newData.hasChildren(['senderId','senderRole','senderName','message','createdAt','expiresAt'])",
+        "senderId": {
+          ".validate": "newData.isString() && newData.val() === auth.uid"
+        },
+        "senderRole": {
+          ".validate": "newData.val() === 'store' || newData.val() === 'courier'"
+        },
+        "senderName": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 60"
+        },
+        "message": {
+          ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 120"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && newData.val() <= now + 60000 && newData.val() >= now - 60000"
+        },
+        "expiresAt": {
+          ".validate": "newData.isNumber() && newData.val() > newData.parent().child('createdAt').val() && newData.val() <= newData.parent().child('createdAt').val() + 7200000"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     }
   }

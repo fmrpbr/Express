@@ -21,12 +21,37 @@
 .main{min-width:0;flex:1;display:flex;flex-direction:column;background:var(--paper);overflow-y:auto;order:1}
 
 /* Layout Hero Estilo iFood */
-.map-hero{position:relative;height:210px;flex-shrink:0;overflow:hidden;background:#FFE9E9;background-image:linear-gradient(#FFE1E1 1px,transparent 1px),linear-gradient(90deg,#FFE1E1 1px,transparent 1px);background-size:28px 28px}
-.map-hero:before{content:"";position:absolute;inset:0;background:radial-gradient(520px 200px at 20% 20%,rgba(255,255,255,.9),transparent 60%),radial-gradient(400px 180px at 85% 70%,rgba(255,255,255,.7),transparent 60%)}
-.map-hero:after{content:"";position:absolute;left:-10%;top:42%;width:130%;height:18px;background:#fff;border-radius:99px;transform:rotate(-8deg);box-shadow:0 0 0 1px #E6E9E6}
-.map-road-2{position:absolute;left:12%;top:-20%;width:16px;height:140%;background:#fff;border-radius:99px;transform:rotate(18deg);box-shadow:0 0 0 1px #E6E9E6}
-.map-float{position:absolute;left:14px;bottom:12px;z-index:4;background:var(--primary);color:#fff;padding:8px 12px;border-radius:99px;font-size:11px;font-weight:700;display:flex;gap:7px;align-items:center;box-shadow:0 8px 20px rgba(0,0,0,.25)}
-.map-float b{color:#7CFFB2}.map-float .live{width:8px;height:8px;border-radius:50%;background:#22C55E;box-shadow:0 0 0 4px rgba(34,197,94,.25)}
+.map-hero{position:relative;height:190px;flex-shrink:0;overflow:hidden;padding:10px 12px;background:#FFF8F8;background-image:linear-gradient(rgba(234,29,44,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(234,29,44,.035) 1px,transparent 1px);background-size:24px 24px}
+.map-hero:before,.map-hero:after,.map-road-2,.map-float{display:none}
+.hero-dashboard{position:relative;z-index:1;display:grid;grid-template-rows:44px 66px 34px;gap:7px;height:100%}
+.hero-top{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:12px;min-width:0}
+.hero-clock{display:grid;gap:0;min-width:0}
+.hero-clock small{font-size:9px;font-weight:800;letter-spacing:.045em;color:#777;text-transform:uppercase;white-space:nowrap}
+.hero-clock b{font-size:22px;line-height:1.15;letter-spacing:-.04em;color:#222;font-variant-numeric:tabular-nums}
+.hero-weather{display:flex;align-items:center;gap:6px;min-width:0}
+.hero-weather-icon{font-size:23px;line-height:1}
+.hero-weather-copy{display:grid;gap:0;min-width:0}
+.hero-weather-copy b{font-size:16px;line-height:1.1;color:#222}
+.hero-weather-copy small{font-size:8px;line-height:1.25;font-weight:800;color:#777;white-space:nowrap}
+.hero-total{display:grid;justify-items:end;gap:0;border-left:1px solid rgba(0,0,0,.09);padding-left:10px}
+.hero-total b{font-size:21px;line-height:1.1;color:var(--primary);font-variant-numeric:tabular-nums}
+.hero-total small{font-size:8px;font-weight:900;color:#777;letter-spacing:.04em}
+.hero-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.hero-stat{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:1px;background:rgba(255,255,255,.94);border:1px solid rgba(0,0,0,.055);border-radius:11px;min-width:0}
+.hero-stat b{font-size:19px;line-height:1.05;font-weight:900;color:#242424;font-variant-numeric:tabular-nums}
+.hero-stat small{font-size:8px;line-height:1.1;font-weight:900;letter-spacing:.025em;color:#777;white-space:nowrap}
+.hero-stat.online b,.hero-stat.available b{color:#07965B}
+.hero-stat.busy b{color:#D97706}
+.hero-stat.offline b{color:#858585}
+.hero-alerts{height:34px;min-width:0;display:flex;align-items:center;gap:9px;padding:0 10px;border-radius:10px;background:#242424;color:#fff;overflow:hidden}
+.hero-alert-tag{flex-shrink:0;font-size:8px;font-weight:900;letter-spacing:.06em;color:#FFC8CC}
+.hero-alert-window{min-width:0;overflow:hidden;flex:1}
+.hero-alert-track{display:flex;align-items:center;width:max-content;gap:42px;white-space:nowrap;animation:express-alert-scroll 26s linear infinite}
+.hero-alert-track span{font-size:10px;font-weight:750;color:#fff}
+.hero-alerts:hover .hero-alert-track{animation-play-state:paused}
+@keyframes express-alert-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.hero-alert-track{animation:none;width:auto;white-space:normal}.hero-alert-track span:nth-child(n+2){display:none}}
+@media(max-width:360px){.map-hero{padding:9px 9px}.hero-dashboard{grid-template-rows:42px 64px 34px;gap:6px}.hero-top{gap:7px}.hero-clock b{font-size:20px}.hero-weather-copy small{font-size:7px}.hero-total{padding-left:7px}.hero-stat small{font-size:7px}.hero-stat b{font-size:17px}}
 
 .top{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #F0F1F2}
 .crumb{font-size:10px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;font-weight:700}.top h2{margin:2px 0 0;font-size:16px;line-height:1.2;font-weight:800;letter-spacing:-.02em}
@@ -462,14 +487,29 @@
   </aside>
 
   <div class="main">
-    <!-- Banner Hero Gráfico Estilo iFood -->
-    <div class="map-hero">
-      <div class="map-road-2"></div>
-      <div class="map-float">
-        <div class="live"></div>
-        <span>Sistema Online • <b>Ativo</b></span>
+    <!-- Painel operacional compacto no espaço do antigo mapa -->
+    <section class="map-hero" aria-label="Painel operacional Express">
+      <div class="hero-dashboard">
+        <div class="hero-top">
+          <div class="hero-clock"><small id="hero-date">DATA ATUAL</small><b id="hero-time">--:--</b></div>
+          <div class="hero-weather">
+            <span class="hero-weather-icon" id="hero-weather-icon">⛅</span>
+            <div class="hero-weather-copy"><b id="hero-weather-temp">--°</b><small id="hero-weather-desc">CLIMA ARACRUZ</small></div>
+          </div>
+          <div class="hero-total"><b id="hero-total">0</b><small>MOTOBOYS</small></div>
+        </div>
+        <div class="hero-stats" aria-label="Situação dos motoboys">
+          <div class="hero-stat online"><b id="hero-online">0</b><small>ONLINE</small></div>
+          <div class="hero-stat available"><b id="hero-available">0</b><small>DISPONÍVEIS</small></div>
+          <div class="hero-stat busy"><b id="hero-busy">0</b><small>OCUPADOS</small></div>
+          <div class="hero-stat offline"><b id="hero-offline">0</b><small>OFFLINE</small></div>
+        </div>
+        <div class="hero-alerts" aria-label="Avisos recentes">
+          <span class="hero-alert-tag">ALERTAS</span>
+          <div class="hero-alert-window" aria-live="polite"><div class="hero-alert-track" id="hero-alert-track"><span>SEM AVISOS NO MOMENTO</span></div></div>
+        </div>
       </div>
-    </div>
+    </section>
 
     <header class="top">
       <div>
@@ -493,7 +533,7 @@
 <script src="./firebase-config.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
-  import { getDatabase, ref, set, update, push, get, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
+  import { getDatabase, ref, set, update, push, get, onValue, runTransaction, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
 
   const firebaseConfig = window.EXPRESS_FIREBASE_CONFIG || {};
@@ -536,7 +576,7 @@
     night: 3, rain: 3, weekend: 2, bag: 10, bankService: 10
   };
 
-  let data = { stores: [], couriers: [], orders: [], rates: defaultRates };
+  let data = { stores: [], couriers: [], orders: [], rates: defaultRates, presence: [], alerts: [], weather: null };
   let role = "store";
   let actor = "";
   let currentUser = null;
@@ -553,6 +593,10 @@
   let watchId = null;
   let trackingOrderId = null;
   let lastOrderCount = 0;
+  let currentPresenceBusy = null;
+  let heroClockTimer = null;
+  let weatherTimer = null;
+  let weatherLoadedAt = 0;
 
   window.addEventListener("hashchange", checkUrlTracking);
   function checkUrlTracking(){
@@ -630,6 +674,15 @@
   }
 
   document.addEventListener("input", e => {
+    const target = e.target;
+    if (target && (target.matches('input:not([type="email"]):not([type="password"]):not([type="url"]):not([type="hidden"]):not([type="number"]):not([type="date"]):not([type="time"]), textarea'))) {
+      const upper = target.value.toLocaleUpperCase("pt-BR");
+      if (upper !== target.value) {
+        const start = target.selectionStart, end = target.selectionEnd;
+        target.value = upper;
+        try { target.setSelectionRange(start, end); } catch (_) {}
+      }
+    }
     if(e.target && e.target.id === "inp-client") {
       let val = e.target.value.trim().toLowerCase();
       try {
@@ -712,7 +765,7 @@
     box.style.display = message ? "block" : "none";
   }
 
-  function stopDataListeners() { unsubscribers.forEach(fn => { try { fn(); } catch (_) {} }); unsubscribers = []; orderSources.clear(); data.orders = []; }
+  function stopDataListeners() { unsubscribers.forEach(fn => { try { fn(); } catch (_) {} }); unsubscribers = []; orderSources.clear(); data.orders = []; currentPresenceBusy = null; }
   
   function listenOrders(sourceKey) {
     unsubscribers.push(onValue(ref(db, "orders"), snap => {
@@ -733,6 +786,7 @@
       data.orders = newOrdersList;
 
       if (role === "courier") {
+        syncCourierPresenceBusy();
         let activeOrder = data.orders.find(o => o.status === "run" && o.courierId === actor);
         if (activeOrder && trackingOrderId !== activeOrder.id) startGpsTracking(activeOrder.id);
         else if (!activeOrder && trackingOrderId) stopGpsTracking();
@@ -774,9 +828,17 @@
   function startDataListeners() {
     stopDataListeners();
     if (!currentUser) return;
+    startHeroTimers();
+    startPresenceTracking();
+    startAlertsListener();
+    loadWeather();
     if (role === "admin") {
       unsubscribers.push(onValue(ref(db, "stores"), snap => { let v=snap.val()||{}; data.stores=Object.entries(v).map(([id,x])=>({id,...x})); render(); }));
-      unsubscribers.push(onValue(ref(db, "couriers"), snap => { let v=snap.val()||{}; data.couriers=Object.entries(v).map(([id,x])=>({id,...x})); render(); }));
+      unsubscribers.push(onValue(ref(db, "couriers"), snap => {
+        let v=snap.val()||{}; data.couriers=Object.entries(v).map(([id,x])=>({id,...x}));
+        data.couriers.forEach(c => ensurePresenceRecord(c.id));
+        render();
+      }));
       listenOrders("admin");
     } else if (role === "store") {
       unsubscribers.push(onValue(ref(db,"stores/"+actor), snap => { let v=snap.val(); data.stores = v ? [{id:actor,...v}] : []; render(); }));
@@ -790,6 +852,146 @@
       if (value) data.rates = { ...defaultRates, ...value, zones: { ...defaultRates.zones, ...(value.zones || {}) } };
       refreshZoneSelect(); render();
     }));
+  }
+
+  function startHeroTimers() {
+    updateHeroClock();
+    if (!heroClockTimer) heroClockTimer = setInterval(updateHeroClock, 30000);
+    if (!weatherTimer) weatherTimer = setInterval(loadWeather, 15 * 60 * 1000);
+  }
+
+  function updateHeroClock() {
+    const now = new Date();
+    const dateNode = document.getElementById("hero-date");
+    const timeNode = document.getElementById("hero-time");
+    if (dateNode) dateNode.textContent = now.toLocaleDateString("pt-BR", { weekday:"short", day:"2-digit", month:"short" }).toLocaleUpperCase("pt-BR");
+    if (timeNode) timeNode.textContent = now.toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" });
+  }
+
+  function weatherLabel(code) {
+    if (code === 0) return ["☀️","SOL"];
+    if ([1,2].includes(code)) return ["🌤️","POUCAS NUVENS"];
+    if (code === 3) return ["☁️","NUBLADO"];
+    if ([45,48].includes(code)) return ["🌫️","NEBLINA"];
+    if ([51,53,55,56,57].includes(code)) return ["🌦️","GAROA"];
+    if ([61,63,65,66,67,80,81,82].includes(code)) return ["🌧️","CHUVA"];
+    if ([71,73,75,77,85,86].includes(code)) return ["🌨️","FRIO/NEVE"];
+    if ([95,96,99].includes(code)) return ["⛈️","TEMPESTADE"];
+    return ["🌤️","TEMPO VARIÁVEL"];
+  }
+
+  async function loadWeather() {
+    if (Date.now() - weatherLoadedAt < 5 * 60 * 1000) return;
+    weatherLoadedAt = Date.now();
+    try {
+      const url = "https://api.open-meteo.com/v1/forecast?latitude=-19.8200&longitude=-40.2760&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America%2FSao_Paulo&forecast_days=1";
+      const response = await fetch(url, { cache:"no-store" });
+      if (!response.ok) throw new Error("Clima indisponível");
+      const result = await response.json();
+      data.weather = {
+        temperature: Math.round(result.current.temperature_2m),
+        code: Number(result.current.weather_code),
+        max: Math.round(result.daily.temperature_2m_max[0]),
+        min: Math.round(result.daily.temperature_2m_min[0]),
+        updatedAt: Date.now()
+      };
+    } catch (_) {
+      data.weather = { unavailable:true };
+    }
+    renderHero();
+  }
+
+  function ensurePresenceRecord(uid) {
+    if (!uid) return;
+    runTransaction(ref(db, "courierPresence/" + uid), current => current || {
+      registered:true, online:false, busy:false, lastSeen:Date.now()
+    }).catch(() => {});
+  }
+
+  function startPresenceTracking() {
+    unsubscribers.push(onValue(ref(db, "courierPresence"), snap => {
+      const raw = snap.val() || {};
+      data.presence = Object.entries(raw).map(([id,value]) => ({ id, ...(value || {}) })).filter(p => p.registered === true);
+      renderHero();
+    }, error => {
+      toast("Não foi possível carregar a presença dos motoboys. Verifique as regras do Firebase.", "warn");
+    }));
+    if (role !== "courier" || !currentUser) return;
+    const connectionRef = ref(db, ".info/connected");
+    unsubscribers.push(onValue(connectionRef, async snap => {
+      if (snap.val() !== true || !currentUser || role !== "courier") return;
+      const presenceRef = ref(db, "courierPresence/" + currentUser.uid);
+      try {
+        await onDisconnect(presenceRef).set({
+          registered:true, online:false, busy:false, lastSeen:serverTimestamp()
+        });
+        await set(presenceRef, {
+          registered:true, online:true, busy:currentPresenceBusy === true, lastSeen:serverTimestamp()
+        });
+      } catch (_) {
+        toast("Não foi possível atualizar seu status online. Verifique as regras do Firebase.", "warn");
+      }
+    }));
+  }
+
+  function syncCourierPresenceBusy() {
+    if (role !== "courier" || !currentUser) return;
+    const isBusy = data.orders.some(o => o.status === "run" && o.courierId === currentUser.uid);
+    if (currentPresenceBusy === isBusy) return;
+    currentPresenceBusy = isBusy;
+    update(ref(db, "courierPresence/" + currentUser.uid), { registered:true, busy:isBusy }).catch(() => {});
+  }
+
+  function startAlertsListener() {
+    unsubscribers.push(onValue(ref(db, "alerts"), snap => {
+      const raw = snap.val() || {};
+      data.alerts = Object.entries(raw).map(([id,value]) => ({ id, ...(value || {}) }))
+        .filter(a => Number(a.expiresAt || 0) > Date.now())
+        .sort((a,b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+      renderHero();
+      if (view === "alerts") render();
+    }, error => {
+      toast("Central de alertas indisponível. Verifique as regras do Firebase.", "warn");
+    }));
+  }
+
+  function activeAlerts() {
+    return (data.alerts || []).filter(a => Number(a.expiresAt || 0) > Date.now());
+  }
+
+  function renderHero() {
+    updateHeroClock();
+    const presence = data.presence || [];
+    const total = presence.length;
+    const onlineList = presence.filter(p => p.online === true);
+    const online = onlineList.length;
+    const occupied = onlineList.filter(p => p.busy === true).length;
+    const available = Math.max(0, online - occupied);
+    const offline = Math.max(0, total - online);
+    const values = {
+      "hero-total":total, "hero-online":online, "hero-available":available,
+      "hero-busy":occupied, "hero-offline":offline
+    };
+    Object.entries(values).forEach(([id,value]) => {
+      const node = document.getElementById(id);
+      if (node) node.textContent = String(value);
+    });
+    const weather = data.weather || {};
+    const icon = document.getElementById("hero-weather-icon");
+    const temp = document.getElementById("hero-weather-temp");
+    const desc = document.getElementById("hero-weather-desc");
+    if (icon) icon.textContent = weather.unavailable ? "⛅" : weatherLabel(weather.code || 0)[0];
+    if (temp) temp.textContent = weather.unavailable || weather.temperature == null ? "--°" : weather.temperature + "°";
+    if (desc) desc.textContent = weather.unavailable ? "CLIMA INDISPONÍVEL" : (weatherLabel(weather.code || 0)[1] + " · MÁX " + weather.max + "° MÍN " + weather.min + "°");
+    const track = document.getElementById("hero-alert-track");
+    if (track) {
+      const alerts = activeAlerts().slice(0, 6).reverse();
+      if (!alerts.length) track.innerHTML = "<span>SEM AVISOS NO MOMENTO</span><span>SEM AVISOS NO MOMENTO</span>";
+      else {
+        const messages = alerts.map(a => '<span>' + esc((a.senderRole === "courier" ? "MOTOBOY" : "LOJISTA") + " • " + a.message) + '</span>').join("");
+        track.innerHTML = messages + messages;
+      }
+    }
   }
 
   document.getElementById("auth-form").addEventListener("submit", async (e) => {
@@ -830,6 +1032,11 @@
 
   onAuthStateChanged(auth, async user => {
     if (!user) {
+      if (role === "courier" && activeSessionUid) {
+        set(ref(db, "courierPresence/" + activeSessionUid), {
+          registered:true, online:false, busy:false, lastSeen:serverTimestamp()
+        }).catch(() => {});
+      }
       currentUser = null; activeSessionUid = null;
       stopDataListeners();
       if (!adminLoginRequested) document.getElementById("login-screen").style.display = "flex";
@@ -1070,12 +1277,12 @@
   function mine(){ return data.orders.filter(o => role === "store" ? o.storeId === actor : role === "courier" ? o.courierId === actor : true); }
 
   function items(){
-    if (role === "store") return [["dashboard","⌂","Visão geral"],["new","＋","Pedir motoboy"],["quotes","💬","Cotações"],["reports","📊","Relatórios"],["profile","⚙️","Perfil"],["open","◷","Em aberto"],["done","✓","Concluídos"]];
-    else if (role === "courier") return [["available","＋","Disponíveis"],["quotes","💬","Cotações"],["reports","📊","Relatórios"],["run","◷","Em execução"],["done","✓","Concluídos"]];
-    else return [["dashboard","⌂","Visão geral"],["all","▣","Todos"],["quotes","💬","Cotações"],["reports","📊","Relatórios"],["rates","R$","Taxas"],["registry","♙","Cadastros"]];
+    if (role === "store") return [["dashboard","⌂","Visão geral"],["new","＋","Pedir motoboy"],["quotes","💬","Cotações"],["alerts","🔔","Alertas"],["reports","📊","Relatórios"],["profile","⚙️","Perfil"],["open","◷","Em aberto"],["done","✓","Concluídos"]];
+    else if (role === "courier") return [["available","＋","Disponíveis"],["quotes","💬","Cotações"],["alerts","🔔","Alertas"],["reports","📊","Relatórios"],["run","◷","Em execução"],["done","✓","Concluídos"]];
+    else return [["dashboard","⌂","Visão geral"],["all","▣","Todos"],["quotes","💬","Cotações"],["alerts","🔔","Alertas"],["reports","📊","Relatórios"],["rates","R$","Taxas"],["registry","♙","Cadastros"]];
   }
 
-  function title(){ return ({dashboard:"Visão geral",new:"Solicitar motoboy",quotes:"Mural de Cotações",reports:"Relatórios de Caixa",profile:"Perfil da Loja",open:"Pedidos em aberto",available:"Pedidos disponíveis",run:"Em execução",done:"Concluídos",rates:"Tabela de Taxas",registry:"Cadastros Globais"})[view]||"Visão geral"; }
+  function title(){ return ({dashboard:"Visão geral",new:"Solicitar motoboy",quotes:"Mural de Cotações",alerts:"Central de Alertas",reports:"Relatórios de Caixa",profile:"Perfil da Loja",open:"Pedidos em aberto",available:"Pedidos disponíveis",run:"Em execução",done:"Concluídos",rates:"Tabela de Taxas",registry:"Cadastros Globais"})[view]||"Visão geral"; }
   function toast(s,t){ let e=document.createElement("div"); e.className="toast "+(t||""); e.textContent=s; document.getElementById("toasts").appendChild(e); setTimeout(()=>e.remove(),4000); }
   function empty(a,b){ return '<div class="empty"><b>'+a+'</b>'+b+'</div>'; }
   function stat(a,b,c,d){ return '<div class="stat"><div class="stat-top">'+a+'</div><div class="stat-value">'+b+'</div><div class="stat-sub">'+c+'</div></div>'; }
@@ -1188,10 +1395,12 @@
     document.getElementById("avatar").textContent = initials(role === "admin" ? "Admin" : (person()||{}).name);
     document.getElementById("crumb").textContent = label + " / " + title(); document.getElementById("page-title").textContent = title();
     document.getElementById("content").innerHTML = show();
+    renderHero();
   }
 
   function show(){
     if(view==="dashboard") return dashboard();
+    if(view==="alerts") return alertsView();
     if(view==="new" && role==="store") { openOrderSheet(); return dashboard(); }
     if(view==="reports") return reportsView();
     if(view==="profile" && role==="store") return profileView();
@@ -1203,6 +1412,16 @@
     if(view==="rates" && role==="admin") return ratesView();
     if(view==="registry" && role==="admin") return registry();
     return dashboard();
+  }
+
+  function alertsView(){
+    const alerts = activeAlerts();
+    const canSend = role === "store" || role === "courier";
+    return '<div class="head"><div><h1>Central de Alertas</h1><p>Avisos rápidos para quem está na operação.</p></div></div>' +
+      (canSend ? '<form id="alert-form" class="panel"><div class="field full"><label for="alert-message">NOVO AVISO</label><textarea id="alert-message" rows="3" maxlength="120" required placeholder="DIGITE UM AVISO CURTO..."></textarea><small style="color:var(--muted)">ATÉ 120 CARACTERES. O AVISO FICA VISÍVEL POR 2 HORAS.</small></div><button type="submit" class="btn primary full">PUBLICAR AVISO</button></form>' : '') +
+      '<section class="panel" style="margin-top:14px"><div class="panel-head"><h2>AVISOS ATIVOS</h2><span class="section-count">'+alerts.length+'</span></div>' +
+      (alerts.length ? '<div class="list">'+alerts.map(a => '<article class="order-card"><div class="order-head"><b>'+esc(a.senderRole === "courier" ? "MOTOBOY" : "LOJISTA")+' • '+esc(a.senderName || "USUÁRIO")+'</b><small>'+date(a.createdAt)+'</small></div><p style="margin:8px 0 0;font-weight:750">'+esc(a.message)+'</p></article>').join("")+'</div>' : empty("Nenhum aviso ativo","Quando alguém publicar um alerta, ele aparecerá aqui e na faixa superior.")) +
+      '</section>';
   }
 
   function reportsView(){
@@ -1255,6 +1474,29 @@
   }
 
   document.addEventListener("submit", async e => {
+    if (e.target.id === "alert-form") {
+      e.preventDefault();
+      if (!currentUser || (role !== "store" && role !== "courier")) return;
+      const field = document.getElementById("alert-message");
+      const message = String(field ? field.value : "").trim().toLocaleUpperCase("pt-BR").slice(0,120);
+      if (message.length < 3) return toast("Digite um aviso com pelo menos 3 caracteres.", "warn");
+      try {
+        const alertRef = push(ref(db, "alerts"));
+        await set(alertRef, {
+          senderId: currentUser.uid,
+          senderRole: role,
+          senderName: String((person() || {}).name || (role === "courier" ? "MOTOBOY" : "LOJISTA")).toLocaleUpperCase("pt-BR").slice(0,60),
+          message,
+          createdAt: Date.now(),
+          expiresAt: Date.now() + 2 * 60 * 60 * 1000
+        });
+        e.target.reset();
+        toast("AVISO PUBLICADO!");
+      } catch (err) {
+        toast("Não foi possível publicar o aviso. Verifique as regras do Firebase.", "warn");
+      }
+      return;
+    }
     if (e.target.id === "store-profile-form") {
       e.preventDefault();
       if (!currentUser || role !== "store") return;

@@ -32,6 +32,7 @@ beforeEach(async () => {
     await set(ref(db, "quoteBoard/quotePublic"), { status: "cotacao", area: "Centro" });
     await set(ref(db, "publicTracking/token-longo-aleatorio-123456789"), { status: "run", storeName: "Loja A" });
     await set(ref(db, "config/rates"), { base: 10 });
+    await set(ref(db, "courierPresence/courierA"), { registered:true, online:false, busy:false, lastSeen:Date.now() });
   });
 });
 
@@ -79,6 +80,28 @@ test("gravações em perfis, pedidos, índices e presença ficam bloqueadas", as
   await assertFails(set(ref(db, "orders/orderA/status"), "done"));
   await assertFails(set(ref(db, "storeOrders/storeA/orderA"), true));
   await assertFails(set(ref(db, "courierPresence/courierA"), { online: true }));
+});
+
+test("presença dos motoboys pode ser lida por usuários autenticados e escrita apenas pelo próprio motoboy ou administrador", async () => {
+  const courierDb = env.authenticatedContext("courierA").database();
+  const storeDb = env.authenticatedContext("storeA").database();
+  const otherCourierDb = env.authenticatedContext("courierB").database();
+  await assertSucceeds(get(ref(storeDb, "courierPresence")));
+  await assertSucceeds(set(ref(courierDb, "courierPresence/courierA"), { registered:true, online:true, busy:false, lastSeen:Date.now() }));
+  await assertFails(set(ref(storeDb, "courierPresence/courierA"), { registered:true, online:false, busy:false, lastSeen:Date.now() }));
+  await assertFails(set(ref(otherCourierDb, "courierPresence/courierA"), { registered:true, online:false, busy:false, lastSeen:Date.now() }));
+});
+
+test("lojistas e motoboys podem publicar alertas curtos identificados, sem alterar alertas existentes", async () => {
+  const storeDb = env.authenticatedContext("storeA").database();
+  const courierDb = env.authenticatedContext("courierA").database();
+  const createdAt = Date.now();
+  const alert = { senderId:"storeA", senderRole:"store", senderName:"LOJA A", message:"MOVIMENTO INTENSO NO CENTRO", createdAt, expiresAt:createdAt+3600000 };
+  await assertSucceeds(set(ref(storeDb, "alerts/alertA"), alert));
+  await assertSucceeds(get(ref(courierDb, "alerts/alertA")));
+  await assertFails(set(ref(storeDb, "alerts/alertA/message"), "ALTERADO"));
+  await assertFails(set(ref(storeDb, "alerts/alertB"), { ...alert, senderId:"courierA" }));
+  await assertFails(set(ref(courierDb, "alerts/alertC"), { ...alert, senderId:"courierA", senderRole:"courier", message:"X".repeat(121) }));
 });
 
 test("somente administrador altera taxas", async () => {
