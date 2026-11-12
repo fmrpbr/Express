@@ -1345,7 +1345,9 @@
 
     if (action === "cancel-quote") {
       if(!confirm("Deseja cancelar este orçamento?")) return;
-      await update(ref(db, "orders/" + id), { status: "cancelado_cotacao" });
+      const changes = { status: "cancelado_cotacao" };
+      await update(ref(db, "orders/" + id), changes);
+      await syncPublicTracking(id, { ...o, ...changes });
       toast("Orçamento cancelado."); render();
     }
 
