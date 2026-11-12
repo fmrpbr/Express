@@ -231,7 +231,7 @@
 
   document.addEventListener("click", function(e){
     if(e.target && e.target.id === "order-sheet-overlay"){ closeSheetLocal(); return; }
-    var ui = e.target.closest ? e.target.closest("[data-login-role],[data-auth-tab],[data-toggle-password],[data-open-sheet],[data-close-sheet]") : null;
+    var ui = e.target.closest ? e.target.closest("[data-login-role],[data-auth-tab],[data-toggle-password],[data-open-sheet],[data-close-sheet],[data-enable-push]") : null;
     if(ui){
       if(ui.hasAttribute("data-login-role")){
         selectLoginRoleLocal(ui.dataset.loginRole);
@@ -245,6 +245,8 @@
         openSheetLocal(ui.dataset.editId || null);
       } else if(ui.hasAttribute("data-close-sheet")){
         closeSheetLocal();
+      } else if(ui.hasAttribute("data-enable-push")){
+        if(window.__expressModuleReady && window.__express && window.__express.enablePush) window.__express.enablePush(); else showLoading();
       }
       return;
     }
@@ -476,6 +478,7 @@
         <label class="selectbox"><small>PERFIL</small><select id="role" disabled></select></label>
         <label class="selectbox"><small id="actor-label">USUÁRIO</small><select id="actor"></select></label>
         <div id="avatar" class="avatar">EE</div>
+        <button type="button" class="btn secondary tiny" data-enable-push title="Ativar notificações">🔔</button>
         <button type="button" class="btn danger tiny" data-logout style="margin-left:6px">Sair</button>
       </div>
     </header>
@@ -563,26 +566,26 @@
     screen.style.display = "flex";
     box.innerHTML = '<p>Carregando informações da entrega...</p>';
     
-    get(ref(db, "orders/" + orderId)).then(snap => {
-      if(!snap.exists()) { box.innerHTML = '<p style="color:var(--red);">Pedido não encontrado.</p>'; return; }
-      let o = snap.val();
-      let st = o.status === "open" ? "Aguardando Motoboy" : o.status === "run" ? "Em Trânsito / Rota" : o.status === "done" ? "Entregue" : "Em Cotação";
-      let gpsInfo = (o.location && o.status === "run") ? `<a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" class="btn primary full" style="margin-top:10px;">🗺️ Ver Localização Exata no Mapa</a>` : '<p style="color:var(--muted); text-align:center;">Deslocamento GPS ainda não iniciado.</p>';
-      
+    get(ref(db, "publicTracking/" + orderId)).then(snap => {
+      if(!snap.exists()) { box.innerHTML = '<p style="color:var(--red);">Link inválido ou rastreamento indisponível.</p>'; return; }
+      const o = snap.val();
+      const st = o.status === "open" ? "Aguardando motoboy" : o.status === "run" ? "Em trânsito" : o.status === "done" ? "Entrega concluída" : o.status === "cancelado_cotacao" ? "Solicitação cancelada" : "Em cotação";
+      const gpsInfo = (o.location && o.status === "run") ? `<a href="https://www.openstreetmap.org/?mlat=${Number(o.location.lat)}&mlon=${Number(o.location.lng)}#map=16/${Number(o.location.lat)}/${Number(o.location.lng)}" target="_blank" rel="noopener noreferrer" class="btn primary full" style="margin-top:10px;">🗺️ Acompanhar localização</a>` : '<p style="color:var(--muted);text-align:center;">A localização será exibida quando o motoboy iniciar o trajeto.</p>';
       box.innerHTML = `
-        <div style="background:#F2F3F5; padding:12px; border-radius:12px;">
-          <div style="font-size:10px; color:var(--muted);">CÓDIGO: <b>${esc(o.orderCode || o.id)}</b></div>
-          <div style="font-size:15px; font-weight:bold; margin:4px 0;">Loja: ${esc(o.storeName)}</div>
-          <div style="font-size:12px; color:#555;">Destino: ${esc(o.clientStreet)}, nº ${esc(o.clientNumber)} - ${esc(o.clientNeighborhood)}</div>
+        <div style="background:#F2F3F5;padding:12px;border-radius:12px;">
+          <div style="font-size:10px;color:var(--muted);">CÓDIGO DE ACOMPANHAMENTO</div>
+          <div style="font-size:16px;font-weight:800;">${esc(o.orderCode || "Express")}</div>
+          <div style="font-size:12px;color:#555;margin-top:5px;">Serviço: ${esc(o.serviceTypeLabel || "Entrega")}</div>
         </div>
-        <div style="background:var(--mint); padding:12px; border-radius:12px; text-align:center;">
-          <span style="font-size:11px; color:var(--green-dark); display:block; font-weight:700;">STATUS ATUAL:</span>
-          <b style="font-size:15px; color:var(--green-dark);">${st}</b>
-          <div style="font-size:12px; margin-top:4px;">Motoboy: <b>${esc(o.courierName || "Aguardando")}</b></div>
+        <div style="background:var(--mint);padding:14px;border-radius:12px;text-align:center;">
+          <span style="font-size:11px;color:var(--green-dark);display:block;font-weight:700;">STATUS ATUAL</span>
+          <b style="font-size:16px;color:var(--green-dark);">${st}</b>
+          <div style="font-size:11px;color:#667085;margin-top:6px;">Atualizado: ${o.updatedAt ? new Date(o.updatedAt).toLocaleString("pt-BR") : "Aguardando atualização"}</div>
         </div>
         ${gpsInfo}
+        <p style="font-size:10px;color:#98A2B3;text-align:center;margin:0;">Este link não exibe nome, telefone, endereço residencial ou valores do pedido.</p>
       `;
-    }).catch(() => { box.innerHTML = '<p style="color:var(--red);">Erro ao carregar rastreio.</p>'; });
+    }).catch(() => { box.innerHTML = '<p style="color:var(--red);">Não foi possível carregar o rastreamento.</p>'; });
   }
 
   document.getElementById("btn-close-track").addEventListener("click", () => {
@@ -714,7 +717,7 @@
       let raw = snap.val() || {};
       let orders = Object.entries(raw).map(([id, value]) => ({ id, ...value }));
       if (role === "store") orders = orders.filter(o => o.storeId === actor);
-      if (role === "courier") orders = orders.filter(o => o.status === "open" || o.status === "cotacao" || o.courierId === actor || o.status === "cancelado_cotacao");
+      if (role === "courier") orders = orders.filter(o => (o.status === "open" && (!o.assignedCourierId || o.assignedCourierId === actor)) || o.status === "cotacao" || o.courierId === actor || o.status === "cancelado_cotacao");
       orderSources.set(sourceKey, new Map(orders.map(o => [o.id, o])));
       let merged = new Map();
       orderSources.forEach(source => source.forEach((value,key) => merged.set(key,value)));
@@ -938,9 +941,10 @@
     trackingOrderId = orderId;
     watchId = navigator.geolocation.watchPosition(async (position) => {
       try {
-        await update(ref(db, "orders/" + orderId), {
-          location: { lat: position.coords.latitude, lng: position.coords.longitude, updatedAt: Date.now() }
-        });
+        const location = { lat: position.coords.latitude, lng: position.coords.longitude, updatedAt: Date.now() };
+        await update(ref(db, "orders/" + orderId), { location });
+        const currentOrder = data.orders.find(item => item.id === orderId);
+        if (currentOrder) await syncPublicTracking(orderId, { ...currentOrder, location, status: "run" });
       } catch (err) {}
     }, () => {}, { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 });
   }
@@ -951,6 +955,84 @@
       watchId = null;
     }
     trackingOrderId = null;
+  }
+
+  function createTrackingToken(){
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, b => b.toString(16).padStart(2,"0")).join("");
+  }
+
+  function publicTrackingPayload(order){
+    return {
+      orderCode: String(order.orderCode || "Express"),
+      status: String(order.status || "open"),
+      serviceTypeLabel: serviceTypeLabel(order.serviceType),
+      location: order.status === "run" && order.location ? {
+        lat: Number(order.location.lat),
+        lng: Number(order.location.lng),
+        updatedAt: Number(order.location.updatedAt || Date.now())
+      } : null,
+      updatedAt: Date.now()
+    };
+  }
+
+  async function syncPublicTracking(orderId, order){
+    if(!order || !order.trackingToken) return;
+    await set(ref(db, "publicTracking/" + order.trackingToken), publicTrackingPayload(order));
+  }
+
+  async function shareTrackingWhatsApp(orderId){
+    const orderRef = ref(db, "orders/" + orderId);
+    const result = await runTransaction(orderRef, current => {
+      if(!current) return;
+      if(!current.trackingToken) current.trackingToken = createTrackingToken();
+      return current;
+    });
+    if(!result.committed) throw new Error("Não foi possível preparar o link de rastreamento.");
+    const order = result.snapshot.val();
+    await syncPublicTracking(orderId, order);
+    const link = `${window.location.origin}${window.location.pathname}#track=${order.trackingToken}`;
+    const message = `Olá! Você pode acompanhar sua entrega pelo link: ${link}`;
+    const whatsappUrl = "https://wa.me/?text=" + encodeURIComponent(message);
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    toast("Link de rastreamento preparado para compartilhar.");
+  }
+
+  function urlBase64ToUint8Array(value){
+    const padding = "=".repeat((4 - value.length % 4) % 4);
+    const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const raw = atob(base64);
+    return Uint8Array.from(raw, c => c.charCodeAt(0));
+  }
+
+  async function enablePushNotifications(){
+    if(!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)){
+      toast("Este aparelho ou navegador não oferece suporte a notificações push.", "warn"); return;
+    }
+    const vapidKey = firebaseConfig.vapidPublicKey;
+    if(!vapidKey){
+      toast("Falta configurar a chave pública VAPID no Firebase de testes. A inscrição ainda não pode ser concluída.", "warn"); return;
+    }
+    const permission = await Notification.requestPermission();
+    if(permission !== "granted"){ toast("Permissão de notificações não concedida.", "warn"); return; }
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    if(!subscription){
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey)
+      });
+    }
+    const subscriptionId = btoa(subscription.endpoint).replace(/[^a-zA-Z0-9_-]/g,"").slice(-48) || createTrackingToken().slice(0,48);
+    await set(ref(db, "pushSubscriptions/" + currentUser.uid + "/" + subscriptionId), {
+      endpoint: subscription.endpoint,
+      expirationTime: subscription.expirationTime || null,
+      keys: subscription.toJSON().keys || {},
+      platform: /Android/i.test(navigator.userAgent) ? "Android" : "Web",
+      updatedAt: Date.now()
+    });
+    toast("Este aparelho foi inscrito para receber notificações.");
   }
 
   function esc(x){ return String(x==null?"":x).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -1014,7 +1096,7 @@
       action += `<button type="button" class="btn danger tiny" data-action="cancel-quote" data-id="${o.id}">🗑️ Cancelar</button>`;
     }
 
-    if(role === "courier" && o.status === "open") action += data.orders.some(x => x.status === "run" && x.courierId === actor) ? '<span class="tag gray">Finalize a corrida atual</span>' : '<button type="button" class="btn primary tiny" data-action="accept" data-id="'+o.id+'">Aceitar corrida</button>';
+    if(role === "courier" && o.status === "open") action += (o.assignedCourierId && o.assignedCourierId !== actor) ? '<span class="tag gray">Cotação reservada para outro motoboy</span>' : (data.orders.some(x => x.status === "run" && x.courierId === actor) ? '<span class="tag gray">Finalize a corrida atual</span>' : '<button type="button" class="btn primary tiny" data-action="accept" data-id="'+o.id+'">Aceitar corrida</button>');
     
     let bidsHtml = "";
     if (o.status === "cotacao") {
@@ -1059,8 +1141,7 @@
     
     if (role === "store" && o.status === "run" && !o.picked && canCancelFree) action += ` <button type="button" class="btn danger tiny" data-action="cancel-free" data-id="${o.id}">⚠️ Cancelar Sem Custo</button>`;
 
-    let trackingLink = `${window.location.origin}${window.location.pathname}#track=${o.id}`;
-    let trackingShareHtml = `<div style="margin-top:8px; background:#F2F3F5; padding:8px 10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:11px;">🔗 <b>Rastreio Cliente:</b></span> <a href="${trackingLink}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny" style="background:#fff;">Abrir Link</a></div>`;
+    let trackingShareHtml = (role === "store" || role === "admin") ? `<div style="margin-top:8px;background:#F2F3F5;padding:8px 10px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;"><span style="font-size:11px;">🔗 <b>Rastreio do cliente</b></span><button type="button" class="btn secondary tiny" data-action="share-whatsapp" data-id="${o.id}" style="background:#fff;">Compartilhar WhatsApp</button></div>` : "";
     let gpsTrackingInfo = (canLoc(o) && o.location && o.status === "run") ? `<div class="gps" style="margin-top:6px; background:var(--mint); padding:8px; border-radius:10px;">📍 <b>Motoboy em trânsito:</b> <a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" style="color:var(--green-dark); font-weight:bold;">Acompanhar Mapa</a></div>` : "";
     let serviceBadge = o.serviceType === "collection" ? '<span class="tag orange">🔄 RECOLHA</span>' : o.serviceType === "roundtrip" ? '<span class="tag purpletag">🔁 2 VIAGENS</span>' : '<span class="tag bluetag">🚚 ENTREGA</span>';
 
@@ -1226,6 +1307,8 @@
     let o = data.orders.find(x => x.id === id);
     if (action !== "save-rates" && !o) return toast("Pedido não encontrado.", "warn");
     
+    if (action === "share-whatsapp") { await shareTrackingWhatsApp(id); return; }
+
     if (action === "send-bid") {
       let input = document.getElementById("bid-input-" + id);
       let amount = Number(input ? input.value : 0);
@@ -1248,8 +1331,16 @@
       let btn = document.querySelector(`[data-action="accept-bid"][data-id="${id}"]`);
       if (!btn) return;
       if (!confirm(`Confirmar contratação por ${cash(btn.dataset.amount)}?`)) return;
-      await update(ref(db, "orders/" + id), { status: "open", courierId: btn.dataset.courier, courierName: btn.dataset.cname, fee: Number(btn.dataset.amount), accepted: Date.now(), tripStage: o.serviceType === "roundtrip" ? 0 : null });
-      toast("Cotação aceita! Enviada para a fila de abertos."); view = "open"; render();
+      const selectedCourier = btn.dataset.courier;
+      const result = await runTransaction(ref(db, "orders/" + id), current => {
+        if (!current || current.status !== "cotacao") return;
+        const bid = current.bids && current.bids[selectedCourier];
+        if (!bid || Number(bid.amount) !== Number(btn.dataset.amount)) return;
+        return { ...current, status: "open", courierId: selectedCourier, assignedCourierId: selectedCourier, courierName: bid.courierName || btn.dataset.cname, fee: Number(bid.amount), accepted: Date.now(), tripStage: current.serviceType === "roundtrip" ? 0 : null, quoteAcceptedAt: Date.now() };
+      });
+      if (!result.committed) return toast("Esta cotação já foi aceita ou alterada. Atualize a tela.", "warn");
+      await syncPublicTracking(id, result.snapshot.val());
+      toast("Cotação reservada para o motoboy escolhido."); view = "open"; render();
     }
 
     if (action === "cancel-quote") {
@@ -1264,10 +1355,11 @@
       let newFee = isRaining && !o.rain ? calculateFee(o.paymentMethod, true, o.bag, o.bank, o.selectedZone) : o.fee;
       try {
         let result = await runTransaction(ref(db, "orders/" + id), current => {
-          if (!current || current.status !== "open") return;
+          if (!current || current.status !== "open" || (current.assignedCourierId && current.assignedCourierId !== actor)) return;
           return { ...current, status:"run", courierId:actor, courierName:(person()||{}).name||"Motoboy", accepted:Date.now(), rain:isRaining, fee:newFee, tripStage: current.serviceType === "roundtrip" ? 0 : null };
         });
         if (!result.committed) throw new Error("Corrida já aceita por outro motoboy.");
+        await syncPublicTracking(id, result.snapshot.val());
         toast("Corrida aceita! Use o botão GPS.");
         startGpsTracking(id);
         view = "run"; render();
@@ -1281,14 +1373,18 @@
       stopGpsTracking();
       let completedAt = Date.now();
       let durationMs = o.accepted ? Math.max(0, completedAt - Number(o.accepted)) : 0;
-      await update(ref(db, "orders/" + id), { status: "done", completed: completedAt, durationMs, paid: false });
+      const finishChanges = { status: "done", completed: completedAt, durationMs, paid: false, location: null };
+      await update(ref(db, "orders/" + id), finishChanges);
+      await syncPublicTracking(id, { ...o, ...finishChanges });
       toast("Entrega concluída!"); view = "done"; render();
     }
     if (action === "cancel") {
       if(!confirm("Deseja cancelar e retornar para a fila?")) return;
       stopGpsTracking();
       let revertStatus = o.bids && Object.keys(o.bids).length > 0 ? "cotacao" : "open";
-      await update(ref(db, "orders/" + id), { status: revertStatus, courierId: null, courierName: null, accepted: null, picked: null, location: null, tripStage: null });
+      const cancelChanges = { status: revertStatus, courierId: null, assignedCourierId: null, courierName: null, accepted: null, picked: null, location: null, tripStage: null };
+      await update(ref(db, "orders/" + id), cancelChanges);
+      await syncPublicTracking(id, { ...o, ...cancelChanges });
       toast("Corrida retornada para a fila."); render();
     }
     if (action === "toggle-pay") {
@@ -1306,6 +1402,7 @@
   window.__express = {
     setView: function(v){ view = v; render(); },
     doAction: function(a, id){ return act(a, id).catch(err => toast(err.message, "warn")); },
+    enablePush: function(){ return enablePushNotifications().catch(err => toast(err.message || "Falha ao ativar notificações.", "warn")); },
     selectLoginRole: function(r){ window.selectLoginRole(r); },
     setAuthTab: function(m){ window.setAuthTab(m); },
     togglePassword: function(){ window.togglePassword(); },
@@ -1361,13 +1458,16 @@
         toast("Atualizado com sucesso!");
       } else {
         orderPayload.orderCode = code;
+        orderPayload.trackingToken = createTrackingToken();
         orderPayload.storeId = s.id;
         orderPayload.storeName = s.name;
         orderPayload.storeAddress = s.address;
         orderPayload.created = Date.now();
         orderPayload.location = null;
         orderPayload.paid = false;
-        await set(push(ref(db, "orders")), orderPayload);
+        const newOrderRef = push(ref(db, "orders"));
+        await set(newOrderRef, orderPayload);
+        await syncPublicTracking(newOrderRef.key, orderPayload);
         toast(isQuote ? "Cotação publicada!" : "Pedido enviado!"); 
       }
       closeOrderSheet(); 
