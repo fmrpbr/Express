@@ -42,6 +42,15 @@
 .nav button{border:0;background:transparent;text-align:center;padding:8px 6px;border-radius:14px;color:#6B7280;font-weight:700;font-size:10px;flex:1;min-width:62px;display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;line-height:1.1}
 .nav button span{display:block;width:auto;font-size:20px;line-height:1}
 .nav button.active{background:var(--primary);color:#fff;box-shadow:0 6px 16px rgba(234,29,44,.28)}
+@keyframes availablePulse{0%,100%{transform:scale(1);filter:drop-shadow(0 0 0 rgba(234,29,44,0))}50%{transform:scale(1.22);filter:drop-shadow(0 0 7px rgba(234,29,44,.75))}}
+.nav button .nav-pulse{color:var(--red);animation:availablePulse 1s ease-in-out infinite}
+.nav button.active .nav-pulse{color:#fff}
+.nav-count{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 5px;border-radius:99px;background:var(--red);color:#fff;font-size:10px;font-weight:900}
+.queue-green{border-left:5px solid #16A34A!important}.queue-yellow{border-left:5px solid #EAB308!important}.queue-red{border-left:5px solid #DC2626!important}
+.queue-priority{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:4px 8px;border-radius:99px;margin-top:7px}
+.queue-priority.green{background:#DCFCE7;color:#166534}.queue-priority.yellow{background:#FEF9C3;color:#854D0E}.queue-priority.red{background:#FEE2E2;color:#991B1B}
+.queue-legend{display:flex;flex-wrap:wrap;gap:8px;margin:-4px 0 12px;padding:10px;background:#F8FAFC;border:1px solid var(--line);border-radius:12px;font-size:10px;font-weight:750}
+.queue-legend span{display:inline-flex;align-items:center;gap:5px}.queue-dot{width:9px;height:9px;border-radius:50%;display:inline-block}.queue-dot.green{background:#16A34A}.queue-dot.yellow{background:#EAB308}.queue-dot.red{background:#DC2626}
 
 .content{max-width:100%;margin:-18px 0 0;padding:20px 16px 30px;background:#fff;border-radius:24px 24px 0 0;position:relative;z-index:3;box-shadow:0 -10px 30px rgba(0,0,0,.06);flex:1}
 .content:before{content:"";width:44px;height:5px;background:#E5E7EB;border-radius:99px;position:absolute;top:8px;left:50%;transform:translateX(-50%)}
@@ -966,7 +975,19 @@
   function stat(a,b,c,d){ return '<div class="stat"><div class="stat-top">'+a+'</div><div class="stat-value">'+b+'</div><div class="stat-sub">'+c+'</div></div>'; }
   function canLoc(o){ return role === "admin" || o.storeId === actor || (role === "courier" && o.courierId === actor); }
 
+  function queuePriority(o){
+    let waitingMinutes = Math.max(0, Math.floor((Date.now() - Number(o.created || Date.now())) / 60000));
+    return { waitingMinutes, level: waitingMinutes >= 15 ? "red" : waitingMinutes >= 5 ? "yellow" : "green", rank: waitingMinutes >= 15 ? 3 : waitingMinutes >= 5 ? 2 : 1 };
+  }
+
   function card(o){
+    let queueClass = "", queueBadge = "";
+    if(role === "courier" && o.status === "open"){
+      let q = queuePriority(o);
+      queueClass = "queue-" + q.level;
+      let label = q.level === "red" ? "PRIORIDADE ALTA" : q.level === "yellow" ? "AGUARDANDO" : "RECENTE";
+      queueBadge = '<div><span class="queue-priority '+q.level+'">'+label+' · '+q.waitingMinutes+' min na fila</span></div>';
+    }
     let tripStage = Number(o.tripStage || 0);
     let st = o.status === "open" ? "Aguardando motoboy" : o.status === "cotacao" ? "Em Cotação" : o.status === "cancelado_cotacao" ? "Cancelado" : o.status === "run" ? (o.serviceType === "roundtrip" ? (tripStage===0 ? "A caminho do cliente" : tripStage===1 ? "A caminho da loja" : tripStage===2 ? "Na loja · 2ª viagem" : "A caminho do cliente") : (o.picked ? "Coletado · em trânsito" : "Aguardando coleta")) : "Entregue";
     let tag = o.status === "open" ? "orange" : o.status === "cotacao" ? "purpletag" : o.status === "cancelado_cotacao" ? "gray" : o.status === "run" ? "bluetag" : "green";
@@ -1035,7 +1056,7 @@
     let gpsTrackingInfo = (canLoc(o) && o.location && o.status === "run") ? `<div class="gps" style="margin-top:6px; background:var(--mint); padding:8px; border-radius:10px;">📍 <b>Motoboy em trânsito:</b> <a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" style="color:var(--green-dark); font-weight:bold;">Acompanhar Mapa</a></div>` : "";
     let serviceBadge = o.serviceType === "collection" ? '<span class="tag orange">🔄 RECOLHA</span>' : o.serviceType === "roundtrip" ? '<span class="tag purpletag">🔁 2 VIAGENS</span>' : '<span class="tag bluetag">🚚 ENTREGA</span>';
 
-    return '<article class="order"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+esc(o.clientStreet)+', '+esc(o.clientNumber)+' - '+esc(o.clientNeighborhood)+'</h3><div class="order-store">Cliente: <b>'+esc(o.client)+'</b> '+ (o.phone ? '('+esc(o.phone)+')' : '') +'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div><div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+pickupTimerHtml+'</div>'+trackingShareHtml+bidsHtml+gpsTrackingInfo+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
+    return '<article class="order '+queueClass+'"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+esc(o.clientStreet)+', '+esc(o.clientNumber)+' - '+esc(o.clientNeighborhood)+'</h3><div class="order-store">Cliente: <b>'+esc(o.client)+'</b> '+ (o.phone ? '('+esc(o.phone)+')' : '') +'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>'+queueBadge+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+pickupTimerHtml+'</div>'+trackingShareHtml+bidsHtml+gpsTrackingInfo+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
   }
 
   function render(){
@@ -1043,7 +1064,11 @@
     let people = role === "store" ? data.stores : role === "courier" ? data.couriers : [{id:"admin",name:"Administrador"}];
     if(role === "admin") actor = "admin"; if(people.length && !people.some(p => p.id === actor)) actor = people[0].id;
 
-    document.getElementById("nav").innerHTML = items().map(n => '<button type="button" class="'+(view===n[0]?"active":"")+'" data-nav="'+n[0]+'"><span>'+n[1]+'</span>'+n[2]+'</button>').join("");
+    let availableCount = role === "courier" ? data.orders.filter(o => o.status === "open").length : 0;
+    document.getElementById("nav").innerHTML = items().map(n => {
+      let alert = n[0] === "available" && availableCount > 0;
+      return '<button type="button" class="'+(view===n[0]?"active":"")+'" data-nav="'+n[0]+'"><span class="'+(alert?"nav-pulse":"")+'">'+n[1]+'</span>'+n[2]+(alert?'<small class="nav-count">'+availableCount+'</small>':"")+'</button>';
+    }).join("");
     document.getElementById("role").innerHTML = [["store","Lojista"],["courier","Motoboy"],["admin","Administrador"]].map(x => '<option value="'+x[0]+'" '+(role===x[0]?"selected":"")+'>'+x[1]+'</option>').join("");
     document.getElementById("actor").innerHTML = people.map(p => '<option value="'+esc(p.id)+'" '+(p.id===actor?"selected":"")+'>'+esc(p.name)+'</option>').join("");
     document.getElementById("actor").disabled = role === "admin" || !people.length;
@@ -1077,7 +1102,7 @@
     return `
       <div class="head"><div><h1>Relatórios e Caixa</h1><p>Fechamento financeiro e histórico de entregas.</p></div></div>
       <div class="grid stats">
-        ${stat("Total Entregas", os.length, "Geral", "▣")}
+        ${stat("Total Entregas", doneOrders.length, "Finalizadas", "▣")}
         ${stat("Faturamento", cash(totalValue), "Acumulado", "✓")}
         ${stat("Valores Pagos", cash(paidValue), "Confirmados", "$")}
         ${stat("Pendentes", cash(pendingValue), "Aguardando", "◷")}
@@ -1151,9 +1176,12 @@
 
   function listView(status){
     let arr = role === "store" ? (status==="all"?mine():mine().filter(o => status==="open"?o.status==="open":o.status===status)) : role === "courier" ? (status==="open"?data.orders.filter(o => o.status==="open"):mine().filter(o => o.status===status)) : (status==="all"?data.orders:today().filter(o => o.status===status));
-    arr.sort((a,b) => b.created-a.created);
+    if(role === "courier" && status === "open"){
+      arr.sort((a,b) => queuePriority(b).rank - queuePriority(a).rank || Number(a.created||0) - Number(b.created||0));
+    } else arr.sort((a,b) => Number(b.created||0)-Number(a.created||0));
     let t = status === "open" ? (role==="store"?"Pedidos em Aberto":"Disponíveis") : status === "run" ? "Em Execução" : "Concluídos";
-    return '<div class="head"><div><h1>'+t+'</h1></div>'+(role === "store" && status === "open" ? '<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>' : "")+'</div>'+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhum pedido","Nenhuma corrida nesta etapa"));
+    let legend = role === "courier" && status === "open" ? '<div class="queue-legend"><span><i class="queue-dot green"></i> Verde: até 5 min</span><span><i class="queue-dot yellow"></i> Amarelo: 5 a 14 min</span><span><i class="queue-dot red"></i> Vermelho: 15 min ou mais</span><b>Ordem automática: maior espera primeiro</b></div>' : "";
+    return '<div class="head"><div><h1>'+t+'</h1></div>'+(role === "store" && status === "open" ? '<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>' : "")+'</div>'+legend+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhum pedido","Nenhuma corrida nesta etapa"));
   }
 
   function quotesView(){
