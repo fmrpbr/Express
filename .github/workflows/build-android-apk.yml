@@ -38,14 +38,18 @@ jobs:
       - name: Preparar configuração Firebase de teste
         run: cp www/firebase-config.example.js www/firebase-config.js
 
-      - name: Preparar ícones do aplicativo
+      - name: Preparar ícones personalizados do app
         run: |
-          mkdir -p www/icons
-          curl -fL https://fmrpbr.github.io/Express/icons/icon-192.png -o www/icons/icon-192.png
-          curl -fL https://fmrpbr.github.io/Express/icons/icon-512.png -o www/icons/icon-512.png
+          mkdir -p www/icons assets
+          cp icons/icon-192.png www/icons/icon-192.png
+          cp icons/icon-512.png www/icons/icon-512.png
+          cp icons/icon-512.png assets/icon.png
 
       - name: Criar projeto Android
         run: npx cap add android
+
+      - name: Gerar ícones nativos personalizados
+        run: npx --yes @capacitor/assets@3.0.5 generate --android --assetPath assets --iconBackgroundColor '#EA1D2C' --iconBackgroundColorDark '#EA1D2C'
 
       - name: Sincronizar aplicativo
         run: npx cap sync android
