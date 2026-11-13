@@ -6,7 +6,7 @@ import {
   assertFails,
   assertSucceeds
 } from "@firebase/rules-unit-testing";
-import { get, ref, set } from "firebase/database";
+import { get, ref, set, query, orderByChild, startAt } from "firebase/database";
 
 const projectId = "demo-express-entregas";
 let env;
@@ -102,6 +102,26 @@ test("lojistas e motoboys podem publicar alertas curtos identificados, sem alter
   await assertFails(set(ref(storeDb, "alerts/alertA/message"), "ALTERADO"));
   await assertFails(set(ref(storeDb, "alerts/alertB"), { ...alert, senderId:"courierA" }));
   await assertFails(set(ref(courierDb, "alerts/alertC"), { ...alert, senderId:"courierA", senderRole:"courier", message:"X".repeat(121) }));
+});
+
+
+test("consulta indexada de alertas retorna somente avisos ainda válidos", async () => {
+  const now = Date.now();
+  await env.withSecurityRulesDisabled(async context => {
+    const db = context.database();
+    await set(ref(db, "alerts/expired"), {
+      senderId:"storeA", senderRole:"store", senderName:"LOJA A",
+      message:"AVISO ANTIGO", createdAt:now-7200000, expiresAt:now-1
+    });
+    await set(ref(db, "alerts/active"), {
+      senderId:"storeA", senderRole:"store", senderName:"LOJA A",
+      message:"AVISO ATIVO", createdAt:now, expiresAt:now+3600000
+    });
+  });
+  const db = env.authenticatedContext("courierA").database();
+  const snap = await get(query(ref(db, "alerts"), orderByChild("expiresAt"), startAt(now)));
+  const values = snap.val() || {};
+  assert.deepEqual(Object.keys(values), ["active"]);
 });
 
 test("somente administrador altera taxas", async () => {

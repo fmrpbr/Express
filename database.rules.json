@@ -78,6 +78,7 @@
     },
     "alerts": {
       ".read": "auth != null",
+      ".indexOn": ["expiresAt"],
       "$alertId": {
         ".write": "auth != null && !data.exists() && newData.child('senderId').val() === auth.uid && (newData.child('senderRole').val() === 'store' || newData.child('senderRole').val() === 'courier')",
         ".validate": "newData.hasChildren(['senderId','senderRole','senderName','message','createdAt','expiresAt'])",
