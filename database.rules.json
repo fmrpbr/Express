@@ -78,7 +78,9 @@
     },
     "alerts": {
       ".read": "auth != null",
-      ".indexOn": ["expiresAt"],
+      ".indexOn": [
+        "expiresAt"
+      ],
       "$alertId": {
         ".write": "auth != null && !data.exists() && newData.child('senderId').val() === auth.uid && (newData.child('senderRole').val() === 'store' || newData.child('senderRole').val() === 'courier')",
         ".validate": "newData.hasChildren(['senderId','senderRole','senderName','message','createdAt','expiresAt'])",
@@ -102,6 +104,27 @@
         },
         "$other": {
           ".validate": false
+        }
+      }
+    },
+    "fcmTokens": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "$tokenId": {
+          ".validate": "newData.hasChildren(['token','platform','updatedAt'])",
+          "token": {
+            ".validate": "newData.isString() && newData.val().length >= 20 && newData.val().length <= 4096"
+          },
+          "platform": {
+            ".validate": "newData.val() === 'android'"
+          },
+          "updatedAt": {
+            ".validate": "newData.isNumber() && newData.val() <= now + 60000"
+          },
+          "$other": {
+            ".validate": false
+          }
         }
       }
     }
