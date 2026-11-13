@@ -48,7 +48,7 @@ jobs:
       - name: Preparar módulo JavaScript de notificações nativas
         run: |
           mkdir -p www/vendor
-          npx esbuild native-push-entry.js --bundle --format=iife --global-name=ExpressNativePush --outfile=www/vendor/native-push.bundle.js
+          npx esbuild native-push-entry.js --bundle --format=iife --outfile=www/vendor/native-push.bundle.js
 
       - name: Criar projeto Android
         run: npx cap add android
