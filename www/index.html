@@ -536,6 +536,7 @@
 <div id="toasts" class="toastbox"></div>
 
 <script src="./firebase-config.js"></script>
+<script src="./vendor/native-push.bundle.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
   import { getDatabase, ref, set, update, push, get, onValue, query, orderByChild, startAt, runTransaction, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
@@ -587,6 +588,48 @@
   let role = "store";
   let actor = "";
   let currentUser = null;
+  let pendingFcmToken = null;
+  let nativePushListenersReady = false;
+
+  async function saveNativeFcmToken(tokenValue){
+    if(!tokenValue || !currentUser || !window.Capacitor?.isNativePlatform?.()) return;
+    const tokenKey = btoa(tokenValue).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
+    await set(ref(db, "fcmTokens/" + currentUser.uid + "/" + tokenKey), {
+      token: tokenValue,
+      platform: "android",
+      updatedAt: Date.now()
+    });
+  }
+
+  function setupNativePushListeners(){
+    const pushApi = window.ExpressNativePush?.PushNotifications;
+    if(!window.Capacitor?.isNativePlatform?.() || !pushApi || nativePushListenersReady) return;
+    nativePushListenersReady = true;
+    pushApi.addListener("registration", async token => {
+      pendingFcmToken = token.value;
+      try { await saveNativeFcmToken(token.value); }
+      catch(error){ console.warn("Não foi possível salvar o token FCM:", error); }
+    });
+    pushApi.addListener("registrationError", error => {
+      console.error("Falha no registro FCM:", error);
+      toast("Não foi possível registrar este aparelho para notificações.", "warn");
+    });
+    pushApi.addListener("pushNotificationReceived", notification => {
+      const title = notification.title || "Express Entregas";
+      const body = notification.body || "Você recebeu uma nova notificação.";
+      toast(title + ": " + body);
+      playBeep();
+    });
+    pushApi.addListener("pushNotificationActionPerformed", action => {
+      const extra = action.notification?.data || {};
+      if(extra.orderId) {
+        view = role === "courier" ? (extra.type === "quote" ? "quotes" : "available") : "dashboard";
+        render();
+      }
+    });
+  }
+
+  setupNativePushListeners();
   let unsubscribers = [];
   let orderSources = new Map();
   let pendingProfileWrite = null;
@@ -814,6 +857,7 @@
     sessionInitPromise = (async () => {
       if (pendingProfileWrite) await pendingProfileWrite;
       currentUser = user;
+      if(pendingFcmToken) { try { await saveNativeFcmToken(pendingFcmToken); } catch(error) { console.warn("Token FCM pendente não foi salvo:", error); } }
       let token = await getIdTokenResult(user, true);
       let isAdmin = token.claims && token.claims.admin === true;
       if (adminLoginRequested && !isAdmin) { await signOut(auth); throw new Error("Esta conta não possui permissão de administrador."); }
@@ -1285,6 +1329,18 @@
   }
 
   async function enablePushNotifications(){
+    if(window.Capacitor?.isNativePlatform?.()){
+      const pushApi = window.ExpressNativePush?.PushNotifications;
+      if(!pushApi){ toast("Módulo nativo de notificações não foi carregado. Gere novamente o APK.", "warn"); return; }
+      if(role !== "courier"){ toast("A ativação de notificações nativas está disponível para motoboys.", "warn"); return; }
+      if(!currentUser){ toast("Entre na sua conta antes de ativar as notificações.", "warn"); return; }
+      let permission = await pushApi.checkPermissions();
+      if(permission.receive !== "granted") permission = await pushApi.requestPermissions();
+      if(permission.receive !== "granted"){ toast("Permissão de notificações não concedida.", "warn"); return; }
+      await pushApi.register();
+      toast("Solicitação de ativação enviada. O aparelho será registrado ao receber o token FCM.");
+      return;
+    }
     if(!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)){
       toast("Este aparelho ou navegador não oferece suporte a notificações push.", "warn"); return;
     }
