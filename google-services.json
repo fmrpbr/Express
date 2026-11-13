@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "292745200666",
+    "firebase_url": "https://express-entregas-2-testes-default-rtdb.firebaseio.com",
+    "project_id": "express-entregas-2-testes",
+    "storage_bucket": "express-entregas-2-testes.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:292745200666:android:18c6e6ae3665d82d327da3",
+        "android_client_info": {
+          "package_name": "com.fmrpbr.express.v2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4X-hBXO2ylld6q5AIDORa3eFJG8yt0FY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
