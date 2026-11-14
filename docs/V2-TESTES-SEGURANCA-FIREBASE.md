@@ -2,42 +2,36 @@
 
 ## Objetivo
 
-Esta suíte registra o comportamento das regras atuais de `database.rules.json` antes de qualquer alteração. Ela usa o projeto fictício `demo-express-entregas-security` e o Realtime Database Emulator. Nenhum projeto Firebase real é selecionado.
+A suíte compara a linha de base das regras atuais com um candidato de regras restritivas, sem publicar o candidato.
 
-## Como executar no GitHub Actions
+## Execução
 
-O workflow `.github/workflows/security-rules-v2.yml` executa quando há mudanças nas regras ou nos testes da branch `v2.0-testes-reais`.
+O workflow `.github/workflows/security-rules-v2.yml` executa os testes no Firebase Emulator com o projeto fictício `demo-express-entregas-security`.
 
-Localmente, dentro de `tests/security`:
+Os arquivos `security.rules.test.js` e `target.rules.test.js` testam, respectivamente, as regras atuais e o candidato `database.rules.candidate.json`.
 
-```bash
-npm install
-firebase emulators:exec --project demo-express-entregas-security --only auth,database "npm test"
-```
+## Direção de segurança do candidato
 
-As identidades dos testes são simuladas pelo `@firebase/rules-unit-testing` com UIDs e claims controlados. O Auth Emulator fica disponível no ambiente isolado, mas a suíte inicial ainda não testa cadastro/login real pelo SDK de Authentication.
+- Pedidos canônicos e índices são somente leitura para clientes.
+- Lojistas consultam `storeOrders/{uid}`; motoboys consultam `courierOrders/{uid}`, `availableOrders` e `quoteBoard`.
+- Presença é visível apenas a usuários com perfil de loja ou motoboy.
+- Motoboy só altera a própria presença.
+- Tokens FCM permanecem isolados por UID.
+- Rastreamento continua acessível por token aleatório existente.
+- Alertas são limitados a perfis cadastrados e não podem ser alterados após criação.
+- Tarifas são somente leitura para clientes.
 
-## Cobertura inicial
+## Atenção antes de adotar
 
-- leitura do perfil próprio e bloqueio do perfil de outro usuário;
-- divergência entre `profiles/{role}/{uid}` e os caminhos legados `stores/{uid}` / `couriers/{uid}`;
-- leitura de pedido individual pelo lojista e motoboy associados;
-- bloqueio de leitura global da coleção `orders`;
-- exposição atual da presença de motoboys a usuários autenticados;
-- leitura pública do rastreamento quando o token existe;
-- isolamento dos tokens FCM por UID;
-- bloqueio de gravação direta de pedidos pelas regras atuais.
+Este candidato é uma base de validação, não uma substituição pronta para produção. A aplicação ainda precisa ser adaptada para ler pelos índices em vez de escutar `orders` globalmente. Os índices, pedidos, cotações, perfis e rastreamento precisam ser escritos por backend confiável. Operações críticas de aceite, cancelamento, pagamento, expiração e distribuição de pedidos exigem validação transacional no servidor.
 
-## Como interpretar
+As regras de presença ainda permitem que o próprio motoboy altere online/busy. A semântica do campo `registered` e o futuro controle ON/OFF de trabalho devem ser alinhados ao contrato de dados antes da homologação.
 
-Os testes de caracterização não significam que o estado atual está seguro. Alguns testes confirmam explicitamente comportamentos conhecidos como exposição de presença e leitura pública por token. Eles criam uma linha de base reproduzível para impedir que mudanças futuras alterem o comportamento sem revisão.
+## Segurança operacional
 
-A próxima etapa é separar testes de acesso esperado dos testes que devem falhar por risco, definir as regras-alvo e validar a arquitetura de leitura por índices. Operações críticas de pedidos continuam dependendo de backend confiável. Não publicar regras diretamente apenas porque a suíte passa.
-
-## Limites
-
-- Nenhuma regra foi publicada.
-- Nenhum deploy ou migração foi executado.
-- Nenhum projeto real foi usado.
-- Nenhuma cobrança ou plano Blaze foi ativado.
-- A execução no GitHub Actions ainda precisa concluir para que os resultados sejam considerados verificados.
+- Não publicar regras.
+- Não executar deploy.
+- Não migrar dados.
+- Não configurar projeto real.
+- Não ativar Blaze ou billing.
+- Só considerar aprovado após resultado real do GitHub Actions.
