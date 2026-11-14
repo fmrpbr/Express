@@ -5,7 +5,7 @@ import { get, ref, set } from "firebase/database";
 import test, { before, after, beforeEach } from "node:test";
 
 const envPromise = initializeTestEnvironment({
-  projectId: "demo-express-entregas-target",
+  projectId: "demo-express-entregas-security",
   database: { rules: readFileSync(resolve(process.cwd(), "database.rules.candidate.json"), "utf8") }
 });
 let env;
