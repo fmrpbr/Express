@@ -1,0 +1,43 @@
+name: Testes de segurança Firebase - V2
+
+on:
+  push:
+    branches: [v2.0-testes-reais]
+    paths:
+      - 'database.rules.json'
+      - 'tests/security/**'
+      - '.github/workflows/security-rules-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  firebase-security-tests:
+    name: Validar regras no Firebase Emulator
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tests/security
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/security/package.json
+
+      - name: Instalar Firebase CLI
+        run: npm install --global firebase-tools@14.22.0
+
+      - name: Instalar dependências dos testes
+        run: npm install
+
+      - name: Copiar regras atuais para o ambiente isolado
+        run: cp ../../database.rules.json ./database.rules.json
+
+      - name: Executar Auth e Realtime Database Emulator
+        run: firebase emulators:exec --project demo-express-entregas-security --only auth,database "npm test"
