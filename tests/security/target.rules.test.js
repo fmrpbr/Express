@@ -6,7 +6,11 @@ import test, { before, after, beforeEach } from "node:test";
 
 const envPromise = initializeTestEnvironment({
   projectId: "demo-express-entregas-security",
-  database: { rules: readFileSync(resolve(process.cwd(), "database.rules.candidate.json"), "utf8") }
+  database: {
+    rules: readFileSync(resolve(process.cwd(), "database.rules.candidate.json"), "utf8"),
+    host: "127.0.0.1",
+    port: 9000
+  }
 });
 let env;
 before(async () => { env = await envPromise; });
