@@ -430,8 +430,8 @@
         <div class="field full" id="field-service-type" style="margin-top:5px; background:var(--mint); padding:10px; border-radius:12px;">
           <label style="color:var(--green-dark); font-weight:800;">⚠️ 2. Tipo de Serviço</label>
           <select name="serviceType" id="service-type-select" style="font-weight:bold; background:#fff; color:var(--green-dark); margin-top:4px;">
+            <option value="delivery" selected>🚚 Entrega (Loja → Cliente)</option>
             <option value="collection">🔄 Recolha (Cliente → Loja)</option>
-            <option value="delivery">🚚 Entrega (Loja → Cliente)</option>
             <option value="roundtrip">🔁 Recolha e entrega (2 viagens)</option>
           </select>
         </div>
@@ -1097,7 +1097,7 @@
     updateHeroClock();
     const presence = data.presence || [];
     const total = presence.length;
-    const onlineList = presence.filter(p => p.online === true);
+    const onlineList = presence.filter(p => p.availableForWork === true);
     const online = onlineList.length;
     const occupied = onlineList.filter(p => p.busy === true).length;
     const available = Math.max(0, online - occupied);
