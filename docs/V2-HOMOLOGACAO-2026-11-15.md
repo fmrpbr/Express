@@ -142,3 +142,15 @@ O cliente cancela inícios pendentes após logout, impede início enquanto a pá
 Seis testes novos exercitam o ciclo real das funções JavaScript: início único, logout durante permissão, negação sem repetição, watcher tardio removido, erro nativo pausado e início bloqueado em segundo plano. Os 20 testes Node locais passaram. A preparação Android foi executada duas vezes para conferir reaplicação e o bundle web foi gerado.
 
 A versão 2.0.2 é candidata a reteste. Compilação e testes automatizados não comprovam ausência de fechamento nem funcionamento do GPS no Android do usuário. Repetir aceite, negação/concessão de permissões, recuperação de corrida ativa, bloqueio de tela, conclusão e troca de conta. O piloto permanece bloqueado.
+
+### Evidência do APK 2.0.2
+
+- Código: `2c567760d0621f35a4224d5352b8dd071dcc728e`.
+- [CI V2/regras/navegador aprovado](https://github.com/fmrpbr/Express/actions/runs/43768558170): 20 testes Node, 40 de regras/integração e 4 cenários de navegador, total 64.
+- [Compilação e assinatura aprovadas](https://github.com/fmrpbr/Express/actions/runs/43768558225). Artefato `14183123652`.
+- Manifesto conferido no APK: `2.0.2-teste`, versionCode `200088`, superior ao APK anterior `200087`.
+- Pacote `com.fmrpbr.express.v2` e certificado SHA-256 `d4e736f9a49620a3152b8cc0a506d73f0ca065dd82fb558daf4e7150b5cc75b6` preservados.
+- SHA-256 do APK: `811f1a1399f1f0afacabe34457aac8c1c9e2a3b8b5c30a1b5a320be400cc5437`; 5.022.329 bytes.
+- Recurso de ícone, tratamento `GPS_START_FAILED` no código nativo e proteção de reinício no HTML confirmados no arquivo baixado.
+- Sem dispositivo/emulador Android disponível nesta execução. O teste nativo do fechamento permanece pendente no aparelho do usuário; os testes de ciclo GPS acima simulam a ponte nativa.
+- Nenhuma alteração de regras, funções ou dados do Firebase necessária nesta atualização.
