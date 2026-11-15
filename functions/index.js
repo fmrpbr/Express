@@ -92,15 +92,23 @@ async function notifyEligible(kind, orderId, record, reminder = false) {
   return results.filter(x => x.status === "fulfilled").reduce((sum, x) => sum + x.value, 0);
 }
 
+async function createReminderJob(kind, orderId) {
+  const jobId = `${kind}_${orderId}`;
+  const now = Date.now();
+  const jobRef = db.ref(`pushJobs/${jobId}`);
+  // Não reinicia um lembrete já existente em caso de reentrega do evento.
+  await jobRef.transaction(current => current || {
+    kind, orderId, active: true, createdAt: now,
+    nextAt: now + 5 * 60 * 1000, reminderCount: 0
+  });
+}
+
 exports.onAvailableOrderCreated = onValueCreated("/availableOrders/{orderId}", async event => {
   const record = event.data.val();
   if (!record) return;
   const orderId = event.params.orderId;
   await notifyEligible("order", orderId, record);
-  await db.ref(`pushJobs/${orderId}`).set({
-    kind: "order", active: true, createdAt: Date.now(),
-    nextAt: Date.now() + 5 * 60 * 1000, reminderCount: 0
-  });
+  await createReminderJob("order", orderId);
 });
 
 exports.onQuoteCreated = onValueCreated("/quoteBoard/{orderId}", async event => {
@@ -108,10 +116,7 @@ exports.onQuoteCreated = onValueCreated("/quoteBoard/{orderId}", async event => 
   if (!record) return;
   const orderId = event.params.orderId;
   await notifyEligible("quote", orderId, record);
-  await db.ref(`pushJobs/${orderId}`).set({
-    kind: "quote", active: true, createdAt: Date.now(),
-    nextAt: Date.now() + 5 * 60 * 1000, reminderCount: 0
-  });
+  await createReminderJob("quote", orderId);
 });
 
 // Agendador durável: não depende de timers dentro do processo da função.
@@ -119,23 +124,24 @@ exports.processPushReminders = onSchedule("every 1 minutes", async () => {
   const now = Date.now();
   const due = await db.ref("pushJobs").orderByChild("nextAt").endAt(now).limitToFirst(100).get();
   if (!due.exists()) return;
-  for (const [orderId, job] of Object.entries(due.val())) {
+  for (const [jobId, job] of Object.entries(due.val())) {
+    const orderId = String(job.orderId || "");
     const projectionPath = job.kind === "quote" ? "quoteBoard" : "availableOrders";
     const [projection, canonical] = await Promise.all([
-      db.ref(`${projectionPath}/${orderId}`).get(),
-      db.ref(`orders/${orderId}`).get()
+      orderId ? db.ref(`${projectionPath}/${orderId}`).get() : Promise.resolve({ exists: () => false }),
+      orderId ? db.ref(`orders/${orderId}`).get() : Promise.resolve({ val: () => ({}) })
     ]);
-    if (!job.active || !projection.exists()) {
-      await db.ref(`pushJobs/${orderId}`).remove();
+    if (!job.active || !orderId || !projection.exists()) {
+      await db.ref(`pushJobs/${jobId}`).remove();
       continue;
     }
     const order = canonical.val() || {};
     if (["run", "done", "cancelled", "cancelado", "cancelado_cotacao"].includes(order.status)) {
-      await db.ref(`pushJobs/${orderId}`).remove();
+      await db.ref(`pushJobs/${jobId}`).remove();
       continue;
     }
     await notifyEligible(job.kind, orderId, projection.val(), true);
-    await db.ref(`pushJobs/${orderId}`).update({
+    await db.ref(`pushJobs/${jobId}`).update({
       nextAt: now + 5 * 60 * 1000,
       reminderCount: Number(job.reminderCount || 0) + 1,
       lastSentAt: now
