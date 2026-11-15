@@ -203,3 +203,13 @@ test('página pública dedicada recebe posição da fila e GPS, expira e não pe
   await expect(page.locator('#map')).toBeHidden();
   await expect(page.locator('#code')).toHaveText('');
 });
+test('rastreio mantém consulta segura por HTTPS quando WebSocket não está disponível',async({page})=>{
+  const token='d'.repeat(64),root='publicTracking/'+token;
+  await db.ref(root).set({orderCode:'EXP-FALLBACK',status:'open',expiresAt:Date.now()+600000,revoked:false});
+  await page.addInitScript(()=>{window.WebSocket=undefined;});
+  await page.goto('http://127.0.0.1:8080/rastreio/#track='+token);
+  await expect(page.locator('#status')).toHaveText('Aguardando motoboy');
+  await expect(page.locator('#connection')).toContainText('10 s');
+  await db.ref(root).remove();
+  await expect(page.locator('#status')).toContainText('encerrado',{timeout:15000});
+});
