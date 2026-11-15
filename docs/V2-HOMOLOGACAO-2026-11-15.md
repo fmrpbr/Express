@@ -130,3 +130,15 @@ Em 15/11/2026, o usuário autorizou disponibilizar o APK de testes e armazenar s
 - A primeira tentativa de disponibilização gerou assinatura diferente da chave autorizada e foi descartada. A publicação agora assina explicitamente o APK e exige o fingerprint esperado antes de liberar o artefato.
 
 As novas funções e regras foram implantadas posteriormente, conforme evidências registradas na seção de situação atual. A disponibilização do APK e a implantação não liberam o piloto: configuração pública do Web Push/rastreio e matriz de aparelhos continuam pendentes.
+
+## Reteste Android 2.0.2: fechamento após aceitar corrida
+
+O usuário informou que conseguiu criar um pedido como lojista e aceitar como motoboy; ao aceitar, o APK apresentou erro e fechou. Esse é um bloqueador de homologação. Não há logcat do aparelho para atribuir uma causa definitiva.
+
+Na inspeção do plugin GPS 1.3.1 foi identificada uma falha independente e compatível com o ponto de ativação: `addWatcher` continuava criando o watcher após solicitar permissão ou rejeitar localização desativada. A preparação Android agora aplica uma correção estrita à versão fixada: retorna durante a solicitação e só retoma após permissão concedida. Também trata revogação ao retomar e posição nula. O ícone da notificação persistente passou a ser um drawable monocromático específico.
+
+O cliente cancela inícios pendentes após logout, impede início enquanto a página está oculta e pausa tentativas após negação/erro, com botão Tentar GPS na corrida. Um marcador local interrompe a repetição automática se o processo terminar durante o início do GPS. A Activity registra localmente somente classes e frames de exceção, sem mensagens, argumentos, localização, tokens ou dados de contas, e mostra um código copiável na próxima abertura. Não há envio automático de diagnóstico.
+
+Seis testes novos exercitam o ciclo real das funções JavaScript: início único, logout durante permissão, negação sem repetição, watcher tardio removido, erro nativo pausado e início bloqueado em segundo plano. Os 20 testes Node locais passaram. A preparação Android foi executada duas vezes para conferir reaplicação e o bundle web foi gerado.
+
+A versão 2.0.2 é candidata a reteste. Compilação e testes automatizados não comprovam ausência de fechamento nem funcionamento do GPS no Android do usuário. Repetir aceite, negação/concessão de permissões, recuperação de corrida ativa, bloqueio de tela, conclusão e troca de conta. O piloto permanece bloqueado.

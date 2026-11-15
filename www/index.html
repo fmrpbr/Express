@@ -749,6 +749,10 @@
   let watchId = null;
   let nativeGpsWatcher = null;
   let trackingOrderId = null;
+  let gpsGeneration = 0;
+  let gpsBlockedOrderId = null;
+  let gpsStartInterrupted = localStorage.getItem("express_gps_start_pending") === "1";
+  localStorage.removeItem("express_gps_start_pending");
   let lastGpsWriteAt = 0;
   let lastGpsCoords = null;
   let gpsWriteInFlight = false;
@@ -957,8 +961,13 @@
     data.orders = Array.from(merged.values()).map(order => ownBids[order.id] && order.status === "cotacao" ? { ...order, bids: { [actor]: ownBids[order.id] } } : order);
     if(role === "courier") {
       const active = data.orders.find(o => o.status === "run" && o.courierId === actor);
-      if(active && trackingOrderId !== active.id) startGpsTracking(active.id);
+      if(active && gpsStartInterrupted) {
+        gpsStartInterrupted = false; gpsBlockedOrderId = active.id;
+        toast("O início do GPS foi interrompido. Confira a permissão e toque em Tentar GPS na corrida.", "warn");
+      }
+      if(active && trackingOrderId !== active.id && gpsBlockedOrderId !== active.id) startGpsTracking(active.id);
       else if(!active && trackingOrderId) stopGpsTracking();
+      if(!active) gpsBlockedOrderId = null;
     }
     if(pendingPushOrderId) {
       const selected = data.orders.find(o => o.id === pendingPushOrderId);
@@ -1375,8 +1384,11 @@
   async function startGpsTracking(orderId) {
     const background = window.Capacitor?.isNativePlatform?.() ? window.ExpressNativePush?.BackgroundGeolocation : null;
     if (!background && !navigator.geolocation) { toast("GPS indisponível neste aparelho.", "warn"); return; }
-    if (trackingOrderId === orderId) return;
+    if (trackingOrderId === orderId || gpsBlockedOrderId === orderId) return;
     stopGpsTracking();
+    const generation = gpsGeneration;
+    const trackingUser = currentUser?.uid;
+    const stillCurrent = () => gpsGeneration === generation && trackingOrderId === orderId && currentUser?.uid === trackingUser;
     trackingOrderId = orderId;
     lastGpsWriteAt = 0;
     lastGpsCoords = null;
@@ -1410,26 +1422,34 @@
       }
     };
     const onGpsError = error => {
+      if(!stillCurrent()) return;
       if(!gpsErrorShown) { toast((error.code === 1 || error.code === "NOT_AUTHORIZED") ? "Permita o acesso à localização para acompanhar a corrida." : "GPS sem posição recente. Verifique o sinal.", "warn"); gpsErrorShown = true; }
-      if(error.code === 1 || error.code === "NOT_AUTHORIZED") stopGpsTracking();
+      if(error.code === 1 || error.code === "NOT_AUTHORIZED") { gpsBlockedOrderId = orderId; stopGpsTracking(); }
     };
     if(background) {
       try {
         const pushApi = window.ExpressNativePush.PushNotifications;
         let permission = await pushApi.checkPermissions();
+        if(!stillCurrent()) return;
         if(permission.receive !== "granted") permission = await pushApi.requestPermissions();
-        if(permission.receive !== "granted") { toast("Permita as notificações para mostrar o aviso de localização durante a corrida.", "warn"); stopGpsTracking(); return; }
+        if(!stillCurrent()) return;
+        if(permission.receive !== "granted") { toast("Permita as notificações para mostrar o aviso de localização durante a corrida.", "warn"); gpsBlockedOrderId = orderId; stopGpsTracking(); return; }
+        if(document.visibilityState !== "visible") { gpsBlockedOrderId = orderId; stopGpsTracking(); return; }
+        localStorage.setItem("express_gps_start_pending", "1");
         const watcher = await background.addWatcher({ backgroundTitle: "Corrida em andamento", backgroundMessage: "Localização ativa durante esta entrega.", requestPermissions: true, stale: false, distanceFilter: 30 }, (location, error) => {
           if(error) return onGpsError(error);
           if(location && trackingOrderId === orderId) onPosition({ coords: { latitude: location.latitude, longitude: location.longitude } });
         });
-        if(trackingOrderId === orderId) nativeGpsWatcher = watcher;
+        if(stillCurrent()) nativeGpsWatcher = watcher;
         else await background.removeWatcher({ id: watcher });
-      } catch(error) { onGpsError(error); stopGpsTracking(); }
+      } catch(error) { if(stillCurrent()) { gpsBlockedOrderId = orderId; onGpsError(error); stopGpsTracking(); } }
+      finally { if(gpsGeneration === generation || !trackingOrderId) localStorage.removeItem("express_gps_start_pending"); }
     } else watchId = navigator.geolocation.watchPosition(onPosition, onGpsError, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 });
   }
 
   function stopGpsTracking() {
+    gpsGeneration++;
+    localStorage.removeItem("express_gps_start_pending");
     if(nativeGpsWatcher) {
       window.ExpressNativePush?.BackgroundGeolocation?.removeWatcher({ id: nativeGpsWatcher }).catch(() => {});
       nativeGpsWatcher = null;
@@ -1806,7 +1826,8 @@
     } else arr.sort((a,b) => Number(b.created||0)-Number(a.created||0));
     let t = status === "open" ? (role==="store"?"Pedidos em Aberto":"Disponíveis") : status === "run" ? "Em Execução" : "Concluídos";
     let legend = role === "courier" && status === "open" ? '<div class="queue-legend"><span><i class="queue-dot green"></i> Verde: até 5 min</span><span><i class="queue-dot yellow"></i> Amarelo: 5 a 14 min</span><span><i class="queue-dot red"></i> Vermelho: 15 min ou mais</span><b>Ordem automática: maior espera primeiro</b></div>' : "";
-    return '<div class="head"><div><h1>'+t+'</h1></div>'+(role === "store" && status === "open" ? '<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>' : "")+'</div>'+legend+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhum pedido","Nenhuma corrida nesta etapa"));
+    const gpsNotice = role === "courier" && status === "run" && arr.some(o => o.id === gpsBlockedOrderId) ? '<div class="info">GPS pausado. Confira as permissões de localização e notificações no Android. <button type="button" class="btn secondary tiny" data-action="retry-gps" data-id="'+esc(gpsBlockedOrderId)+'">Tentar GPS</button></div>' : "";
+    return '<div class="head"><div><h1>'+t+'</h1></div>'+(role === "store" && status === "open" ? '<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>' : "")+'</div>'+legend+gpsNotice+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhum pedido","Nenhuma corrida nesta etapa"));
   }
 
   function quotesView(){
@@ -1846,6 +1867,11 @@
         toast("Taxas salvas."); return;
       }
       if(!order) throw new Error("Pedido não encontrado.");
+      if(action === "retry-gps") {
+        if(role !== "courier" || order.courierId !== actor || order.status !== "run") return;
+        gpsBlockedOrderId = null; gpsErrorShown = false;
+        await startGpsTracking(id); render(); return;
+      }
       let input = {};
       if(action === "send-bid") input.amount = Number(document.getElementById("bid-input-" + id)?.value);
       if(action === "roundtrip-step") input.step = Number(document.querySelector(`[data-action="roundtrip-step"][data-id="${id}"]`)?.dataset.step);
