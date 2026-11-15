@@ -1012,7 +1012,7 @@
   function ensurePresenceRecord(uid) {
     if (!uid) return;
     runTransaction(ref(db, "courierPresence/" + uid), current => current || {
-      registered:true, online:false, busy:false, lastSeen:Date.now()
+      registered:true, online:false, busy:false, availableForWork:false, lastSeen:Date.now()
     }).catch(() => {});
   }
 
@@ -1030,10 +1030,10 @@
       if (snap.val() !== true || !currentUser || role !== "courier") return;
       const presenceRef = ref(db, "courierPresence/" + currentUser.uid);
       try {
-        await onDisconnect(presenceRef).set({
-          registered:true, online:false, busy:false, lastSeen:serverTimestamp()
+        await onDisconnect(presenceRef).update({
+          online:false, busy:false, lastSeen:serverTimestamp()
         });
-        await set(presenceRef, {
+        await update(presenceRef, {
           registered:true, online:true, busy:currentPresenceBusy === true, lastSeen:serverTimestamp()
         });
       } catch (_) {
@@ -1142,7 +1142,7 @@
   onAuthStateChanged(auth, async user => {
     if (!user) {
       if (role === "courier" && activeSessionUid) {
-        set(ref(db, "courierPresence/" + activeSessionUid), {
+        update(ref(db, "courierPresence/" + activeSessionUid), {
           registered:true, online:false, busy:false, lastSeen:serverTimestamp()
         }).catch(() => {});
       }
