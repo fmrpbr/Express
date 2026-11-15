@@ -75,7 +75,7 @@ test('visitante abre rastreio sem login, recebe atualização e perde acesso ao 
   await page.goto(base+'#track='+token);
   await expect(page.locator('#public-track-content')).toContainText('Aguardando motoboy');
   await db.ref('publicTracking/'+token).update({status:'run',location:{lat:-19.8,lng:-40.3,updatedAt:Date.now()}});
-  await expect(page.locator('#public-track-content')).toContainText('Em trânsito');
+  await expect(page.locator('#public-track-content')).toContainText('Em atendimento');
   await db.ref('publicTracking/'+token).remove();
   await expect(page.locator('#public-track-content')).toContainText(/encerrado|indisponível/);
 });
@@ -137,4 +137,69 @@ test('cadastro interrompido pode ser retomado com o mesmo e-mail sem perder a co
   await expect(page.locator('#login-screen')).toBeHidden({timeout:15000});
   await page.locator('#avatar').click();
   await expect(page.locator('#prof-name')).toHaveValue('CONTA RECUPERADA');
+});
+
+test('duas corridas organizadas, prioridade trocada e terceira bloqueada; lojista copia link público',async({browser})=>{
+  await db.ref().set(null);
+  const sc=await browser.newContext({viewport:{width:393,height:852},permissions:['clipboard-read','clipboard-write']});
+  const cc=await browser.newContext({viewport:{width:393,height:852}});
+  const store=await sc.newPage(), courier=await cc.newPage();
+  courier.on('dialog',d=>d.dismiss());
+  await register(store,'store','two-store-'+Date.now()+'@example.test');
+  await store.evaluate(()=>window.__express.setView('profile'));
+  await store.locator('#prof-address').fill('Rua da Loja, 10');
+  await store.locator('#store-profile-form button[type=submit]').click();
+  await expect(store.locator('#prof-address')).toHaveCount(0);
+  await register(courier,'courier','two-courier-'+Date.now()+'@example.test');
+  await courier.locator('[data-toggle-availability]').click();
+  await expect(courier.locator('[data-toggle-availability]')).toHaveText('PAUSAR');
+  for(let i=1;i<=3;i++){
+    await store.evaluate(()=>window.__express.setView('dashboard'));
+    await store.locator('[data-open-sheet][data-sheet-mode=delivery]').first().click();
+    await store.locator('#inp-client').fill('Cliente '+i);
+    await store.locator('#inp-street').fill('Rua Teste '+i);
+    await store.locator('#inp-number').fill(String(i));
+    await store.locator('#input-neighborhood').fill('Centro');
+    await store.locator('#quote-city').fill('Aracruz');
+    await store.locator('#btn-submit-order').click();
+    await expect(store.locator('#order-sheet-overlay')).not.toHaveClass(/active/);
+  }
+  await expect(courier.locator('[data-action=accept]')).toHaveCount(3);
+  await courier.locator('[data-action=accept]').first().click();
+  await expect(courier.locator('#content')).toContainText('1 · EM ATENDIMENTO');
+  await courier.locator('[data-nav=available]').click();
+  await courier.locator('[data-action=accept]').first().click();
+  await expect(courier.locator('#content')).toContainText('2 · PRÓXIMA ENTREGA');
+  await expect(courier.locator('#content')).toContainText('2/2 VAGAS OCUPADAS');
+  const next=courier.locator('[data-action=focus]');
+  const nextId=await next.getAttribute('data-id');
+  await next.click();
+  await expect(courier.locator('[data-order-id]').first()).toHaveAttribute('data-order-id',nextId);
+  await courier.reload();
+  await courier.locator('[data-nav=run]').click();
+  await expect(courier.locator('[data-order-id]').first()).toHaveAttribute('data-order-id',nextId);
+  await courier.locator('[data-nav=available]').click();
+  await expect(courier.locator('[data-action=accept]')).toHaveCount(0);
+  await expect(courier.locator('#content')).toContainText('2/2 vagas ocupadas');
+  await store.locator('[data-action=copy-tracking]').first().click();
+  await expect(store.locator('#toasts')).toContainText('Link copiado');
+  const link=await store.evaluate(()=>navigator.clipboard.readText());
+  expect(link).toMatch(/^https:\/\/express-v2-rastreio-fmrpbr\.web\.app\/rastreio\/#track=[a-f0-9]{64}$/);
+  await courier.locator('[data-nav=run]').click();
+  await courier.screenshot({path:'/tmp/express-v2-capacity.png',fullPage:true});
+  await sc.close();await cc.close();
+});
+test('página pública dedicada recebe posição da fila e GPS, expira e não pede login',async({page})=>{
+  const token='c'.repeat(64),root='publicTracking/'+token;
+  await db.ref(root).set({orderCode:'EXP-LIVE',status:'run',queuePosition:2,expiresAt:Date.now()+600000,revoked:false,location:{lat:-19.8,lng:-40.3,updatedAt:Date.now()}});
+  await page.goto('http://127.0.0.1:8080/rastreio/#track='+token);
+  await expect(page.locator('#status')).toHaveText('Você é a próxima entrega');
+  await expect(page.locator('#map')).toHaveAttribute('href',/query=-19.8,-40.3/);
+  await db.ref(root).update({queuePosition:1});
+  await expect(page.locator('#status')).toHaveText('Sua entrega está em atendimento');
+  await page.screenshot({path:'/tmp/express-tracking.png',fullPage:true});
+  await db.ref(root).remove();
+  await expect(page.locator('#status')).toContainText('encerrado');
+  await expect(page.locator('#map')).toBeHidden();
+  await expect(page.locator('#code')).toHaveText('');
 });

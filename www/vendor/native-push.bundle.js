@@ -710,6 +710,38 @@
     }
   });
 
+  // node_modules/@capacitor/share/dist/esm/web.js
+  var web_exports3 = {};
+  __export(web_exports3, {
+    ShareWeb: () => ShareWeb
+  });
+  var ShareWeb;
+  var init_web3 = __esm({
+    "node_modules/@capacitor/share/dist/esm/web.js"() {
+      init_dist();
+      ShareWeb = class extends WebPlugin {
+        async canShare() {
+          if (typeof navigator === "undefined" || !navigator.share) {
+            return { value: false };
+          } else {
+            return { value: true };
+          }
+        }
+        async share(options) {
+          if (typeof navigator === "undefined" || !navigator.share) {
+            throw this.unavailable("Share API not available in this browser");
+          }
+          await navigator.share({
+            title: options.title,
+            text: options.text,
+            url: options.url
+          });
+          return {};
+        }
+      };
+    }
+  });
+
   // node_modules/@capacitor/local-notifications/dist/esm/index.js
   init_dist();
 
@@ -835,9 +867,15 @@
     web: () => Promise.resolve().then(() => (init_web2(), web_exports2)).then((m) => new m.NativeSettingsWeb())
   });
 
+  // node_modules/@capacitor/share/dist/esm/index.js
+  init_dist();
+  var Share = registerPlugin("Share", {
+    web: () => Promise.resolve().then(() => (init_web3(), web_exports3)).then((m) => new m.ShareWeb())
+  });
+
   // native-push-entry.js
   var BackgroundGeolocation = registerPlugin("BackgroundGeolocation");
-  window.ExpressNativePush = { PushNotifications, LocalNotifications, NativeSettings, BackgroundGeolocation };
+  window.ExpressNativePush = { PushNotifications, LocalNotifications, NativeSettings, BackgroundGeolocation, Share };
 })();
 /*! Bundled license information:
 

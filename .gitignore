@@ -11,3 +11,7 @@ database-debug.log
 .firebase/
 playwright-report/
 test-results/
+
+# Generated public tracking bundle
+public-tracking/
+functions/.env*

@@ -39,14 +39,59 @@ test('loja B e visitante não editam nem confirmam pedido da loja A', () => {
   assert.throws(() => run(state, 'visitor', 'toggle-pay', 'orderA'), /Perfil/);
   assert.throws(() => applyCommand(state, null, {}, {}), /Entre/);
 });
-test('apenas um motoboy aceita o pedido e o mesmo motoboy não assume duas corridas', () => {
+test('pedido mantém um único motoboy; motoboy aceita duas corridas e a terceira é bloqueada', () => {
   let state = create();
   state = run(state, 'courierA', 'accept', 'orderA').state;
   assert.equal(state.courierPresence.courierA.busy, true);
   assert.equal(state.availableOrders.orderA, undefined);
   assert.throws(() => run(state, 'courierB', 'accept', 'orderA'), /já aceita/);
   state = run(state, 'storeA', 'saveOrder', null, input(), { newId: 'orderB' }).state;
-  assert.throws(() => run(state, 'courierA', 'accept', 'orderB'), /finalize/);
+  state = run(state, 'courierA', 'accept', 'orderB').state;
+  assert.equal(state.orders.orderA.queuePosition, 1);
+  assert.equal(state.orders.orderB.queuePosition, 2);
+  assert.equal(state.courierPresence.courierA.occupiedSlots, 2);
+  state = run(state, 'storeA', 'saveOrder', null, input(), { newId: 'orderC' }).state;
+  assert.throws(() => run(state, 'courierA', 'accept', 'orderC'), /duas corridas/);
+});
+test('cotação reservada ocupa vaga, seu aceite não conta duas vezes e cancelamento libera a vaga', () => {
+  let state = run(create(), 'courierA', 'accept', 'orderA').state;
+  state = run(state, 'storeA', 'saveOrder', null, input({isQuote:true}), {newId:'quoteB'}).state;
+  state = run(state, 'courierA', 'send-bid', 'quoteB', {amount:25}).state;
+  state = run(state, 'storeA', 'accept-bid', 'quoteB', {courierId:'courierA',amount:25}).state;
+  assert.equal(state.courierPresence.courierA.occupiedSlots, 2);
+  state = run(state, 'storeA', 'saveOrder', null, input(), {newId:'orderC'}).state;
+  assert.throws(() => run(state,'courierA','accept','orderC'), /duas corridas/);
+  state = run(state,'storeA','saveOrder','quoteB',input()).state;
+  state = run(state,'courierA','accept','quoteB').state;
+  assert.equal(state.courierPresence.courierA.occupiedSlots,2);
+  state = run(state,'courierA','cancel','quoteB').state;
+  assert.equal(state.courierPresence.courierA.occupiedSlots,1);
+  assert.equal(run(state,'courierA','accept','orderC').state.orders.orderC.status,'run');
+});
+test('prioridade muda apenas pelo dono e promove a próxima ao concluir; cada rastreio recebe só sua posição', () => {
+  let state = run(create(), 'courierA', 'accept', 'orderA').state;
+  state = run(state,'storeA','saveOrder',null,input(),{newId:'orderB'}).state;
+  state = run(state,'courierA','accept','orderB').state;
+  state = run(state,'storeA','tracking','orderA',{}, {token:'a'.repeat(64)}).state;
+  state = run(state,'storeA','tracking','orderB',{}, {token:'b'.repeat(64)}).state;
+  assert.throws(() => run(state,'courierB','focus','orderB'), /outro motoboy/);
+  assert.throws(() => run(state,'storeA','focus','orderB'), /outro motoboy/);
+  state = run(state,'courierA','focus','orderB').state;
+  assert.equal(state.publicTracking['a'.repeat(64)].queuePosition,2);
+  assert.equal(state.publicTracking['b'.repeat(64)].queuePosition,1);
+  for(const p of Object.values(state.publicTracking)) assert.ok(!JSON.stringify(p).includes('orderA') && !JSON.stringify(p).includes('orderB'));
+  state = run(state,'courierA','location','orderB',{lat:-19.8,lng:-40.2}).state;
+  assert.deepEqual(state.orders.orderA.location,state.orders.orderB.location);
+  assert.deepEqual(state.publicTracking['a'.repeat(64)].location,state.publicTracking['b'.repeat(64)].location);
+  state = run(state,'courierA','picked','orderB').state;
+  state = run(state,'courierA','finish','orderB').state;
+  assert.equal(state.orders.orderA.queuePosition,1);
+  assert.equal(state.courierPresence.courierA.occupiedSlots,1);
+  assert.equal(state.courierPresence.courierA.busy,true);
+  assert.ok(!state.publicTracking['b'.repeat(64)]);
+  state = run(state,'courierA','cancel','orderA').state;
+  assert.equal(state.courierPresence.courierA.occupiedSlots,0);
+  assert.ok(!state.courierLocations.courierA);
 });
 test('cancelamento de 25 minutos usa relógio do servidor e exige ausência de retirada', () => {
   let state = run(create(), 'courierA', 'accept', 'orderA').state;

@@ -1,0 +1,14 @@
+import { readFile, mkdir, copyFile, writeFile } from 'node:fs/promises';
+import vm from 'node:vm';
+import { build } from 'esbuild';
+const sandbox = { window: {} };
+vm.runInNewContext(await readFile('www/firebase-config.example.js', 'utf8'), sandbox);
+const source = sandbox.window.EXPRESS_FIREBASE_CONFIG;
+const config = Object.fromEntries(['apiKey','authDomain','databaseURL','projectId','appId'].map(key => [key, source[key]]));
+if(config.projectId !== 'express-entregas-2-testes') throw new Error('Rastreio restrito ao projeto de testes.');
+await mkdir('public-tracking/rastreio', { recursive: true });
+await copyFile('tracking/index.html', 'public-tracking/rastreio/index.html');
+await copyFile('tracking/style.css', 'public-tracking/rastreio/style.css');
+await writeFile('public-tracking/index.html', '<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Express Entregas</title><p>Abra o link de acompanhamento enviado pela loja.</p></html>');
+await build({ entryPoints: ['tracking/track.js'], bundle: true, minify: true, outfile: 'public-tracking/rastreio/app.js', define: { __EXPRESS_PUBLIC_FIREBASE__: JSON.stringify(config) } });
+console.log('Página pública de rastreio gerada. Nenhum dado privado ou segredo incluído.');

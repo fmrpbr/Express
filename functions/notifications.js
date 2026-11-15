@@ -1,6 +1,6 @@
 "use strict";
 const { createHash, randomUUID } = require("node:crypto");
-const { eligibleOrder, FIVE_MINUTES } = require("./domain");
+const { eligibleOrder, FIVE_MINUTES, courierSlots, COURIER_CAPACITY } = require("./domain");
 function validWebEndpoint(endpoint) {
   try {
     const url = new URL(endpoint);
@@ -9,10 +9,10 @@ function validWebEndpoint(endpoint) {
   } catch (_) { return false; }
 }
 const CHANNELS = { order: "express_orders_v2", quote: "express_quotes_v2", reminder: "express_reminders_v2", update: "express_updates_v2" };
-function eligibleRecipient(state, uid, order, kind) {
+function eligibleRecipient(state, uid, order, kind, orderId) {
   const prefs = state.pushPreferences?.[uid] || {};
   return !!state.profiles?.couriers?.[uid] && state.courierPresence?.[uid]?.availableForWork === true &&
-    !Object.values(state.orders || {}).some(o => o.status === "run" && o.courierId === uid) &&
+    courierSlots(state, uid, orderId).length < COURIER_CAPACITY &&
     (!order.assignedCourierId || order.assignedCourierId === uid) && prefs.enabled !== false &&
     prefs[kind === "quote" ? "quotes" : "orders"] !== false;
 }
@@ -40,7 +40,7 @@ function createDispatcher(db, messaging, clock = Date.now, webPush = null) {
     const title = job.slot > 0 ? "Pedido aguardando resposta" : job.kind === "quote" ? "Nova cotação disponível" : "Novo pedido disponível";
     const body = "Abra o Express Entregas para consultar a solicitação.";
     for (const uid of Object.keys(root.courierPresence || {})) {
-      if (!eligibleRecipient(root, uid, order, job.kind) || (category === "reminder" && root.pushPreferences?.[uid]?.reminders === false)) continue;
+      if (!eligibleRecipient(root, uid, order, job.kind, job.orderId) || (category === "reminder" && root.pushPreferences?.[uid]?.reminders === false)) continue;
       const native = Object.entries(root.fcmTokens?.[uid] || {}).map(([id, entry]) => ({ ...entry, id, platform: "android" }));
       const web = Object.entries(root.pushSubscriptions?.[uid] || {}).map(([id, entry]) => ({ ...entry, id, platform: "web" }));
       const seen = new Set();
@@ -56,7 +56,7 @@ function createDispatcher(db, messaging, clock = Date.now, webPush = null) {
         // Revalidar estado, ON/OFF e preferências imediatamente antes do envio.
         const fresh = (await db.ref().get()).val() || {};
         const latest = fresh.orders?.[job.orderId];
-        if (!eligibleOrder(latest, clock()) || latest.offerGeneration !== job.generation || !eligibleRecipient(fresh, uid, latest, job.kind) ||
+        if (!eligibleOrder(latest, clock()) || latest.offerGeneration !== job.generation || !eligibleRecipient(fresh, uid, latest, job.kind, job.orderId) ||
           (category === "reminder" && fresh.pushPreferences?.[uid]?.reminders === false)) {
           await deliveryRef.update({ status: "cancelled" }); continue;
         }

@@ -41,6 +41,47 @@ function publicOrder(order) {
 function eligibleOrder(order, now) {
   return !!order && ["open", "cotacao"].includes(order.status) && (!order.expiresAt || order.expiresAt > now);
 }
+const COURIER_CAPACITY = 2;
+function courierSlots(state, uid, excludeId) {
+  return Object.entries(state.orders || {}).filter(([id, o]) => id !== excludeId &&
+    o.courierId === uid && (o.status === "run" || o.status === "cotacao_aceita" || (o.status === "open" && o.assignedCourierId === uid)));
+}
+function syncTracking(state, order, now) {
+  if (!order.trackingToken) return;
+  const active = ["open", "run"].includes(order.status) && order.trackingExpiresAt > now;
+  put(state, `publicTracking/${order.trackingToken}`, active ? {
+    orderCode: order.orderCode, status: order.status,
+    serviceTypeLabel: order.serviceType === "roundtrip" ? "Recolha e entrega" : order.serviceType === "collection" ? "Recolha" : "Entrega",
+    queuePosition: order.status === "run" ? Number(order.queuePosition || 1) : 0,
+    location: order.status === "run" ? order.location || null : null,
+    updatedAt: now, expiresAt: order.trackingExpiresAt, revoked: false
+  } : null);
+}
+function syncCourierWork(state, uid, now) {
+  const slots = courierSlots(state, uid);
+  const running = slots.filter(([, o]) => o.status === "run").sort((a, b) => Number(a[1].accepted || 0) - Number(b[1].accepted || 0) || a[0].localeCompare(b[0]));
+  let focus = state.courierFocus?.[uid];
+  if (!running.some(([id]) => id === focus)) focus = running[0]?.[0] || null;
+  put(state, `courierFocus/${uid}`, focus);
+  running.sort((a, b) => (a[0] === focus ? -1 : b[0] === focus ? 1 : 0));
+  running.forEach(([id, order], index) => {
+    const position = index + 1;
+    const latest = state.courierLocations?.[uid];
+    const newLocation = latest && latest.updatedAt > Number(order.location?.updatedAt || 0);
+    if (order.queuePosition !== position || newLocation) {
+      order.queuePosition = position;
+      if (newLocation) order.location = { ...latest };
+      order.revision = Number(order.revision || 0) + 1;
+      order.updatedAt = now;
+    }
+    put(state, `storeOrders/${order.storeId}/${id}`, order);
+    put(state, `courierOrders/${uid}/${id}`, order);
+    syncTracking(state, order, now);
+  });
+  const presence = state.courierPresence?.[uid];
+  if (presence) Object.assign(presence, { busy: running.length > 0, activeCount: running.length, occupiedSlots: slots.length, capacity: COURIER_CAPACITY });
+  if (!running.length) put(state, `courierLocations/${uid}`, null);
+}
 function queueJob(state, id, order, now) {
   const path = `pushJobs/${id}`;
   if (!eligibleOrder(order, now)) { put(state, path, null); return; }
@@ -59,17 +100,9 @@ function projectOrder(state, id, order, previous, now) {
   put(state, `quoteBoard/${id}`, order.status === "cotacao" ? publicOrder(order) : null);
   if (previous?.trackingToken && previous.trackingToken !== order.trackingToken)
     put(state, `publicTracking/${previous.trackingToken}`, null);
-  if (order.trackingToken) {
-    const active = ["open", "run"].includes(order.status) && order.trackingExpiresAt > now;
-    put(state, `publicTracking/${order.trackingToken}`, active ? {
-      orderCode: order.orderCode, status: order.status,
-      serviceTypeLabel: order.serviceType === "roundtrip" ? "Recolha e entrega" : order.serviceType === "collection" ? "Recolha" : "Entrega",
-      location: order.status === "run" ? order.location || null : null,
-      updatedAt: now, expiresAt: order.trackingExpiresAt, revoked: false
-    } : null);
-  }
+  syncTracking(state, order, now);
   for (const uid of new Set([previous?.courierId, order.courierId].filter(Boolean))) {
-    if (state.courierPresence?.[uid]) state.courierPresence[uid].busy = Object.values(state.orders || {}).some(o => o.status === "run" && o.courierId === uid);
+    syncCourierWork(state, uid, now);
   }
   queueJob(state, id, order, now);
 }
@@ -125,7 +158,7 @@ function applyCommand(original, auth, command, context) {
   const previous = order ? structuredClone(order) : null;
   const store = () => fail(who?.role === "store" && order?.storeId === uid, "Pedido de outra loja.", "permission-denied");
   const courier = () => fail(who?.role === "courier" && order?.courierId === uid, "Corrida de outro motoboy.", "permission-denied");
-  const available = () => fail(who?.role === "courier" && state.courierPresence?.[uid]?.availableForWork === true && !Object.values(state.orders || {}).some(o => o.status === "run" && o.courierId === uid), "Ative sua disponibilidade e finalize a corrida atual.");
+  const available = () => fail(who?.role === "courier" && state.courierPresence?.[uid]?.availableForWork === true && courierSlots(state, uid, id).length < COURIER_CAPACITY, "Ative sua disponibilidade. Limite de duas corridas aceitas ou reservadas.");
   if (action === "createProfile") {
     fail(!who, "Esta conta já possui perfil.");
     fail(["store", "courier"].includes(input.role), "Perfil inválido.");
@@ -187,13 +220,16 @@ function applyCommand(original, auth, command, context) {
         store(); fail(order.status === "cotacao", "Cotação já aceita ou encerrada.");
         const selected = key(input.courierId);
         const bid = order.bids?.[selected]; fail(bid && Number(input.amount) === bid.amount, "Proposta alterada ou inválida.");
-        fail(state.profiles?.couriers?.[selected] && state.courierPresence?.[selected]?.availableForWork === true && !Object.values(state.orders || {}).some(o => o.status === "run" && o.courierId === selected), "Motoboy indisponível.");
+        fail(state.profiles?.couriers?.[selected] && state.courierPresence?.[selected]?.availableForWork === true && courierSlots(state, selected, id).length < COURIER_CAPACITY, "Motoboy indisponível: limite de duas corridas aceitas ou reservadas.");
         Object.assign(order, { status: "cotacao_aceita", courierId: selected, assignedCourierId: selected, courierName: bid.courierName, fee: bid.amount, agreedFee: bid.amount, quoteAcceptedAt: now });
       } else if (action === "accept") {
         available(); fail(order.status === "open" && (!order.assignedCourierId || order.assignedCourierId === uid), "Corrida já aceita ou reservada.");
         Object.assign(order, { status: "run", courierId: uid, courierName: who.name, accepted: now, tripStage: 0 });
         // Preço contratado de cotação é imutável; adicionais comuns vêm da tarifa do servidor.
         if (!order.agreedFee && input.rain === true && !order.rain) { order.fee = Math.max(order.fee, 10); order.rain = true; }
+      } else if (action === "focus") {
+        courier(); fail(order.status === "run", "Corrida não está em andamento.");
+        put(state, `courierFocus/${uid}`, id);
       } else if (action === "picked" || action === "roundtrip-step") {
         courier(); fail(order.status === "run", "Corrida não está em andamento.");
         if (action === "picked") { fail(order.serviceType !== "roundtrip" && !order.picked, "Retirada já registrada ou etapa inválida."); order.picked = now; }
@@ -223,6 +259,7 @@ function applyCommand(original, auth, command, context) {
         fail(Number.isFinite(lat) && Math.abs(lat) <= 90 && Number.isFinite(lng) && Math.abs(lng) <= 180, "Localização inválida.");
         fail(!order.location || now - order.location.updatedAt >= 15000, "Aguarde a próxima atualização.", "resource-exhausted");
         order.location = { lat, lng, updatedAt: now };
+        put(state, `courierLocations/${uid}`, { ...order.location });
       } else if (action === "tracking") {
         store(); fail(["open", "run"].includes(order.status), "Pedido sem rastreamento ativo.");
         if (input.revoke === true) { delete order.trackingToken; delete order.trackingExpiresAt; }
@@ -236,7 +273,7 @@ function applyCommand(original, auth, command, context) {
     projectOrder(state, id, order, previous, now);
     // GPS não multiplica o histórico de ações de negócio.
     if (action !== "location") put(state, `orderEvents/${id}/${uid}_${requestId}`, { action, actorUid: uid, at: now, revision: order.revision });
-      if (action !== "location" && action !== "tracking" && (order.courierId || previous?.courierId)) {
+      if (!["location", "tracking", "focus"].includes(action) && (order.courierId || previous?.courierId)) {
         const recipients = [...new Set([order.storeId, order.courierId, previous?.courierId].filter(id => id && id !== uid))];
         put(state, `pushUpdates/${id}_${order.revision}`, { orderId: id, action, status: order.status, recipients, createdAt: now });
       }
@@ -248,4 +285,4 @@ function applyCommand(original, auth, command, context) {
   put(state, `operationReceipts/${uid}/${requestId}`, { fingerprint: context.fingerprint, result, createdAt: now });
   return { state, result };
 }
-module.exports = { applyCommand, DomainError, eligibleOrder, publicOrder, projectOrder, FIVE_MINUTES };
+module.exports = { applyCommand, DomainError, eligibleOrder, publicOrder, projectOrder, courierSlots, COURIER_CAPACITY, FIVE_MINUTES };

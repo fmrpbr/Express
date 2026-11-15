@@ -189,3 +189,9 @@ test("Web Push só aceita endpoints conhecidos e esquema privado de inscrição"
   await assertFails(set(ref(db,"pushSubscriptions/courierA/device"),{...subscription,endpoint:"https://127.0.0.1/private"}));
   await assertFails(get(ref(env.authenticatedContext("storeA").database(),"pushSubscriptions/courierA")));
 });
+test("cliente não forja capacidade, prioridade ou GPS compartilhado do motoboy", async () => {
+  const db = env.authenticatedContext("courierA").database();
+  for(const path of ["courierPresence/courierA/occupiedSlots","courierPresence/courierA/activeCount","courierFocus/courierA","courierLocations/courierA"])
+    await assertFails(set(ref(db,path),0));
+  await assertFails(get(ref(env.unauthenticatedContext().database(),"courierLocations/courierA")));
+});

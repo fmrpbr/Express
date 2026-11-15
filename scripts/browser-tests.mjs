@@ -20,6 +20,15 @@ const server=createServer(async(req,res)=>{
     const source=(await readFile('www/firebase-config.example.js','utf8')).replaceAll('express-entregas-2-testes', 'demo-express-entregas-browser').replace('vapidPublicKey: ""','useEmulators: true, vapidPublicKey: ""');
     res.setHeader('Content-Type','application/javascript');res.end(source);return;
   }
+  if(pathname.startsWith('/rastreio/')) {
+    const policy=JSON.parse(await readFile('firebase.json','utf8')).hosting.headers[0].headers;
+    for(const header of policy) res.setHeader(header.key,header.value.replace("connect-src ","connect-src http://127.0.0.1:9000 ws://127.0.0.1:9000 "));
+    const name=pathname.endsWith('/')?'index.html':pathname.split('/').pop();
+    if(!['index.html','app.js','style.css'].includes(name)){res.writeHead(404).end();return;}
+    let source=await readFile('public-tracking/rastreio/'+name,'utf8');
+    if(name==='app.js') source=source.replaceAll('express-entregas-2-testes','demo-express-entregas-browser');
+    res.setHeader('Content-Type',name.endsWith('.js')?'application/javascript':name.endsWith('.css')?'text/css':'text/html');res.end(source);return;
+  }
   const file=resolve(root,'.'+pathname+(pathname.endsWith('/')?'index.html':''));
   if(!file.startsWith(root+'/')){res.writeHead(403).end();return;}
   try{res.setHeader('Content-Type',({'.js':'application/javascript','.html':'text/html','.png':'image/png','.webmanifest':'application/manifest+json'})[extname(file)]||'application/octet-stream');res.end(await readFile(file));}catch{res.writeHead(404).end();}

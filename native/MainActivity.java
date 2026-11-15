@@ -18,7 +18,7 @@ public class MainActivity extends BridgeActivity {
         Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
             try {
-                StringBuilder report = new StringBuilder("Express 2.0.2 / Android ")
+                StringBuilder report = new StringBuilder("Express 2.0.3 / Android ")
                     .append(android.os.Build.VERSION.SDK_INT).append('\n');
                 // No exception messages, arguments, locations, identifiers or tokens.
                 int causes = 0;

@@ -29,12 +29,25 @@ test('transações reais: dois motoboys disputam uma corrida, exatamente um assu
   assert.equal(root.storeOrders.storeA[id].courierId, owner);
   assert.ok(!root.availableOrders?.[id]); assert.ok(!root.pushJobs?.[id]);
 });
-test('transações reais: mesmo motoboy disputa duas corridas, uma única fica ativa', { timeout:30000 }, async () => {
-  const a = await create(), b = await create();
-  const outcomes = await Promise.allSettled([a,b].map(id => execute(auth('courierA'), request('accept', id))));
-  assert.equal(outcomes.filter(x => x.status === 'fulfilled').length, 1);
+test('transações reais: três aceites simultâneos do mesmo motoboy ocupam no máximo duas vagas', { timeout:30000 }, async () => {
+  const a = await create(), b = await create(), c = await create();
+  const outcomes = await Promise.allSettled([a,b,c].map(id => execute(auth('courierA'), request('accept', id))));
+  assert.equal(outcomes.filter(x => x.status === 'fulfilled').length, 2);
   const orders = (await db.ref('orders').get()).val();
-  assert.equal(Object.values(orders).filter(o => o.status === 'run').length, 1);
+  assert.equal(Object.values(orders).filter(o => o.status === 'run').length, 2);
+  assert.deepEqual(Object.values(orders).filter(o=>o.status==='run').map(o=>o.queuePosition).sort(),[1,2]);
+});
+test('push: uma corrida permite oferta adicional; duas vagas ocupadas bloqueiam novas ofertas', {timeout:30000}, async()=>{
+  const a=await create(),b=await create(),c=await create();
+  await execute(auth('courierA'),request('accept',a));
+  await db.ref('fcmTokens/courierA').set({device:{token:'tokenA'}});
+  const sends=[];
+  const dispatch=createDispatcher(db,{send:async p=>sends.push(p)},()=>now);
+  await dispatch(b);
+  assert.equal(sends.length,1);
+  await execute(auth('courierA'),request('accept',b));
+  await dispatch(c);
+  assert.equal(sends.length,1);
 });
 test('transações reais: repetição simultânea retorna mesmo pedido e um evento', { timeout:30000 }, async () => {
   const call = request('saveOrder', null, fields);

@@ -86,3 +86,17 @@ test('backgrounded app does not attempt to start a while-in-use location service
   assert.equal(h.calls.length, 0);
   assert.equal(h.context.gpsBlockedOrderId, 'ride');
 });
+test('changing priority between two active orders preserves the existing physical GPS watcher', async () => {
+  const h=harness();
+  await h.context.startGpsTracking('ride');
+  const a={status:'run',courierId:'courier',queuePosition:2,accepted:1};
+  const b={status:'run',courierId:'courier',queuePosition:1,accepted:2};
+  Object.assign(h.context,{actor:'courier',role:'courier',gpsStartInterrupted:false,ownBids:{},pendingPushOrderId:null,
+    orderSources:new Map([['courier',new Map([['ride',a],['next',b]])]]),render(){}});
+  vm.runInContext(html.slice(html.indexOf('  function courierRunningOrders('),html.indexOf('  function courierOccupiedSlots('))+
+    html.slice(html.indexOf('  function mergeOrders('),html.indexOf('  function listenOrders(')),h.context);
+  h.context.mergeOrders();
+  assert.equal(h.context.trackingOrderId,'ride');
+  assert.equal(h.calls.length,1);
+  assert.equal(h.removed.length,0);
+});
