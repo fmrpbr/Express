@@ -6,6 +6,11 @@ const config: CapacitorConfig = {
   webDir: 'www',
   android: {
     backgroundColor: '#ffffff'
+  },
+  plugins: {
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert']
+    }
   }
 };
 
