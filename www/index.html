@@ -608,32 +608,53 @@
     });
   }
 
-  function setupNativePushListeners(){
+  let nativePushSetupPromise = null;
+  async function setupNativePushListeners(){
     const pushApi = window.ExpressNativePush?.PushNotifications;
-    if(!window.Capacitor?.isNativePlatform?.() || !pushApi || nativePushListenersReady) return;
-    nativePushListenersReady = true;
-    pushApi.addListener("registration", async token => {
-      pendingFcmToken = token.value;
-      try { await saveNativeFcmToken(token.value); }
-      catch(error){ console.warn("Não foi possível salvar o token FCM:", error); }
-    });
-    pushApi.addListener("registrationError", error => {
-      console.error("Falha no registro FCM:", error);
-      toast("Não foi possível registrar este aparelho para notificações.", "warn");
-    });
-    pushApi.addListener("pushNotificationReceived", notification => {
-      const title = notification.title || "Express Entregas";
-      const body = notification.body || "Você recebeu uma nova notificação.";
-      toast(title + ": " + body);
-      playBeep();
-    });
-    pushApi.addListener("pushNotificationActionPerformed", action => {
-      const extra = action.notification?.data || {};
-      if(extra.orderId) {
-        view = role === "courier" ? (extra.type === "quote" ? "quotes" : "available") : "dashboard";
-        render();
-      }
-    });
+    if(!window.Capacitor?.isNativePlatform?.() || !pushApi) return false;
+    if(nativePushListenersReady) return true;
+    if(nativePushSetupPromise) return nativePushSetupPromise;
+    nativePushSetupPromise = (async () => {
+      await Promise.all([
+        pushApi.addListener("registration", async token => {
+          pendingFcmToken = token.value;
+          try {
+            await saveNativeFcmToken(token.value);
+            if(currentUser) toast("Notificações ativadas neste aparelho.", "success");
+          } catch(error) {
+            console.warn("Não foi possível salvar o token FCM:", error);
+            toast("O token FCM chegou, mas não foi salvo. Verifique a conexão e as regras do Firebase.", "warn");
+          }
+        }),
+        pushApi.addListener("registrationError", error => {
+          console.error("Falha no registro FCM:", error);
+          const detail = error?.message || error?.error || "Erro não identificado";
+          toast("Falha ao obter token FCM: " + String(detail).slice(0,100), "warn");
+        }),
+        pushApi.addListener("pushNotificationReceived", notification => {
+          const title = notification.title || "Express Entregas";
+          const body = notification.body || "Você recebeu uma nova notificação.";
+          toast(title + ": " + body);
+          playBeep();
+        }),
+        pushApi.addListener("pushNotificationActionPerformed", action => {
+          const extra = action.notification?.data || {};
+          if(extra.orderId) {
+            view = role === "courier" ? (extra.type === "quote" ? "quotes" : "available") : "dashboard";
+            render();
+          }
+        })
+      ]);
+      nativePushListenersReady = true;
+      return true;
+    })();
+    try { return await nativePushSetupPromise; }
+    catch(error) {
+      nativePushSetupPromise = null;
+      console.error("Falha ao preparar listeners de notificações:", error);
+      toast("Não foi possível preparar as notificações deste aparelho.", "warn");
+      return false;
+    }
   }
 
   setupNativePushListeners();
@@ -1342,6 +1363,8 @@
       if(!pushApi){ toast("Módulo nativo de notificações não foi carregado. Gere novamente o APK.", "warn"); return; }
       if(role !== "courier"){ toast("A ativação de notificações nativas está disponível para motoboys.", "warn"); return; }
       if(!currentUser){ toast("Entre na sua conta antes de ativar as notificações.", "warn"); return; }
+      const listenersReady = await setupNativePushListeners();
+      if(!listenersReady){ toast("Não foi possível preparar o registro FCM. Gere novamente o APK após corrigir a integração Android.", "warn"); return; }
       let permission = await pushApi.checkPermissions();
       if(permission.receive !== "granted") permission = await pushApi.requestPermissions();
       if(permission.receive !== "granted"){ toast("Permissão de notificações não concedida.", "warn"); return; }
