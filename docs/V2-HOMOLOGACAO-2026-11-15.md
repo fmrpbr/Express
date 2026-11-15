@@ -54,15 +54,32 @@ npx playwright install --with-deps chromium
 node scripts/run-browser-emulators.mjs
 ```
 
+## Situação após implantação no projeto de testes
+
+Em 15/11/2026, até 18h56 (America/Sao_Paulo), o usuário executou a implantação pelo próprio Cloud Shell. Evidências: capturas do terminal fornecidas na conversa. Não houve execução autenticada do deploy pelo agente.
+
+| Etapa | Evidência observada |
+| --- | --- |
+| Plano | Blaze confirmado no console após ativação pelo usuário. |
+| Pedidos | `orderCommand`, Node.js 22, 2ª geração, `southamerica-east1`: criação bem-sucedida e `Deploy complete!`. |
+| Lembretes | `processPushReminders`, `southamerica-east1`: criação bem-sucedida. |
+| Eventos de notificação | `onPushJobCreated` e `onOrderUpdateCreated`, `us-central1`: criação bem-sucedida e `Deploy complete!` após propagação das permissões do Eventarc. |
+| Chaves Web Push | Par VAPID gerado no Cloud Shell; chave privada criada no Secret Manager. Parâmetros público/subject gravados no arquivo local de ambiente. Nenhuma chave privada foi enviada à conversa ou ao Git. A configuração pública no cliente web continua pendente. |
+| Dados de teste | Cópia original salva no Cloud Shell, conversão offline aprovada e importação confirmada por `Data persisted successfully`. Usuário confirmou que os registros são de teste. Conferência anterior à atualização da cópia: 3 lojas, 2 motoboys, 6 pedidos, status `done`, `cotacao`, `open`. |
+| Regras RTDB | Sintaxe validada e regras publicadas para `express-entregas-2-testes-default-rtdb`; `Deploy complete!` às 18h56. |
+| Imagens de compilação | Política de limpeza após sete dias configurada em `southamerica-east1` e `us-central1`. |
+
+A implantação usou o checkout `a25018f99c7281df6fe23f3a49509d8b5f9df313`, da branch `v2.0-testes-reais`. O APK foi gerado no commit de código anterior `8b20ccd`; a diferença até `a25018f` é documental. Main e produção não foram alteradas nesta rodada.
+
 ## Pendências que bloqueiam a liberação
 
-1. Implantação no Firebase de testes autorizada pelo usuário. Conectar a conta Firebase para verificar plano/permissões e executar exclusivamente em `express-entregas-2-testes`. Regras, funções e site ainda não foram implantados. O APK foi disponibilizado separadamente, conforme registro abaixo.
-2. Confirmar plano/permissões/custos para Functions e Scheduler antes de qualquer ativação. Blaze e billing não foram alterados.
-3. Revisar dados de teste legados e os índices. Há conversor offline em `scripts/migrate-test-snapshot.cjs`; ele não acessa o Firebase. Exportação, revisão e importação devem ser aprovadas. Não apontar clientes antigos às novas regras durante essa transição.
-4. Configurar VAPID público, segredo privado `EXPRESS_VAPID_PRIVATE_KEY` e `EXPRESS_VAPID_SUBJECT` para Web Push. A chave privada nunca deve ser colocada no app ou no Git. Sem configuração, não há promessa de Web Push.
-5. Definir URL HTTPS pública de testes em `publicTrackingBaseUrl`, acessível fora do APK. Um endereço `capacitor://localhost` nunca é usado para compartilhar rastreio.
-6. APK de testes disponibilizado com assinatura estável autorizada pelo usuário e guardada no segredo `ANDROID_TEST_KEYSTORE_BASE64`. Assinatura verificada antes de publicar e novamente no arquivo baixado. APK antigo de chave desconhecida pode exigir reinstalação inicial. A instalação e atualização no aparelho continuam pendentes.
-7. Executar a matriz de aparelho abaixo, registrando versão, commit, modelo, Android, horário e evidência. Só depois aprovar o piloto de 5 lojas e 5 motoboys.
+1. Validar no APK desta rodada: login com contas migradas, leitura dos próprios dados, criação/aceite de pedido, concorrência, etapas, cancelamento e pagamento sincronizado.
+2. Comprovar no Android real: registro FCM, recebimento, som, lembretes, OFF, segundo plano e GPS. Publicação de funções não comprova entrega de notificações.
+3. Inserir a chave VAPID pública correspondente no cliente web e publicar a versão web de testes. Web Push ainda não foi homologado.
+4. Definir e publicar a URL HTTPS de rastreio em `publicTrackingBaseUrl`. Rastreio compartilhado fora do APK ainda não foi homologado.
+5. Confirmar a instalação do APK validado e sua atualização no aparelho. APK antigo de assinatura desconhecida pode exigir reinstalação inicial.
+6. Executar a matriz de aparelhos abaixo e registrar evidências. Só depois aprovar o piloto de 5 lojas e 5 motoboys.
+7. Acompanhar consumo do Blaze e configurar alertas de orçamento; alertas e limite efetivo de gastos ainda não foram confirmados.
 
 ## Matriz obrigatória em aparelhos
 
@@ -92,7 +109,7 @@ Registro de cada execução: `ID | commit/APK | conta/perfil | aparelho/Android 
 
 ## Verificação adicional no CI
 
-**Resultado final: aprovado.** O commit de código `c142196e2acec905aa215a6335139a9e8b4f4e38` passou as 58 verificações automatizadas e a compilação Android no [run 43729725749](https://github.com/fmrpbr/Express/actions/runs/43729725749). Backend e segurança também foram aprovados. Naquela execução nenhum APK foi disponibilizado. A disponibilização posterior está registrada abaixo; nenhum serviço/regras foi implantado. O piloto continua bloqueado pelas dependências e pela matriz real de aparelhos acima.
+**Resultado final: aprovado.** O commit de código `c142196e2acec905aa215a6335139a9e8b4f4e38` passou as 58 verificações automatizadas e a compilação Android no [run 43729725749](https://github.com/fmrpbr/Express/actions/runs/43729725749). Backend e segurança também foram aprovados. Naquela execução nenhum APK foi disponibilizado. A disponibilização posterior está registrada abaixo. Naquela rodada ainda não havia implantação; a implantação posterior consta na seção de situação atual. O piloto continua bloqueado pelas dependências e pela matriz real de aparelhos acima.
 
 A primeira compilação Android foi interrompida por HTTP 429 ao baixar dependências do Maven Central. O build agora usa cache Gradle, dois workers e o espelho público hospedado no Google Cloud, documentado em https://docs.cloud.google.com/docs/buildpacks/java#google_cloud_hosted_maven_central_mirror. Não houve troca das versões dos artefatos nem uso de repositório privado.
 
@@ -112,4 +129,4 @@ Em 15/11/2026, o usuário autorizou disponibilizar o APK de testes e armazenar s
 - `apksigner verify` aprovou assinaturas v1, v2 e v3. Certificado reconferido no APK extraído do artefato.
 - A primeira tentativa de disponibilização gerou assinatura diferente da chave autorizada e foi descartada. A publicação agora assina explicitamente o APK e exige o fingerprint esperado antes de liberar o artefato.
 
-Este APK depende das novas funções/regras ainda não implantadas. Disponibilizar o arquivo não libera o piloto. Conexão Firebase, configuração de Web Push/URL pública, transição dos dados e matriz de aparelhos continuam obrigatórias.
+As novas funções e regras foram implantadas posteriormente, conforme evidências registradas na seção de situação atual. A disponibilização do APK e a implantação não liberam o piloto: configuração pública do Web Push/rastreio e matriz de aparelhos continuam pendentes.
