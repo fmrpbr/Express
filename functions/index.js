@@ -26,7 +26,7 @@ async function sendToCourier(uid, payload) {
     db.ref(`pushPreferences/${uid}`).get()
   ]);
   const presence = presenceSnap.val() || {};
-  if (presence.availableForWork !== true || presence.online !== true) return 0;
+  if (presence.availableForWork !== true || presence.busy === true) return 0;
   const tokens = Object.values(tokenSnap.val() || {}).map(x => x && x.token).filter(Boolean);
   if (!tokens.length) return 0;
   const prefs = prefsSnap.val() || {};
@@ -79,7 +79,7 @@ async function notifyEligible(kind, orderId, record, reminder = false) {
   const presenceSnap = await db.ref("courierPresence").get();
   const presence = presenceSnap.val() || {};
   const recipients = Object.entries(presence)
-    .filter(([, p]) => p && p.availableForWork === true && p.online === true && p.busy !== true)
+    .filter(([, p]) => p && p.availableForWork === true && p.busy !== true)
     .map(([uid]) => uid);
   const payload = {
     kind: reminder ? "reminder" : kind,
