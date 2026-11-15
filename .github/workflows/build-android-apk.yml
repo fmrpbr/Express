@@ -1,5 +1,8 @@
 name: Gerar APK Android - V2 Teste
 on:
+  push:
+    branches: [v2.0-testes-reais]
+    paths: ['.github/workflows/build-android-apk.yml']
   workflow_dispatch:
     inputs:
       upload_apk:
@@ -45,7 +48,7 @@ jobs:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
       - run: npx cap sync android
       - name: Restaurar assinatura estável dos testes
-        if: inputs.upload_apk
+        if: inputs.upload_apk || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Publicar APK V2 de teste autorizado'))
         env:
           ANDROID_TEST_KEYSTORE_BASE64: ${{ secrets.ANDROID_TEST_KEYSTORE_BASE64 }}
         run: |
@@ -65,7 +68,7 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon --max-workers=2 --init-script ../scripts/central-mirror.init.gradle assembleDebug
       - uses: actions/upload-artifact@v4
-        if: inputs.upload_apk
+        if: inputs.upload_apk || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Publicar APK V2 de teste autorizado'))
         with:
           name: Express-Entregas-2.0-TESTE-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
