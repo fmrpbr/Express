@@ -23,14 +23,14 @@ beforeEach(async () => {
   await env.clearDatabase();
   await env.withSecurityRulesDisabled(async context => {
     const db = context.database();
-    await set(ref(db, "profiles/stores/storeA"), { name: "Loja A" });
+    await set(ref(db, "profiles/stores/storeA"), { name: "LOJA A" });
     await set(ref(db, "profiles/stores/storeB"), { name: "Loja B" });
     await set(ref(db, "profiles/couriers/courierA"), { name: "Motoboy A" });
     await set(ref(db, "orders/orderA"), { storeId: "storeA", courierId: "courierA", status: "open" });
     await set(ref(db, "orders/orderB"), { storeId: "storeB", courierId: "courierB", status: "open" });
     await set(ref(db, "availableOrders/orderPublic"), { status: "open", area: "Centro" });
     await set(ref(db, "quoteBoard/quotePublic"), { status: "cotacao", area: "Centro" });
-    await set(ref(db, "publicTracking/token-longo-aleatorio-123456789"), { status: "run", storeName: "Loja A" });
+    await set(ref(db, "publicTracking/token-longo-aleatorio-123456789"), { status: "run", expiresAt:Date.now()+600000, revoked:false });
     await set(ref(db, "config/rates"), { base: 10 });
     await set(ref(db, "courierPresence/courierA"), { registered:true, online:false, busy:false, lastSeen:Date.now() });
   });
@@ -82,12 +82,13 @@ test("gravações em perfis, pedidos, índices e presença ficam bloqueadas", as
   await assertFails(set(ref(db, "courierPresence/courierA"), { online: true }));
 });
 
-test("presença dos motoboys pode ser lida por usuários autenticados e escrita apenas pelo próprio motoboy ou administrador", async () => {
+test("perfil válido lê presença e motoboy altera somente disponibilidade própria", async () => {
   const courierDb = env.authenticatedContext("courierA").database();
   const storeDb = env.authenticatedContext("storeA").database();
   const otherCourierDb = env.authenticatedContext("courierB").database();
   await assertSucceeds(get(ref(storeDb, "courierPresence")));
-  await assertSucceeds(set(ref(courierDb, "courierPresence/courierA"), { registered:true, online:true, busy:false, lastSeen:Date.now() }));
+  await assertSucceeds(set(ref(courierDb, "courierPresence/courierA/availableForWork"), true));
+  await assertFails(set(ref(courierDb, "courierPresence/courierA/busy"), false));
   await assertFails(set(ref(storeDb, "courierPresence/courierA"), { registered:true, online:false, busy:false, lastSeen:Date.now() }));
   await assertFails(set(ref(otherCourierDb, "courierPresence/courierA"), { registered:true, online:false, busy:false, lastSeen:Date.now() }));
 });
@@ -124,12 +125,12 @@ test("consulta indexada de alertas retorna somente avisos ainda válidos", async
   assert.deepEqual(Object.keys(values), ["active"]);
 });
 
-test("somente administrador altera taxas", async () => {
+test("tarifas são alteradas somente pela operação de servidor", async () => {
   const userDb = env.authenticatedContext("storeA").database();
   const adminDb = env.authenticatedContext("adminUser", { admin: true }).database();
   await assertSucceeds(get(ref(userDb, "config/rates")));
   await assertFails(set(ref(userDb, "config/rates/base"), 20));
-  await assertSucceeds(set(ref(adminDb, "config/rates/base"), 20));
+  await assertFails(set(ref(adminDb, "config/rates/base"), 20));
 });
 
 test("administrador lê pedidos e perfis", async () => {
@@ -137,4 +138,54 @@ test("administrador lê pedidos e perfis", async () => {
   await assertSucceeds(get(ref(db, "orders/orderA")));
   await assertSucceeds(get(ref(db, "orders/orderB")));
   await assertSucceeds(get(ref(db, "profiles/stores/storeA")));
+});
+
+test("presença ocupada e identidade de motoboy não são forjáveis", async () => {
+  const courier = env.authenticatedContext("courierA").database();
+  const store = env.authenticatedContext("storeA").database();
+  const visitor = env.authenticatedContext("visitor").database();
+  await assertFails(set(ref(courier, "courierPresence/courierA/busy"), true));
+  await assertFails(set(ref(store, "courierPresence/storeA/availableForWork"), true));
+  await assertFails(get(ref(visitor, "courierPresence")));
+  await assertSucceeds(set(ref(courier, "courierConnections/courierA/session1"), { lastSeen: Date.now() }));
+  await assertFails(set(ref(courier, "courierConnections/courierA/session1"), { lastSeen: Date.now(), busy: false }));
+  await assertFails(set(ref(store, "courierConnections/courierA/session2"), { lastSeen: Date.now() }));
+});
+test("token vencido ou revogado e enumeração do rastreio são negados", async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    await set(ref(context.database(), "publicTracking/expired"), { expiresAt: Date.now()-1, revoked: false });
+    await set(ref(context.database(), "publicTracking/revoked"), { expiresAt: Date.now()+600000, revoked: true });
+  });
+  const db = env.unauthenticatedContext().database();
+  await assertFails(get(ref(db, "publicTracking/expired")));
+  await assertFails(get(ref(db, "publicTracking/revoked")));
+  await assertFails(get(ref(db, "publicTracking")));
+});
+test("tokens e preferências são privados, com esquema e tipo de perfil validados", async () => {
+  const courier = env.authenticatedContext("courierA").database();
+  const store = env.authenticatedContext("storeA").database();
+  const record = { token: "t".repeat(30), platform: "android", updatedAt: Date.now() };
+  await assertFails(set(ref(courier, "fcmTokens/courierA/device1"), record));
+  await assertFails(set(ref(store, "fcmTokens/storeA/device1"), record));
+  await assertFails(set(ref(env.authenticatedContext("visitor").database(), "fcmTokens/visitor/device1"), record));
+  await assertFails(get(ref(store, "fcmTokens/courierA")));
+  await assertSucceeds(set(ref(courier, "pushPreferences/courierA"), { enabled: true, orders: true, quotes: false, reminders: false }));
+  await assertFails(set(ref(courier, "pushPreferences/courierA"), { enabled: "true" }));
+  await assertFails(get(ref(store, "pushPreferences/courierA")));
+  await assertFails(set(ref(courier, "pushPreferences/courierA"), { enabled: true, injected: true }));
+});
+test("alerta não pode falsificar perfil, remetente ou nome", async () => {
+  const store = env.authenticatedContext("storeA").database();
+  const now = Date.now();
+  const alert = { senderId: "storeA", senderRole: "courier", senderName: "LOJA A", message: "AVISO VÁLIDO", createdAt: now, expiresAt: now+600000 };
+  await assertFails(set(ref(store, "alerts/fakeRole"), alert));
+  await assertFails(set(ref(store, "alerts/fakeName"), { ...alert, senderRole: "store", senderName: "ADMINISTRADOR" }));
+  await assertFails(set(ref(store, "alerts/expired"), { ...alert, senderRole: "store", expiresAt: now-1 }));
+});
+test("Web Push só aceita endpoints conhecidos e esquema privado de inscrição", async () => {
+  const db = env.authenticatedContext("courierA").database();
+  const subscription = { endpoint: "https://fcm.googleapis.com/fcm/send/fake", keys:{p256dh:"a".repeat(87),auth:"b".repeat(22)}, updatedAt:Date.now() };
+  await assertSucceeds(set(ref(db,"pushSubscriptions/courierA/device"),subscription));
+  await assertFails(set(ref(db,"pushSubscriptions/courierA/device"),{...subscription,endpoint:"https://127.0.0.1/private"}));
+  await assertFails(get(ref(env.authenticatedContext("storeA").database(),"pushSubscriptions/courierA")));
 });

@@ -1,0 +1,10 @@
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import { execFileSync } from 'node:child_process';
+const html = readFileSync('www/index.html', 'utf8');
+for(const script of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)) new vm.Script(script[1]);
+for(const file of ['domain.js', 'commands.js', 'notifications.js', 'index.js']) execFileSync(process.execPath, ['--check', 'functions/' + file]);
+JSON.parse(readFileSync('database.rules.json', 'utf8'));
+if(/onValue\(ref\(db, "orders"\)/.test(html)) throw new Error('Leitura global no cliente');
+if(/(?:set|update|runTransaction)\(ref\(db, ["`]orders/.test(html)) throw new Error('Gravação direta de pedido');
+console.log('Sintaxe, regras JSON e ausência de acessos globais de pedidos: OK');

@@ -46,7 +46,7 @@ beforeEach(async () => {
       registered: true, online: true, busy: false, lastSeen: Date.now()
     });
     await set(ref(db, "publicTracking/fake-random-token"), {
-      status: "run", updatedAt: Date.now()
+      status: "run", updatedAt: Date.now(), expiresAt: Date.now()+600000, revoked: false
     });
     await set(ref(db, "fcmTokens/storeA/tokenA"), {
       token: "fake-token-value-long-enough-for-rules",
@@ -83,11 +83,9 @@ test("leitura da coleção orders não autoriza consulta global sem filtro segur
   await assertFails(get(ref(storeA(), "orders")));
 });
 
-test("presença de motoboys fica visível para qualquer usuário autenticado", async () => {
-  const snapshot = await assertSucceeds(get(ref(stranger(), "courierPresence")));
-  if (!snapshot.child("courierA").exists() || !snapshot.child("courierB").exists()) {
-    throw new Error("O teste esperava confirmar a exposição global atual de courierPresence.");
-  }
+test("conta sem perfil não consulta presença global", async () => {
+  await assertFails(get(ref(stranger(), "courierPresence")));
+  await assertFails(get(ref(anonymous(), "courierPresence")));
 });
 
 test("rastreamento público é legível sem autenticação quando o token existe", async () => {

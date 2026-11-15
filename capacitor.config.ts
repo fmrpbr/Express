@@ -5,9 +5,11 @@ const config: CapacitorConfig = {
   appName: 'Express Entregas 2.0 (Teste)',
   webDir: 'www',
   android: {
-    backgroundColor: '#ffffff'
+    backgroundColor: '#ffffff',
+    useLegacyBridge: true
   },
   plugins: {
+    CapacitorHttp: { enabled: true },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert']
     }

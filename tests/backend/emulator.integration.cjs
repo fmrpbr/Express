@@ -1,0 +1,101 @@
+const { test, before, after, beforeEach } = require('node:test');
+const assert = require('node:assert/strict');
+const admin = require('../../functions/node_modules/firebase-admin');
+const { createCommandHandler } = require('../../functions/commands');
+const { createDispatcher } = require('../../functions/notifications');
+const now = Date.parse('2026-11-16T15:00:00Z');
+const auth = uid => ({ uid, token: { email: uid+'@example.test' } });
+let app, db, execute, seq = 0;
+const request = (action, orderId, input = {}, requestId = 'integration_'+(++seq)) => ({ action, ...(orderId ? { orderId } : {}), input, requestId });
+const fields = { serviceType:'delivery', serviceDate:'2026-11-16', city:'ARACRUZ', clientNeighborhood:'CENTRO', client:'CLIENTE', phone:'27999999999', clientStreet:'RUA PRIVADA', clientNumber:'1', paymentMethod:'money', selectedZone:'' };
+before(() => {
+  assert.ok(process.env.FIREBASE_DATABASE_EMULATOR_HOST, 'Integração exige emulador');
+  app = admin.initializeApp({ projectId:'demo-express-entregas-integration', databaseURL:'https://demo-express-entregas-integration.firebaseio.com' }, 'integration');
+  db = app.database(); execute = createCommandHandler(db, () => now);
+});
+after(async () => { await app.delete(); });
+beforeEach(async () => {
+  await db.ref().set({ profiles: { stores: { storeA:{ name:'LOJA A', address:'RUA DA LOJA' } }, couriers: { courierA:{ name:'MOTO A' }, courierB:{ name:'MOTO B' } } }, courierPresence: { courierA:{ registered:true, availableForWork:true, busy:false }, courierB:{ registered:true, availableForWork:true, busy:false } } });
+}, { timeout: 15000 });
+async function create() { return (await execute(auth('storeA'), request('saveOrder', null, fields))).orderId; }
+
+test('transações reais: dois motoboys disputam uma corrida, exatamente um assume', { timeout:30000 }, async () => {
+  const id = await create();
+  const outcomes = await Promise.allSettled(['courierA','courierB'].map(uid => execute(auth(uid), request('accept', id))));
+  assert.equal(outcomes.filter(x => x.status === 'fulfilled').length, 1);
+  const root = (await db.ref().get()).val();
+  const owner = root.orders[id].courierId;
+  assert.equal(root.courierOrders[owner][id].status, 'run');
+  assert.equal(root.storeOrders.storeA[id].courierId, owner);
+  assert.ok(!root.availableOrders?.[id]); assert.ok(!root.pushJobs?.[id]);
+});
+test('transações reais: mesmo motoboy disputa duas corridas, uma única fica ativa', { timeout:30000 }, async () => {
+  const a = await create(), b = await create();
+  const outcomes = await Promise.allSettled([a,b].map(id => execute(auth('courierA'), request('accept', id))));
+  assert.equal(outcomes.filter(x => x.status === 'fulfilled').length, 1);
+  const orders = (await db.ref('orders').get()).val();
+  assert.equal(Object.values(orders).filter(o => o.status === 'run').length, 1);
+});
+test('transações reais: repetição simultânea retorna mesmo pedido e um evento', { timeout:30000 }, async () => {
+  const call = request('saveOrder', null, fields);
+  const results = await Promise.all([execute(auth('storeA'),call),execute(auth('storeA'),call)]);
+  assert.equal(results[0].orderId, results[1].orderId);
+  assert.equal(Object.keys((await db.ref('orders').get()).val()).length, 1);
+  assert.equal(Object.keys((await db.ref('orderEvents/'+results[0].orderId).get()).val()).length, 1);
+});
+test('push: imediato deduplicado, lembrete após cinco minutos e interrupção após aceite', { timeout:30000 }, async () => {
+  const id = await create();
+  await db.ref('fcmTokens/courierA').set({ device1:{token:'tokenA'}, device2:{token:'tokenA'} });
+  await db.ref('fcmTokens/courierB').set({ device:{token:'tokenB'} });
+  let clock = now, sends = [];
+  const dispatch = createDispatcher(db, { send: async payload => { sends.push(payload); } }, () => clock);
+  await Promise.all([dispatch(id), dispatch(id)]);
+  assert.equal(sends.length, 2);
+  assert.equal(sends[0].android.notification.channelId, 'express_orders_v2');
+  await dispatch(id); assert.equal(sends.length, 2);
+  clock += 299999; await dispatch(id); assert.equal(sends.length, 2);
+  clock += 1; await dispatch(id); assert.equal(sends.length, 4);
+  assert.equal(sends[2].android.notification.channelId, 'express_reminders_v2');
+  await execute(auth('courierA'),request('accept',id));
+  clock += 300000; await dispatch(id); assert.equal(sends.length, 4);
+  assert.ok(!(await db.ref('pushJobs/'+id).get()).exists());
+});
+test('push: OFF, preferências e token inválido são respeitados', { timeout:30000 }, async () => {
+  const id = await create();
+  await db.ref('courierPresence/courierB/availableForWork').set(false);
+  await db.ref('fcmTokens').set({ courierA:{ device:{token:'invalid'} }, courierB:{device:{token:'off'}} });
+  let calls = 0, clock = now;
+  const dispatch = createDispatcher(db,{ send: async () => { calls++; const error = new Error(); error.code='messaging/registration-token-not-registered'; throw error; } }, () => clock);
+  await dispatch(id); assert.equal(calls, 1);
+  assert.equal((await db.ref('fcmTokens/courierA/device').get()).exists(), false);
+  await db.ref('fcmTokens/courierA/device').set({token:'new'});
+  await db.ref('pushPreferences/courierA').set({reminders:false});
+  clock += 300000; await dispatch(id); assert.equal(calls, 1);
+});
+test('push: aceite durante preparação impede os próximos envios e não ressuscita job', { timeout:30000 }, async () => {
+  const id = await create();
+  await db.ref('fcmTokens').set({courierA:{d:{token:'a'}},courierB:{d:{token:'b'}}});
+  let sends = 0;
+  const dispatch = createDispatcher(db,{send: async () => { sends++; if(sends === 1) await execute(auth('courierA'),request('accept',id)); }},()=>now);
+  await dispatch(id); assert.equal(sends,1);
+  assert.ok(!(await db.ref('pushJobs/'+id).get()).exists());
+});
+test('primeiro cadastro funciona em banco vazio e não permite segundo papel', { timeout:30000 }, async () => {
+  await db.ref().set(null);
+  await execute(auth('newUser'),request('createProfile',null,{role:'courier',name:'MOTO',phone:'27999999999'}));
+  assert.equal((await db.ref('profiles/couriers/newUser/name').get()).val(),'MOTO');
+  await assert.rejects(()=>execute(auth('newUser'),request('createProfile',null,{role:'store',name:'LOJA',phone:'27999999999'})),/já possui/);
+});
+test('atualização de corrida chega com OFF e preferência de ofertas desativada, sem duplicidade', { timeout:30000 }, async () => {
+  const { createUpdateDispatcher } = require('../../functions/notifications');
+  const id = await create();
+  await execute(auth('courierA'),request('accept',id));
+  await db.ref('courierPresence/courierA/availableForWork').set(false);
+  await db.ref('pushPreferences/courierA').set({enabled:false,orders:false,quotes:false,reminders:false});
+  await db.ref('fcmTokens/courierA').set({a:{token:'device'},b:{token:'device'}});
+  await db.ref('pushUpdates/manual').set({orderId:id,action:'toggle-pay',recipients:['courierA'],createdAt:now});
+  let sends=0;
+  const dispatch = createUpdateDispatcher(db,{send:async message=>{sends++;assert.equal(message.android.notification.channelId,'express_updates_v2');}},()=>now);
+  await Promise.all([dispatch('manual'),dispatch('manual')]);
+  assert.equal(sends,1);
+});

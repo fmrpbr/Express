@@ -22,7 +22,7 @@ jobs:
           node-version: 22
       - name: Instalar dependências do backend
         working-directory: functions
-        run: npm install
+        run: npm ci
       - name: Verificar sintaxe
         working-directory: functions
-        run: npm run lint
+        run: npm run lint && npm test

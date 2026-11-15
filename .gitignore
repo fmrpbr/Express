@@ -1,2 +1,13 @@
 # Firebase local/test config (never commit credentials or project config)
 www/firebase-config.js
+node_modules/
+android/
+assets/
+www/icons/
+www/vendor/firebase.bundle.js
+firebase-debug.log
+database-debug.log
+*-debug.log
+.firebase/
+playwright-report/
+test-results/

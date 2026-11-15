@@ -1,150 +1,48 @@
+"use strict";
 const admin = require("firebase-admin");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onValueCreated } = require("firebase-functions/v2/database");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { setGlobalOptions } = require("firebase-functions/v2");
+const { defineSecret, defineString } = require("firebase-functions/params");
+const { createCommandHandler } = require("./commands");
+const { createDispatcher, createUpdateDispatcher } = require("./notifications");
+const { DomainError } = require("./domain");
+const webPush = require("web-push");
 
-admin.initializeApp();
+const projectId = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT;
+if (projectId && projectId !== "express-entregas-2-testes" && !projectId.startsWith("demo-express-entregas")) throw new Error("Backend V2 restrito ao projeto de testes.");
+admin.initializeApp(process.env.FUNCTIONS_EMULATOR === "true" ? { projectId, databaseURL: `https://${projectId}-default-rtdb.firebaseio.com` } : undefined);
 setGlobalOptions({ region: "southamerica-east1", maxInstances: 5 });
-
 const db = admin.database();
-const CHANNELS = {
-  order: "express_orders_v2",
-  quote: "express_quotes_v2",
-  reminder: "express_reminders_v2"
-};
-
-function channelFor(kind, prefs) {
-  // Preferências podem escolher somente canais conhecidos e provisionados no APK.
-  const selected = prefs && prefs.channels && prefs.channels[kind];
-  return Object.values(CHANNELS).includes(selected) ? selected : CHANNELS[kind];
-}
-
-async function sendToCourier(uid, payload) {
-  const [presenceSnap, tokenSnap, prefsSnap] = await Promise.all([
-    db.ref(`courierPresence/${uid}`).get(),
-    db.ref(`fcmTokens/${uid}`).get(),
-    db.ref(`pushPreferences/${uid}`).get()
-  ]);
-  const presence = presenceSnap.val() || {};
-  if (presence.availableForWork !== true || presence.busy === true) return 0;
-  const tokens = Object.values(tokenSnap.val() || {}).map(x => x && x.token).filter(Boolean);
-  if (!tokens.length) return 0;
-  const prefs = prefsSnap.val() || {};
-  if (prefs.enabled === false || (payload.kind === "quote" && prefs.quotes === false) ||
-      (payload.kind === "order" && prefs.orders === false) ||
-      (payload.kind === "reminder" && prefs.reminders === false)) return 0;
-
-  let sent = 0;
-  for (let i = 0; i < tokens.length; i += 500) {
-    const batch = tokens.slice(i, i + 500);
-    const result = await admin.messaging().sendEachForMulticast({
-      tokens: batch,
-      notification: { title: payload.title, body: payload.body },
-      data: {
-        type: payload.kind,
-        orderId: String(payload.orderId || ""),
-        category: payload.kind
-      },
-      android: {
-        priority: "high",
-        notification: {
-          channelId: channelFor(payload.kind, prefs),
-          sound: "default",
-          priority: "max",
-          visibility: "public"
-        }
-      }
-    });
-    sent += result.successCount;
-    const invalid = [];
-    result.responses.forEach((response, index) => {
-      if (!response.success && [
-        "messaging/registration-token-not-registered",
-        "messaging/invalid-registration-token"
-      ].includes(response.error && response.error.code)) invalid.push(batch[index]);
-    });
-    if (invalid.length) {
-      const all = tokenSnap.val() || {};
-      const updates = {};
-      for (const [key, entry] of Object.entries(all)) {
-        if (entry && invalid.includes(entry.token)) updates[key] = null;
-      }
-      if (Object.keys(updates).length) await db.ref(`fcmTokens/${uid}`).update(updates);
-    }
+const execute = createCommandHandler(db);
+const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
+const vapidPrivate = isEmulator ? null : defineSecret("EXPRESS_VAPID_PRIVATE_KEY");
+const vapidPublic = isEmulator ? { value: () => "" } : defineString("EXPRESS_VAPID_PUBLIC_KEY", { default: "" });
+const vapidSubject = isEmulator ? { value: () => "" } : defineString("EXPRESS_VAPID_SUBJECT", { default: "" });
+const pushSecrets = process.env.FUNCTIONS_EMULATOR === "true" ? [] : [vapidPrivate];
+function transports() {
+  let web = null;
+  if (vapidPublic.value() && vapidSubject.value()) {
+    webPush.setVapidDetails(vapidSubject.value(), vapidPublic.value(), vapidPrivate.value());
+    web = webPush;
   }
-  return sent;
+  return { messaging: admin.messaging(), web };
 }
-
-async function notifyEligible(kind, orderId, record, reminder = false) {
-  const presenceSnap = await db.ref("courierPresence").get();
-  const presence = presenceSnap.val() || {};
-  const recipients = Object.entries(presence)
-    .filter(([, p]) => p && p.availableForWork === true && p.busy !== true)
-    .map(([uid]) => uid);
-  const payload = {
-    kind: reminder ? "reminder" : kind,
-    orderId,
-    title: reminder ? "Pedido aguardando resposta" : (kind === "quote" ? "Nova cotação disponível" : "Novo pedido disponível"),
-    body: reminder ? "Ainda há uma solicitação aguardando sua resposta." :
-      (kind === "quote" ? "Uma nova cotação precisa da sua avaliação." : "Há uma nova entrega disponível.")
-  };
-  const results = await Promise.allSettled(recipients.map(uid => sendToCourier(uid, payload)));
-  return results.filter(x => x.status === "fulfilled").reduce((sum, x) => sum + x.value, 0);
-}
-
-async function createReminderJob(kind, orderId) {
-  const jobId = `${kind}_${orderId}`;
-  const now = Date.now();
-  const jobRef = db.ref(`pushJobs/${jobId}`);
-  // Não reinicia um lembrete já existente em caso de reentrega do evento.
-  await jobRef.transaction(current => current || {
-    kind, orderId, active: true, createdAt: now,
-    nextAt: now + 5 * 60 * 1000, reminderCount: 0
-  });
-}
-
-exports.onAvailableOrderCreated = onValueCreated("/availableOrders/{orderId}", async event => {
-  const record = event.data.val();
-  if (!record) return;
-  const orderId = event.params.orderId;
-  await notifyEligible("order", orderId, record);
-  await createReminderJob("order", orderId);
-});
-
-exports.onQuoteCreated = onValueCreated("/quoteBoard/{orderId}", async event => {
-  const record = event.data.val();
-  if (!record) return;
-  const orderId = event.params.orderId;
-  await notifyEligible("quote", orderId, record);
-  await createReminderJob("quote", orderId);
-});
-
-// Agendador durável: não depende de timers dentro do processo da função.
-exports.processPushReminders = onSchedule("every 1 minutes", async () => {
-  const now = Date.now();
-  const due = await db.ref("pushJobs").orderByChild("nextAt").endAt(now).limitToFirst(100).get();
-  if (!due.exists()) return;
-  for (const [jobId, job] of Object.entries(due.val())) {
-    const orderId = String(job.orderId || "");
-    const projectionPath = job.kind === "quote" ? "quoteBoard" : "availableOrders";
-    const [projection, canonical] = await Promise.all([
-      orderId ? db.ref(`${projectionPath}/${orderId}`).get() : Promise.resolve({ exists: () => false }),
-      orderId ? db.ref(`orders/${orderId}`).get() : Promise.resolve({ val: () => ({}) })
-    ]);
-    if (!job.active || !orderId || !projection.exists()) {
-      await db.ref(`pushJobs/${jobId}`).remove();
-      continue;
-    }
-    const order = canonical.val() || {};
-    if (["run", "done", "cancelled", "cancelado", "cancelado_cotacao"].includes(order.status)) {
-      await db.ref(`pushJobs/${jobId}`).remove();
-      continue;
-    }
-    await notifyEligible(job.kind, orderId, projection.val(), true);
-    await db.ref(`pushJobs/${jobId}`).update({
-      nextAt: now + 5 * 60 * 1000,
-      reminderCount: Number(job.reminderCount || 0) + 1,
-      lastSentAt: now
-    });
+exports.orderCommand = onCall(async request => {
+  try { return await execute(request.auth, request.data); }
+  catch (error) {
+    if (error instanceof DomainError) throw new HttpsError(error.code, error.message);
+    console.error("Falha na operação V2", error.code || error.name);
+    throw new HttpsError("internal", "Não foi possível concluir. Tente novamente com a mesma operação.");
   }
 });
+exports.onPushJobCreated = onValueCreated({ ref: "/pushJobs/{jobId}", region: "us-central1", secrets: pushSecrets }, async event => { const t = transports(); return createDispatcher(db, t.messaging, Date.now, t.web)(event.params.jobId); });
+exports.processPushReminders = onSchedule({ schedule: "every 1 minutes", secrets: pushSecrets }, async () => {
+  const due = await db.ref("pushJobs").orderByChild("nextAt").endAt(Date.now()).limitToFirst(100).get();
+  for (const id of Object.keys(due.val() || {})) {
+    const t = transports(); await createDispatcher(db, t.messaging, Date.now, t.web)(id);
+  }
+});
+
+exports.onOrderUpdateCreated = onValueCreated({ ref: "/pushUpdates/{eventId}", region: "us-central1", secrets: pushSecrets }, async event => { const t = transports(); return createUpdateDispatcher(db, t.messaging, Date.now, t.web)(event.params.eventId); });

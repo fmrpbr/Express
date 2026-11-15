@@ -57,7 +57,7 @@
 .hero-alert-window{min-width:0;overflow:hidden;flex:1}
 .hero-alert-track{display:flex;align-items:center;width:max-content;gap:42px;white-space:nowrap;animation:express-alert-scroll 26s linear infinite}
 .hero-alert-track span{font-size:10px;font-weight:750;color:#fff}
-.hero-alerts:hover .hero-alert-track{animation-play-state:paused}
+.hero-alerts:hover .hero-alert-track,.hero-alerts:focus-within .hero-alert-track,.hero-alerts.is-paused .hero-alert-track{animation-play-state:paused}
 @keyframes express-alert-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media(prefers-reduced-motion:reduce){.hero-alert-track{animation:none;width:auto;white-space:normal}.hero-alert-track span:nth-child(n+2){display:none}}
 @media(max-width:360px){.map-hero{padding:9px 9px}.hero-dashboard{grid-template-rows:42px 64px 34px;gap:6px}.hero-top{gap:7px}.hero-clock b{font-size:20px}.hero-weather-copy small{font-size:7px}.hero-total{padding-left:7px}.hero-stat small{font-size:7px}.hero-stat b{font-size:17px}}
@@ -75,8 +75,8 @@
 /* Menu inferior fixo sem conflito com modais */
 .side{background:#fff;border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom));display:block;order:10;position:sticky;bottom:0;z-index:50}
 .brand,.nav-title,.side-note{display:none}
-.nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
-.nav button{border:0;background:transparent;text-align:center;padding:8px 6px;border-radius:14px;color:#6B7280;font-weight:700;font-size:10px;flex:1;min-width:62px;display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;line-height:1.1}
+.nav{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px;overflow:hidden}.nav::-webkit-scrollbar{display:none}
+.nav button{border:0;background:transparent;text-align:center;padding:8px 6px;border-radius:14px;color:#6B7280;font-weight:700;font-size:clamp(8px,2.3vw,10px);flex:1;min-width:0;padding-left:2px;padding-right:2px;min-height:60px;display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;line-height:1.1}
 .nav button span{display:block;width:auto;font-size:20px;line-height:1}
 .nav button.active{background:var(--primary);color:#fff;box-shadow:0 6px 16px rgba(234,29,44,.28)}
 @keyframes availablePulse{0%,100%{transform:scale(1);filter:drop-shadow(0 0 0 rgba(234,29,44,0))}50%{transform:scale(1.22);filter:drop-shadow(0 0 7px rgba(234,29,44,.75))}}
@@ -255,12 +255,14 @@
   }
 
   function openSheetLocal(editId, mode){
+    if(window.__expressModuleReady && window.__express?.openSheet) return window.__express.openSheet(editId, mode);
     var o = document.getElementById("order-sheet-overlay");
     if(o) o.classList.add("active");
     if(window.__express && window.__express.prepareSheet) window.__express.prepareSheet(editId, mode || "delivery");
   }
 
   function closeSheetLocal(){
+    if(window.__expressModuleReady && window.__express?.closeSheet) return window.__express.closeSheet();
     var o = document.getElementById("order-sheet-overlay");
     if(o) o.classList.remove("active");
   }
@@ -536,7 +538,7 @@
       <div class="selectors">
         <label class="selectbox"><small>PERFIL</small><select id="role" disabled></select></label>
         <label class="selectbox"><small id="actor-label">USUÁRIO</small><select id="actor"></select></label>
-        <div id="avatar" class="avatar">EE</div>
+        <button type="button" id="avatar" class="avatar" data-nav="profile" aria-label="Meu perfil">EE</button>
         <button type="button" class="btn secondary tiny" data-enable-push title="Ativar notificações">🔔</button>
         <button type="button" class="btn danger tiny" data-logout style="margin-left:6px">Sair</button>
       </div>
@@ -549,15 +551,18 @@
 
 <script src="./firebase-config.js"></script>
 <script src="./vendor/native-push.bundle.js"></script>
+<script src="./vendor/firebase.bundle.js"></script>
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
-  import { getDatabase, ref, set, update, push, get, onValue, query, orderByChild, startAt, runTransaction, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+  const { initializeApp, getDatabase, ref, set, update, push, get, onValue, query, orderByChild, startAt, onDisconnect, serverTimestamp,
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult,
+    getFunctions, httpsCallable, connectDatabaseEmulator, connectAuthEmulator, connectFunctionsEmulator } = window.ExpressFirebase;
+
 
   if (window.Capacitor?.isNativePlatform?.()) document.documentElement.classList.add("native-app");
 
   const firebaseConfig = window.EXPRESS_FIREBASE_CONFIG || {};
-  if (!firebaseConfig.apiKey || !firebaseConfig.projectId || firebaseConfig.projectId === "express-entregas-86e3e") {
+  const localEmulator = firebaseConfig.useEmulators === true && ["localhost", "127.0.0.1"].includes(location.hostname) && firebaseConfig.projectId?.startsWith("demo-express-entregas");
+  if (!firebaseConfig.apiKey || (firebaseConfig.projectId !== "express-entregas-2-testes" && !localEmulator)) {
     document.body.innerHTML = '<main style="max-width:560px;margin:12vh auto;padding:24px;font:16px Arial,sans-serif;line-height:1.5"><h2>Express Entregas 2.0 • Ambiente de teste</h2><p>O aplicativo está isolado e ainda não foi conectado ao Firebase de testes.</p><p>Configure o arquivo <b>www/firebase-config.js</b> com os dados de um projeto Firebase exclusivo para testes. O projeto de produção é bloqueado nesta versão.</p></main>';
     throw new Error("Firebase de teste não configurado. A conexão com produção foi bloqueada.");
   }
@@ -565,6 +570,37 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   const auth = getAuth(app);
+  const functions = getFunctions(app, "southamerica-east1");
+  if(firebaseConfig.useEmulators === true && ["localhost", "127.0.0.1"].includes(location.hostname)) {
+    connectDatabaseEmulator(db, "127.0.0.1", 9000);
+    connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+    connectFunctionsEmulator(functions, "127.0.0.1", 5001);
+  }
+  const callOrderCommand = httpsCallable(functions, "orderCommand");
+  async function command(action, orderId, input = {}, requestId = crypto.randomUUID()) {
+    if (!navigator.onLine) throw new Error("Sem conexão. Reconecte antes de confirmar esta ação.");
+    const payload = { action, input, requestId };
+    if (orderId) payload.orderId = orderId;
+    // Uma repetição de transporte usa o mesmo recibo de idempotência.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try { return (await callOrderCommand(payload)).data; }
+      catch (error) {
+        if (attempt === 0 && ["functions/unavailable", "functions/deadline-exceeded"].includes(error.code)) continue;
+        throw error;
+      }
+    }
+  }
+  let presenceTimer = null;
+  let presenceSessionRef = null;
+  let trackingUnsubscribe = null;
+  let connections = {};
+  let ownBids = {};
+  let pushPreferences = {};
+  let tokenKeyForDevice = null;
+  let gpsErrorShown = false;
+  let pendingPushOrderId = null;
+  const digestKey = async value => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))), b => b.toString(16).padStart(2, "0")).join("");
+
 
   const defaultRates = {
     zones: {
@@ -604,19 +640,20 @@
   let nativePushListenersReady = false;
 
   async function saveNativeFcmToken(tokenValue){
-    if(!tokenValue || !currentUser || !window.Capacitor?.isNativePlatform?.()) return;
-    const tokenKey = btoa(tokenValue).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
-    await set(ref(db, "fcmTokens/" + currentUser.uid + "/" + tokenKey), {
-      token: tokenValue,
-      platform: "android",
-      updatedAt: Date.now()
-    });
+    if(!tokenValue || !currentUser || (role !== "courier" && role !== "store") || !window.Capacitor?.isNativePlatform?.()) return;
+    const tokenKey = await digestKey(tokenValue);
+    if (tokenKeyForDevice && tokenKeyForDevice !== tokenKey) await set(ref(db, "fcmTokens/" + currentUser.uid + "/" + tokenKeyForDevice), null);
+    tokenKeyForDevice = tokenKey;
+    let deviceId = localStorage.getItem("express_device_id");
+    if(!deviceId) { deviceId = crypto.randomUUID(); localStorage.setItem("express_device_id", deviceId); }
+    await command("registerDevice", null, { token: tokenValue, deviceId });
   }
 
   const EXPRESS_PUSH_CHANNELS = [
     { id: "express_orders_v2", name: "Novos pedidos", description: "Novas corridas disponíveis para aceitar" },
     { id: "express_quotes_v2", name: "Novas cotações", description: "Novas solicitações de cotação" },
-    { id: "express_reminders_v2", name: "Lembretes", description: "Lembretes de pedidos aguardando resposta" }
+    { id: "express_reminders_v2", name: "Lembretes", description: "Lembretes de pedidos aguardando resposta" },
+    { id: "express_updates_v2", name: "Atualizações de entregas", description: "Retirada, conclusão e pagamento das suas entregas" }
   ];
 
   async function prepareNativePushChannels(pushApi){
@@ -660,17 +697,29 @@
           const detail = error?.message || error?.error || "Erro não identificado";
           toast("Falha ao obter token FCM: " + String(detail).slice(0,100), "warn");
         }),
-        pushApi.addListener("pushNotificationReceived", notification => {
+        pushApi.addListener("pushNotificationReceived", async notification => {
           const title = notification.title || "Express Entregas";
           const body = notification.body || "Você recebeu uma nova notificação.";
           toast(title + ": " + body);
-          playBeep();
+          const category = notification.data?.category || "order";
+          const channels = { order:"express_orders_v2", quote:"express_quotes_v2", reminder:"express_reminders_v2", update:"express_updates_v2" };
+          try {
+            await window.ExpressNativePush.LocalNotifications.schedule({ notifications: [{
+              id: crypto.getRandomValues(new Uint32Array(1))[0] % 2147483647,
+              title, body, channelId: channels[category] || channels.order, extra: notification.data || {}
+            }] });
+          } catch(error) { toast("Confira a permissão de notificações e o volume do Android.", "warn"); }
+        }),
+        window.ExpressNativePush.LocalNotifications.addListener("localNotificationActionPerformed", action => {
+          const extra = action.notification?.extra || {};
+          if(extra.orderId) { pendingPushOrderId = extra.orderId; view = extra.type === "quote" ? "quotes" : "available"; if(currentUser) mergeOrders(); }
         }),
         pushApi.addListener("pushNotificationActionPerformed", action => {
           const extra = action.notification?.data || {};
           if(extra.orderId) {
+            pendingPushOrderId = extra.orderId;
             view = role === "courier" ? (extra.type === "quote" ? "quotes" : "available") : "dashboard";
-            render();
+            if(currentUser) render();
           }
         })
       ]);
@@ -698,6 +747,7 @@
   let currentLoginRole = window.__expressLoginRole || "store";
   let view = "dashboard";
   let watchId = null;
+  let nativeGpsWatcher = null;
   let trackingOrderId = null;
   let lastGpsWriteAt = 0;
   let lastGpsCoords = null;
@@ -711,6 +761,7 @@
   window.addEventListener("hashchange", checkUrlTracking);
   function checkUrlTracking(){
     let hash = window.location.hash;
+    if(hash.startsWith("#order=")) { pendingPushOrderId = hash.slice(7); if(currentUser) { view = "available"; render(); } }
     if(hash.startsWith("#track=")) {
       openPublicTracker(hash.replace("#track=", ""));
     }
@@ -722,9 +773,12 @@
     screen.style.display = "flex";
     box.innerHTML = '<p>Carregando informações da entrega...</p>';
     
-    get(ref(db, "publicTracking/" + orderId)).then(snap => {
+    if(trackingUnsubscribe) trackingUnsubscribe();
+    if(!/^[a-f0-9]{64}$/.test(orderId)) { box.textContent = "Link inválido."; return; }
+    trackingUnsubscribe = onValue(ref(db, "publicTracking/" + orderId), snap => {
       if(!snap.exists()) { box.innerHTML = '<p style="color:var(--red);">Link inválido ou rastreamento indisponível.</p>'; return; }
       const o = snap.val();
+      if(o.revoked || Number(o.expiresAt || 0) <= Date.now()) { box.textContent = "Rastreamento encerrado ou expirado."; return; }
       const st = o.status === "open" ? "Aguardando motoboy" : o.status === "run" ? "Em trânsito" : o.status === "done" ? "Entrega concluída" : o.status === "cancelado_cotacao" ? "Solicitação cancelada" : "Em cotação";
       const gpsInfo = (o.location && o.status === "run") ? `<a href="https://www.openstreetmap.org/?mlat=${Number(o.location.lat)}&mlon=${Number(o.location.lng)}#map=16/${Number(o.location.lat)}/${Number(o.location.lng)}" target="_blank" rel="noopener noreferrer" class="btn primary full" style="margin-top:10px;">🗺️ Acompanhar localização</a>` : '<p style="color:var(--muted);text-align:center;">A localização será exibida quando o motoboy iniciar o trajeto.</p>';
       box.innerHTML = `
@@ -741,10 +795,12 @@
         ${gpsInfo}
         <p style="font-size:10px;color:#98A2B3;text-align:center;margin:0;">Este link não exibe nome, telefone, endereço residencial ou valores do pedido.</p>
       `;
-    }).catch(() => { box.innerHTML = '<p style="color:var(--red);">Não foi possível carregar o rastreamento.</p>'; });
+    }, () => { box.textContent = "Rastreamento encerrado, expirado ou indisponível."; });
   }
 
   document.getElementById("btn-close-track").addEventListener("click", () => {
+    if(trackingUnsubscribe) trackingUnsubscribe();
+    trackingUnsubscribe = null;
     document.getElementById("public-track-screen").style.display = "none";
     window.location.hash = "";
   });
@@ -767,9 +823,9 @@
   function saveClientFavorite(clientName, clientPhone, clientStreet, clientNumber, clientNeighborhood) {
     if(!clientName) return;
     try {
-      let favs = JSON.parse(localStorage.getItem("express_clients_favs") || "{}");
+      let favs = JSON.parse(localStorage.getItem("express_clients_favs_" + currentUser?.uid) || "{}");
       favs[clientName.toLowerCase()] = { name: clientName, phone: clientPhone || "", street: clientStreet || "", number: clientNumber || "", neighborhood: clientNeighborhood || "" };
-      localStorage.setItem("express_clients_favs", JSON.stringify(favs));
+      localStorage.setItem("express_clients_favs_" + currentUser?.uid, JSON.stringify(favs));
       refreshSavedClientsDatalist();
     } catch(e){}
   }
@@ -778,7 +834,7 @@
     let datalist = document.getElementById("saved-clients-list");
     if(!datalist) return;
     try {
-      let favs = JSON.parse(localStorage.getItem("express_clients_favs") || "{}");
+      let favs = JSON.parse(localStorage.getItem("express_clients_favs_" + currentUser?.uid) || "{}");
       datalist.innerHTML = Object.values(favs).map(f => `<option value="${esc(f.name)}">Tel: ${esc(f.phone || "N/A")} | ${esc(f.neighborhood)}</option>`).join("");
     } catch(e){}
   }
@@ -797,7 +853,7 @@
     if(e.target && e.target.id === "inp-client") {
       let val = e.target.value.trim().toLowerCase();
       try {
-        let favs = JSON.parse(localStorage.getItem("express_clients_favs") || "{}");
+        let favs = JSON.parse(localStorage.getItem("express_clients_favs_" + currentUser?.uid) || "{}");
         if(favs[val]) {
           let f = favs[val];
           if(document.getElementById("inp-phone")) document.getElementById("inp-phone").value = f.phone || "";
@@ -852,8 +908,18 @@
 
   window.logout = async function() {
     stopGpsTracking();
+    if(currentUser && role !== "admin") {
+      if(role === "courier") await set(ref(db, "courierPresence/" + currentUser.uid + "/availableForWork"), false);
+      if(tokenKeyForDevice) await set(ref(db, "fcmTokens/" + currentUser.uid + "/" + tokenKeyForDevice), null);
+      if("serviceWorker" in navigator && !window.Capacitor?.isNativePlatform?.()) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        const subscription = await registration?.pushManager?.getSubscription();
+        if(subscription) { await set(ref(db, "pushSubscriptions/" + currentUser.uid + "/" + await digestKey(subscription.endpoint)), null); await subscription.unsubscribe(); }
+      }
+      if(presenceSessionRef) await set(presenceSessionRef, null);
+    }
     stopDataListeners();
-    try { await signOut(auth); } catch (err) {}
+    await signOut(auth);
     currentUser = null; actor = ""; role = "store"; data.orders = []; data.stores = []; data.couriers = [];
     document.getElementById("login-screen").style.display = "flex";
   };
@@ -877,34 +943,35 @@
     box.style.display = message ? "block" : "none";
   }
 
-  function stopDataListeners() { unsubscribers.forEach(fn => { try { fn(); } catch (_) {} }); unsubscribers = []; orderSources.clear(); data.orders = []; currentPresenceBusy = null; }
-  
-  function listenOrders(sourceKey) {
-    unsubscribers.push(onValue(ref(db, "orders"), snap => {
-      let raw = snap.val() || {};
-      let orders = Object.entries(raw).map(([id, value]) => ({ id, ...value }));
-      if (role === "store") orders = orders.filter(o => o.storeId === actor);
-      if (role === "courier") orders = orders.filter(o => (o.status === "open" && (!o.assignedCourierId || o.assignedCourierId === actor)) || o.status === "cotacao" || o.courierId === actor || o.status === "cancelado_cotacao");
-      orderSources.set(sourceKey, new Map(orders.map(o => [o.id, o])));
-      let merged = new Map();
-      orderSources.forEach(source => source.forEach((value,key) => merged.set(key,value)));
-      let newOrdersList = Array.from(merged.values());
-      
-      if (lastOrderCount > 0 && newOrdersList.length > lastOrderCount) {
-        playBeep();
-        toast("🔔 Novo pedido ou cotação recebida!", "warn");
-      }
-      lastOrderCount = newOrdersList.length;
-      data.orders = newOrdersList;
-
-      if (role === "courier") {
-        syncCourierPresenceBusy();
-        let activeOrder = data.orders.find(o => o.status === "run" && o.courierId === actor);
-        if (activeOrder && trackingOrderId !== activeOrder.id) startGpsTracking(activeOrder.id);
-        else if (!activeOrder && trackingOrderId) stopGpsTracking();
-      }
-      render();
-    }));
+  function stopDataListeners() {
+    unsubscribers.forEach(fn => { try { fn(); } catch (_) {} }); unsubscribers = [];
+    if(presenceTimer) clearInterval(presenceTimer);
+    presenceTimer = null; presenceSessionRef = null;
+    stopGpsTracking(); orderSources.clear(); data.orders = []; data.presence = [];
+    data.stores = []; data.couriers = []; data.alerts = []; connections = {}; ownBids = {}; pushPreferences = {}; lastOrderCount = 0;
+    document.getElementById("content").innerHTML = "";
+  }
+  function mergeOrders() {
+    const merged = new Map();
+    orderSources.forEach(source => source.forEach((value, id) => merged.set(id, { id, ...value })));
+    data.orders = Array.from(merged.values()).map(order => ownBids[order.id] && order.status === "cotacao" ? { ...order, bids: { [actor]: ownBids[order.id] } } : order);
+    if(role === "courier") {
+      const active = data.orders.find(o => o.status === "run" && o.courierId === actor);
+      if(active && trackingOrderId !== active.id) startGpsTracking(active.id);
+      else if(!active && trackingOrderId) stopGpsTracking();
+    }
+    if(pendingPushOrderId) {
+      const selected = data.orders.find(o => o.id === pendingPushOrderId);
+      if(selected) view = selected.status === "cotacao" ? "quotes" : selected.status === "run" ? "run" : selected.status === "done" ? "done" : "available";
+    }
+    render();
+  }
+  function listenOrders(sourceKey, path) {
+    unsubscribers.push(onValue(ref(db, path), snap => {
+      const entries = Object.entries(snap.val() || {});
+      orderSources.set(sourceKey, new Map(entries));
+      mergeOrders();
+    }, error => toast("Não foi possível carregar seus pedidos: " + error.message, "warn")));
   }
 
   async function initializeSession(user) {
@@ -913,18 +980,18 @@
     if (activeSessionUid === user.uid && currentUser) return;
     sessionInitPromise = (async () => {
       if (pendingProfileWrite) await pendingProfileWrite;
+      if(auth.currentUser?.uid !== user.uid) return;
       currentUser = user;
-      if(pendingFcmToken) { try { await saveNativeFcmToken(pendingFcmToken); } catch(error) { console.warn("Token FCM pendente não foi salvo:", error); } }
       let token = await getIdTokenResult(user, true);
       let isAdmin = token.claims && token.claims.admin === true;
       if (adminLoginRequested && !isAdmin) { await signOut(auth); throw new Error("Esta conta não possui permissão de administrador."); }
       if (isAdmin) { role = "admin"; actor = "admin"; }
       else {
-        let storeSnap = await get(ref(db, "stores/" + user.uid));
-        let courierSnap = await get(ref(db, "couriers/" + user.uid));
+        let storeSnap = await get(ref(db, "profiles/stores/" + user.uid));
+        let courierSnap = await get(ref(db, "profiles/couriers/" + user.uid));
         if (storeSnap.exists()) { role = "store"; actor = user.uid; }
         else if (courierSnap.exists()) { role = "courier"; actor = user.uid; }
-        else { await signOut(auth); throw new Error("Cadastro não encontrado para esta conta."); }
+        else { await signOut(auth); throw new Error("Cadastro incompleto. Abra Criar Conta e informe os mesmos dados para concluir."); }
       }
       activeSessionUid = user.uid;
       adminLoginRequested = false;
@@ -932,6 +999,12 @@
       setAuthFeedback("", "info");
       view = role === "courier" ? "available" : "dashboard";
       startDataListeners(); render();
+      if(role !== "admin" && window.Capacitor?.isNativePlatform?.()) {
+        await setupNativePushListeners();
+        const pushApi = window.ExpressNativePush?.PushNotifications;
+        if(pushApi && (await pushApi.checkPermissions()).receive === "granted") await pushApi.register();
+        if(pendingFcmToken) await saveNativeFcmToken(pendingFcmToken);
+      }
       refreshSavedClientsDatalist();
       checkUrlTracking();
     })();
@@ -946,19 +1019,22 @@
     startAlertsListener();
     loadWeather();
     if (role === "admin") {
-      unsubscribers.push(onValue(ref(db, "stores"), snap => { let v=snap.val()||{}; data.stores=Object.entries(v).map(([id,x])=>({id,...x})); render(); }));
-      unsubscribers.push(onValue(ref(db, "couriers"), snap => {
+      unsubscribers.push(onValue(ref(db, "profiles/stores"), snap => { let v=snap.val()||{}; data.stores=Object.entries(v).map(([id,x])=>({id,...x})); render(); }));
+      unsubscribers.push(onValue(ref(db, "profiles/couriers"), snap => {
         let v=snap.val()||{}; data.couriers=Object.entries(v).map(([id,x])=>({id,...x}));
-        data.couriers.forEach(c => ensurePresenceRecord(c.id));
         render();
       }));
-      listenOrders("admin");
+      listenOrders("admin", "orders");
     } else if (role === "store") {
-      unsubscribers.push(onValue(ref(db,"stores/"+actor), snap => { let v=snap.val(); data.stores = v ? [{id:actor,...v}] : []; render(); }));
-      listenOrders("store");
+      unsubscribers.push(onValue(ref(db,"profiles/stores/"+actor), snap => { let v=snap.val(); data.stores = v ? [{id:actor,...v}] : []; render(); }));
+      listenOrders("store", "storeOrders/" + actor);
     } else {
-      unsubscribers.push(onValue(ref(db,"couriers/"+actor), snap => { let v=snap.val(); data.couriers = v ? [{id:actor,...v}] : []; render(); }));
-      listenOrders("courier");
+      unsubscribers.push(onValue(ref(db,"profiles/couriers/"+actor), snap => { let v=snap.val(); data.couriers = v ? [{id:actor,...v}] : []; render(); }));
+      listenOrders("available", "availableOrders");
+      listenOrders("quotes", "quoteBoard");
+      listenOrders("courier", "courierOrders/" + actor);
+      unsubscribers.push(onValue(ref(db, "courierBids/" + actor), snap => { ownBids = snap.val() || {}; mergeOrders(); }));
+      unsubscribers.push(onValue(ref(db, "pushPreferences/" + actor), snap => { pushPreferences = snap.val() || {}; }));
     }
     unsubscribers.push(onValue(ref(db,"config/rates"), snap => {
       let value = snap.val();
@@ -1014,64 +1090,37 @@
     renderHero();
   }
 
-  function ensurePresenceRecord(uid) {
-    if (!uid) return;
-    runTransaction(ref(db, "courierPresence/" + uid), current => current || {
-      registered:true, online:false, busy:false, availableForWork:false, lastSeen:Date.now()
-    }).catch(() => {});
-  }
-
   function startPresenceTracking() {
-    unsubscribers.push(onValue(ref(db, "courierPresence"), snap => {
-      const raw = snap.val() || {};
-      data.presence = Object.entries(raw).map(([id,value]) => ({ id, ...(value || {}) })).filter(p => p.registered === true);
+    const recalculate = () => {
+      data.presence = (data.presence || []).map(p => ({ ...p, online: Object.values(connections[p.id] || {}).some(c => Date.now() - Number(c.lastSeen || 0) < 90000) }));
       renderHero();
-    }, error => {
-      toast("Não foi possível carregar a presença dos motoboys. Verifique as regras do Firebase.", "warn");
-    }));
-    if (role !== "courier" || !currentUser) return;
-    const connectionRef = ref(db, ".info/connected");
-    unsubscribers.push(onValue(connectionRef, async snap => {
-      if (snap.val() !== true || !currentUser || role !== "courier") return;
-      const presenceRef = ref(db, "courierPresence/" + currentUser.uid);
+    };
+    unsubscribers.push(onValue(ref(db, "courierPresence"), snap => {
+      data.presence = Object.entries(snap.val() || {}).map(([id, value]) => ({ id, ...value }));
+      recalculate(); render();
+    }, () => toast("Não foi possível carregar a disponibilidade.", "warn")));
+    unsubscribers.push(onValue(ref(db, "courierConnections"), snap => { connections = snap.val() || {}; recalculate(); }));
+    presenceTimer = setInterval(() => {
+      recalculate();
+      if(presenceSessionRef && currentUser && navigator.onLine) update(presenceSessionRef, { lastSeen: serverTimestamp() }).catch(() => {});
+    }, 30000);
+    if(role !== "courier") return;
+    const uid = currentUser.uid;
+    presenceSessionRef = ref(db, "courierConnections/" + uid + "/" + crypto.randomUUID());
+    unsubscribers.push(onValue(ref(db, ".info/connected"), async snap => {
+      if(snap.val() !== true || currentUser?.uid !== uid) return;
+      const session = presenceSessionRef;
       try {
-        await onDisconnect(presenceRef).update({
-          online:false, busy:false, lastSeen:serverTimestamp()
-        });
-        await update(presenceRef, {
-          registered:true, online:true, busy:currentPresenceBusy === true, lastSeen:serverTimestamp()
-        });
-      } catch (_) {
-        toast("Não foi possível atualizar seu status online. Verifique as regras do Firebase.", "warn");
-      }
+        await onDisconnect(session).remove();
+        if(currentUser?.uid === uid) await set(session, { lastSeen: serverTimestamp() });
+      } catch(error) { toast("Não foi possível atualizar sua conexão.", "warn"); }
     }));
   }
-
   async function toggleCourierAvailability() {
-    if (role !== "courier" || !currentUser) return;
-    const presence = (data.presence || []).find(p => p.id === currentUser.uid) || {};
-    if (presence.busy === true) {
-      toast("Finalize a entrega atual antes de alterar sua disponibilidade.", "warn");
-      return;
-    }
-    const next = presence.availableForWork !== true;
-    try {
-      await update(ref(db, "courierPresence/" + currentUser.uid), {
-        registered:true, availableForWork:next, lastSeen:serverTimestamp()
-      });
-      toast(next ? "Você está disponível para receber entregas." : "Você pausou o recebimento de novas entregas.");
-      render();
-    } catch (error) {
-      toast("Não foi possível alterar sua disponibilidade. Verifique as regras do Firebase.", "warn");
-    }
-  }
-
-  function syncCourierPresenceBusy() {
-    if (role !== "courier" || !currentUser) return;
-    const isBusy = data.orders.some(o => o.status === "run" && o.courierId === currentUser.uid);
-    if (currentPresenceBusy === isBusy) return;
-    currentPresenceBusy = isBusy;
-    update(ref(db, "courierPresence/" + currentUser.uid), { registered:true, busy:isBusy }).catch(() => {});
+    if(role !== "courier" || !currentUser) return;
+    const presence = data.presence.find(p => p.id === currentUser.uid) || {};
+    await set(ref(db, "courierPresence/" + currentUser.uid + "/availableForWork"), presence.availableForWork !== true);
+    toast(presence.availableForWork === true ? "Recebimento de novas ofertas pausado." : "Você pode receber novas ofertas, inclusive em segundo plano.");
   }
 
   function startAlertsListener() {
@@ -1097,10 +1146,10 @@
     updateHeroClock();
     const presence = data.presence || [];
     const total = presence.length;
-    const onlineList = presence.filter(p => p.availableForWork === true);
+    const onlineList = presence.filter(p => p.online === true);
     const online = onlineList.length;
     const occupied = onlineList.filter(p => p.busy === true).length;
-    const available = Math.max(0, online - occupied);
+    const available = onlineList.filter(p => p.availableForWork === true && p.busy !== true).length;
     const offline = Math.max(0, total - online);
     const values = {
       "hero-total":total, "hero-online":online, "hero-available":available,
@@ -1140,22 +1189,31 @@
     busy = true; submit.disabled = true; submit.textContent = "Aguarde...";
     setAuthFeedback(currentAuthMode === "register" ? "Criando sua conta..." : "Verificando dados...", "info");
 
+    const registrationRole = currentLoginRole;
+    let releaseProfileWait;
     try {
       if (currentAuthMode === "register") {
-        let releaseProfileWait;
         pendingProfileWrite = new Promise(resolve => { releaseProfileWait = resolve; });
-        let credential = await createUserWithEmailAndPassword(auth, email, password);
-        let profile = { name, phone, email, address: "", created: Date.now() };
-        let path = currentLoginRole === "store" ? "stores" : "couriers";
-        if (path === "couriers") profile.vehicle = "Moto";
-        try { await set(ref(db, path + "/" + credential.user.uid), profile); }
+        let credential;
+        try { credential = await createUserWithEmailAndPassword(auth, email, password); }
+        catch(error) {
+          if(error.code !== "auth/email-already-in-use") throw error;
+          credential = await signInWithEmailAndPassword(auth, email, password);
+        }
+        try {
+          const ownStore = await get(ref(db, "profiles/stores/" + credential.user.uid));
+          const ownCourier = await get(ref(db, "profiles/couriers/" + credential.user.uid));
+          if(!ownStore.exists() && !ownCourier.exists()) await command("createProfile", null, { name, phone, role: registrationRole });
+        } catch(error) { await signOut(auth); throw error; }
         finally { releaseProfileWait(); pendingProfileWrite = null; }
         await initializeSession(credential.user);
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
     } catch (err) {
-      if (pendingProfileWrite) pendingProfileWrite = null;
+      console.warn("Falha no cadastro/login:", err.code, err.message);
+      if (releaseProfileWait) releaseProfileWait();
+      pendingProfileWrite = null;
       setAuthFeedback(authError(err), "error");
     } finally {
       busy = false; submit.disabled = false;
@@ -1165,11 +1223,6 @@
 
   onAuthStateChanged(auth, async user => {
     if (!user) {
-      if (role === "courier" && activeSessionUid) {
-        update(ref(db, "courierPresence/" + activeSessionUid), {
-          registered:true, online:false, busy:false, lastSeen:serverTimestamp()
-        }).catch(() => {});
-      }
       currentUser = null; activeSessionUid = null;
       stopDataListeners();
       if (!adminLoginRequested) document.getElementById("login-screen").style.display = "flex";
@@ -1186,6 +1239,9 @@
       view = "profile"; render(); return;
     }
     document.getElementById("order-sheet-overlay").classList.add("active");
+    const form = document.getElementById("mobile-order-form");
+    if(!editId) form.reset();
+    delete form.dataset.requestId; delete form.dataset.payloadFingerprint;
     prepareSheet(editId, mode || "delivery");
   };
 
@@ -1240,9 +1296,9 @@
 
   function configureOrderFormMode(isQuote, completing){
     ["field-street","field-number","field-reference","field-client","field-phone","field-payment","field-zone","field-notes","section-addons"].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isQuote?"none":"";});
-    const city=document.getElementById("field-city");if(city)city.style.display=isQuote?"":"none";
+    const city=document.getElementById("field-city");if(city)city.style.display="";
     ["inp-street","inp-number","inp-client"].forEach(id=>{const el=document.getElementById(id);if(el)el.required=!isQuote;});
-    const ci=document.getElementById("quote-city");if(ci)ci.required=isQuote;
+    const ci=document.getElementById("quote-city");if(ci){ci.required=true;if(!ci.value)ci.value="ARACRUZ";}
     const nb=document.getElementById("input-neighborhood");if(nb)nb.required=true;
     const t=document.getElementById("section-quote-toggle");if(t)t.style.display="none";
     const p=document.getElementById("box-price-display");if(p)p.style.display=isQuote?"none":"flex";
@@ -1252,9 +1308,11 @@
   function refreshZoneSelect() {
     let select = document.getElementById("zone-select-mobile");
     if (select) {
+      const selected = select.value;
       let zones = data.rates.zones || defaultRates.zones;
       select.innerHTML = '<option value="">Standard — Sede e Bairros (Padrão)</option>' +
         Object.keys(zones).filter(z => z !== "Sede e Bairros (Padrão)").map(z => `<option value="${esc(z)}">${esc(z)} — ${cash(zones[z])}</option>`).join("");
+      select.value = selected;
     }
   }
 
@@ -1275,7 +1333,8 @@
       let b = document.getElementById("chk-bag-mob").checked;
       let k = document.getElementById("chk-bank-mob").checked;
       let zoneVal = document.getElementById("zone-select-mobile").value;
-      let total = calculateFee(p, false, b, k, zoneVal);
+      const prior = data.orders.find(o => o.id === editId);
+      let total = prior?.agreedFee || calculateFee(p, false, b, k, zoneVal);
       document.getElementById("quote-price-mobile").textContent = cash(total);
     }
   }
@@ -1285,12 +1344,11 @@
   function calculateFee(paymentMethod, isRain, isBag, isBank, selectedZone) {
     let zones = data.rates.zones || defaultRates.zones;
     let base = selectedZone && zones[selectedZone] ? Number(zones[selectedZone]) : Number(zones["Sede e Bairros (Padrão)"] || 7);
-    let hour = new Date().getHours();
+    let hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "America/Sao_Paulo", hour: "2-digit", hourCycle: "h23" }).format(new Date()));
     if (paymentMethod === "card") base = Math.max(base, 10);
     if (hour >= 23) base = Math.max(base, 10);
     else if (hour >= 18) base += Number(data.rates.night ?? 3);
     if (isRain) base = Math.max(base, 10);
-    if ([0,6].includes(new Date().getDay())) base = Math.max(base, paymentMethod === "card" ? 10 : 7);
     if (isBank) base = Math.max(base, Number(data.rates.bankService || 10));
     if (isBag) base += Number(data.rates.bag ?? 10);
     return Math.max(0, Math.round(base * 100) / 100);
@@ -1306,15 +1364,16 @@
     return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
   }
 
-  function startGpsTracking(orderId) {
-    if (!navigator.geolocation) return;
-    if (trackingOrderId === orderId && watchId !== null) return;
+  async function startGpsTracking(orderId) {
+    const background = window.Capacitor?.isNativePlatform?.() ? window.ExpressNativePush?.BackgroundGeolocation : null;
+    if (!background && !navigator.geolocation) { toast("GPS indisponível neste aparelho.", "warn"); return; }
+    if (trackingOrderId === orderId) return;
     stopGpsTracking();
     trackingOrderId = orderId;
     lastGpsWriteAt = 0;
     lastGpsCoords = null;
     gpsWriteInFlight = false;
-    watchId = navigator.geolocation.watchPosition(async (position) => {
+    const onPosition = async (position) => {
       if (trackingOrderId !== orderId || gpsWriteInFlight) return;
       const now = Date.now();
       const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
@@ -1327,25 +1386,46 @@
 
       const location = { ...coords, updatedAt: now };
       const currentOrder = data.orders.find(item => item.id === orderId);
-      if (!currentOrder || currentOrder.status !== "run" || !currentOrder.trackingToken) return;
+      if (!currentOrder || currentOrder.status !== "run" || currentOrder.courierId !== currentUser?.uid) { stopGpsTracking(); return; }
 
       gpsWriteInFlight = true;
       try {
-        await Promise.all([
-          update(ref(db, "orders/" + orderId), { location }),
-          syncPublicTracking(orderId, { ...currentOrder, location, status: "run" })
-        ]);
+        await command("location", orderId, coords);
+        gpsErrorShown = false;
         lastGpsWriteAt = now;
         lastGpsCoords = coords;
       } catch (err) {
-        // A próxima posição válida tentará novamente sem interromper o rastreamento.
+        if(!gpsErrorShown) { toast("Localização não enviada. Verifique conexão e autorização.", "warn"); gpsErrorShown = true; }
+        if(["functions/permission-denied", "functions/failed-precondition"].includes(err.code)) stopGpsTracking();
       } finally {
         gpsWriteInFlight = false;
       }
-    }, () => {}, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 });
+    };
+    const onGpsError = error => {
+      if(!gpsErrorShown) { toast((error.code === 1 || error.code === "NOT_AUTHORIZED") ? "Permita o acesso à localização para acompanhar a corrida." : "GPS sem posição recente. Verifique o sinal.", "warn"); gpsErrorShown = true; }
+      if(error.code === 1 || error.code === "NOT_AUTHORIZED") stopGpsTracking();
+    };
+    if(background) {
+      try {
+        const pushApi = window.ExpressNativePush.PushNotifications;
+        let permission = await pushApi.checkPermissions();
+        if(permission.receive !== "granted") permission = await pushApi.requestPermissions();
+        if(permission.receive !== "granted") { toast("Permita as notificações para mostrar o aviso de localização durante a corrida.", "warn"); stopGpsTracking(); return; }
+        const watcher = await background.addWatcher({ backgroundTitle: "Corrida em andamento", backgroundMessage: "Localização ativa durante esta entrega.", requestPermissions: true, stale: false, distanceFilter: 30 }, (location, error) => {
+          if(error) return onGpsError(error);
+          if(location && trackingOrderId === orderId) onPosition({ coords: { latitude: location.latitude, longitude: location.longitude } });
+        });
+        if(trackingOrderId === orderId) nativeGpsWatcher = watcher;
+        else await background.removeWatcher({ id: watcher });
+      } catch(error) { onGpsError(error); stopGpsTracking(); }
+    } else watchId = navigator.geolocation.watchPosition(onPosition, onGpsError, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 });
   }
 
   function stopGpsTracking() {
+    if(nativeGpsWatcher) {
+      window.ExpressNativePush?.BackgroundGeolocation?.removeWatcher({ id: nativeGpsWatcher }).catch(() => {});
+      nativeGpsWatcher = null;
+    }
     if (watchId !== null && navigator.geolocation) {
       navigator.geolocation.clearWatch(watchId);
       watchId = null;
@@ -1362,40 +1442,12 @@
     return Array.from(bytes, b => b.toString(16).padStart(2,"0")).join("");
   }
 
-  function publicTrackingPayload(order){
-    return {
-      orderCode: String(order.orderCode || "Express"),
-      status: String(order.status || "open"),
-      serviceTypeLabel: serviceTypeLabel(order.serviceType),
-      location: order.status === "run" && order.location ? {
-        lat: Number(order.location.lat),
-        lng: Number(order.location.lng),
-        updatedAt: Number(order.location.updatedAt || Date.now())
-      } : null,
-      updatedAt: Date.now()
-    };
-  }
-
-  async function syncPublicTracking(orderId, order){
-    if(!order || !order.trackingToken) return;
-    await set(ref(db, "publicTracking/" + order.trackingToken), publicTrackingPayload(order));
-  }
-
   async function shareTrackingWhatsApp(orderId){
-    const orderRef = ref(db, "orders/" + orderId);
-    const result = await runTransaction(orderRef, current => {
-      if(!current) return;
-      if(!current.trackingToken) current.trackingToken = createTrackingToken();
-      return current;
-    });
-    if(!result.committed) throw new Error("Não foi possível preparar o link de rastreamento.");
-    const order = result.snapshot.val();
-    await syncPublicTracking(orderId, order);
-    const link = `${window.location.origin}${window.location.pathname}#track=${order.trackingToken}`;
-    const message = `Olá! Você pode acompanhar sua entrega pelo link: ${link}`;
-    const whatsappUrl = "https://wa.me/?text=" + encodeURIComponent(message);
-    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-    toast("Link de rastreamento preparado para compartilhar.");
+    const base = firebaseConfig.publicTrackingBaseUrl;
+    if(!base || !base.startsWith("https://")) throw new Error("Endereço público de rastreamento ainda não configurado para os testes.");
+    const result = await command("tracking", orderId);
+    const link = base.split("#")[0] + "#track=" + result.token;
+    window.open("https://wa.me/?text=" + encodeURIComponent("Olá! Você pode acompanhar sua entrega pelo link: " + link), "_blank", "noopener,noreferrer");
   }
 
   function urlBase64ToUint8Array(value){
@@ -1409,7 +1461,7 @@
     if(window.Capacitor?.isNativePlatform?.()){
       const pushApi = window.ExpressNativePush?.PushNotifications;
       if(!pushApi){ toast("Módulo nativo de notificações não foi carregado. Gere novamente o APK.", "warn"); return; }
-      if(role !== "courier"){ toast("A ativação de notificações nativas está disponível para motoboys.", "warn"); return; }
+      if(role === "admin"){ toast("Entre com uma conta de loja ou motoboy para ativar notificações.", "warn"); return; }
       if(!currentUser){ toast("Entre na sua conta antes de ativar as notificações.", "warn"); return; }
       const listenersReady = await setupNativePushListeners();
       if(!listenersReady){ toast("Não foi possível preparar o registro FCM. Gere novamente o APK após corrigir a integração Android.", "warn"); return; }
@@ -1424,6 +1476,7 @@
     if(!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)){
       toast("Este aparelho ou navegador não oferece suporte a notificações push.", "warn"); return;
     }
+    if(role === "admin" || !currentUser) throw new Error("Entre com uma conta de loja ou motoboy para ativar notificações.");
     const vapidKey = firebaseConfig.vapidPublicKey;
     if(!vapidKey){
       toast("Falta configurar a chave pública VAPID no Firebase de testes. A inscrição ainda não pode ser concluída.", "warn"); return;
@@ -1438,12 +1491,10 @@
         applicationServerKey: urlBase64ToUint8Array(vapidKey)
       });
     }
-    const subscriptionId = btoa(subscription.endpoint).replace(/[^a-zA-Z0-9_-]/g,"").slice(-48) || createTrackingToken().slice(0,48);
+    const subscriptionId = await digestKey(subscription.endpoint);
     await set(ref(db, "pushSubscriptions/" + currentUser.uid + "/" + subscriptionId), {
       endpoint: subscription.endpoint,
-      expirationTime: subscription.expirationTime || null,
       keys: subscription.toJSON().keys || {},
-      platform: /Android/i.test(navigator.userAgent) ? "Android" : "Web",
       updatedAt: Date.now()
     });
     toast("Este aparelho foi inscrito para receber notificações.");
@@ -1463,13 +1514,13 @@
   function mine(){ return data.orders.filter(o => role === "store" ? o.storeId === actor : role === "courier" ? o.courierId === actor : true); }
 
   function items(){
-    if (role === "store") return [["dashboard","⌂","Visão geral"],["new","＋","Pedir motoboy"],["quotes","💬","Cotações"],["alerts","🔔","Alertas"],["reports","📊","Relatórios"],["profile","⚙️","Perfil"],["open","◷","Em aberto"],["done","✓","Concluídos"]];
-    else if (role === "courier") return [["available","＋","Disponíveis"],["quotes","💬","Cotações"],["alerts","🔔","Alertas"],["reports","📊","Relatórios"],["run","◷","Em execução"],["done","✓","Concluídos"]];
+    if (role === "store") return [["dashboard","⌂","Visão geral"],["new","＋","Pedir motoboy"],["quotes","💬","Cotações"],["done","✓","Concluídos"],["reports","📊","Relatório"],["alerts","🔔","Alertas"]];
+    else if (role === "courier") return [["available","＋","Disponíveis"],["quotes","💬","Cotações"],["run","◷","Em execução"],["done","✓","Concluídos"],["reports","📊","Relatório"],["alerts","🔔","Alertas"]];
     else return [["dashboard","⌂","Visão geral"],["all","▣","Todos"],["quotes","💬","Cotações"],["alerts","🔔","Alertas"],["reports","📊","Relatórios"],["rates","R$","Taxas"],["registry","♙","Cadastros"]];
   }
 
   function title(){ return ({dashboard:"Visão geral",new:"Solicitar motoboy",quotes:"Mural de Cotações",alerts:"Central de Alertas",reports:"Relatórios de Caixa",profile:"Perfil da Loja",open:"Pedidos em aberto",available:"Pedidos disponíveis",run:"Em execução",done:"Concluídos",rates:"Tabela de Taxas",registry:"Cadastros Globais"})[view]||"Visão geral"; }
-  function toast(s,t){ let e=document.createElement("div"); e.className="toast "+(t||""); e.textContent=s; document.getElementById("toasts").appendChild(e); setTimeout(()=>e.remove(),4000); }
+  function toast(s,t){ let e=document.createElement("div"); e.className="toast "+(t||""); e.textContent=s; document.getElementById("toasts").replaceChildren(e); setTimeout(()=>e.remove(),4000); }
   function empty(a,b){ return '<div class="empty"><b>'+a+'</b>'+b+'</div>'; }
   function stat(a,b,c,d){ return '<div class="stat"><div class="stat-top">'+a+'</div><div class="stat-value">'+b+'</div><div class="stat-sub">'+c+'</div></div>'; }
   function canLoc(o){ return role === "admin" || o.storeId === actor || (role === "courier" && o.courierId === actor); }
@@ -1550,19 +1601,19 @@
     }
 
     if (o.status === "done") {
-      action = o.paid ? '<span class="tag green">✓ Pago Confirmado</span>' : (role === "courier" || role === "admin" ? '<button type="button" class="btn primary tiny" data-action="toggle-pay" data-id="'+o.id+'">💵 Confirmar Recebimento</button>' : '<span class="tag gray">Aguardando acerto do motoboy</span>');
+      action = o.paid ? '<span class="tag green">✓ Pago Confirmado</span>' : '<button type="button" class="btn primary tiny" data-action="toggle-pay" data-id="'+o.id+'">'+(role === "store" ? '💵 Informar pagamento' : '💵 Confirmar recebimento')+'</button>' ;
     }
     
     if (role === "store" && o.status === "run" && !o.picked && canCancelFree) action += ` <button type="button" class="btn danger tiny" data-action="cancel-free" data-id="${o.id}">⚠️ Cancelar sem custo</button>`;
 
     let trackingShareHtml = (role === "store" || role === "admin") ? `<div style="margin-top:8px;background:#F2F3F5;padding:8px 10px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;"><span style="font-size:11px;">🔗 <b>Rastreio do cliente</b></span><button type="button" class="btn secondary tiny" data-action="share-whatsapp" data-id="${o.id}" style="background:#fff;">Compartilhar WhatsApp</button></div>` : "";
-    let gpsTrackingInfo = (canLoc(o) && o.location && o.status === "run") ? `<div class="gps" style="margin-top:6px; background:var(--mint); padding:8px; border-radius:10px;">📍 <b>Motoboy em trânsito:</b> <a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" style="color:var(--green-dark); font-weight:bold;">Acompanhar Mapa</a></div>` : "";
+    let gpsTrackingInfo = (canLoc(o) && o.location && o.status === "run") ? `<div class="gps" style="margin-top:6px; background:var(--mint); padding:8px; border-radius:10px;">📍 <b>Motoboy em trânsito:</b> <a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" style="color:var(--green-dark); font-weight:bold;">Acompanhar Mapa</a> · Última posição: ${date(o.location.updatedAt)}</div>` : "";
     let isSpecialQuote = o.status === "cotacao" || o.status === "cotacao_aceita";
     let locationLine = isSpecialQuote ? [o.city, o.clientNeighborhood].filter(Boolean).map(esc).join(" · ") : [o.clientStreet, o.clientNumber ? "nº "+o.clientNumber : "", o.clientNeighborhood].filter(Boolean).map(esc).join(", ");
-    let clientLine = isSpecialQuote ? "Cotação especial · sem dados do cliente nesta etapa" : "Cliente: <b>"+esc(o.client)+"</b> "+(o.phone ? "("+esc(o.phone)+")" : "");
+    let clientLine = (isSpecialQuote || (role === "courier" && !o.courierId)) ? "Cotação especial · sem dados do cliente nesta etapa" : "Cliente: <b>"+esc(o.client)+"</b> "+(o.phone ? "("+esc(o.phone)+")" : "");
     let serviceBadge = o.serviceType === "collection" ? '<span class="tag orange">🔄 RECOLHA</span>' : o.serviceType === "roundtrip" ? '<span class="tag purpletag">🔁 2 VIAGENS</span>' : '<span class="tag bluetag">🚚 ENTREGA</span>';
 
-    return '<article class="order '+queueClass+'"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+locationLine+'</h3><div class="order-store">'+clientLine+'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>'+queueBadge+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+pickupTimerHtml+' '+runDurationHtml+'</div>'+trackingShareHtml+bidsHtml+gpsTrackingInfo+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
+    return '<article data-order-id="'+esc(o.id)+'" class="order '+queueClass+'"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+locationLine+'</h3><div class="order-store">'+clientLine+'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>'+queueBadge+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+pickupTimerHtml+' '+runDurationHtml+'</div>'+trackingShareHtml+bidsHtml+gpsTrackingInfo+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
   }
 
   function render(){
@@ -1578,13 +1629,20 @@
     document.getElementById("role").innerHTML = [["store","Lojista"],["courier","Motoboy"],["admin","Administrador"]].map(x => '<option value="'+x[0]+'" '+(role===x[0]?"selected":"")+'>'+x[1]+'</option>').join("");
     document.getElementById("actor").innerHTML = people.map(p => '<option value="'+esc(p.id)+'" '+(p.id===actor?"selected":"")+'>'+esc(p.name)+'</option>').join("");
     document.getElementById("actor").disabled = role === "admin" || !people.length;
+    document.getElementById("avatar").dataset.nav = role === "store" ? "profile" : "dashboard";
     document.getElementById("avatar").textContent = initials(role === "admin" ? "Admin" : (person()||{}).name);
     document.getElementById("crumb").textContent = label + " / " + title(); document.getElementById("page-title").textContent = title();
     const presence = role === "courier" ? (data.presence || []).find(p => p.id === currentUser?.uid) || {} : {};
     const availabilityPanel = role === "courier"
-      ? '<section class="panel" style="margin:0 0 14px;border:1px solid '+(presence.availableForWork === true ? '#A7F3D0' : '#E5E7EB')+';background:'+(presence.availableForWork === true ? '#F0FDF4' : '#F8FAFC')+'"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b style="display:block">STATUS DE DISPONIBILIDADE</b><small style="color:var(--muted)">'+(presence.busy === true ? 'VOCÊ ESTÁ EM UMA ENTREGA' : presence.availableForWork === true ? 'VOCÊ PODE RECEBER NOVOS PEDIDOS E COTAÇÕES' : 'VOCÊ NÃO RECEBERÁ NOVOS PEDIDOS E COTAÇÕES')+'</small></div><button type="button" class="btn '+(presence.availableForWork === true ? 'danger' : 'primary')+' tiny" data-toggle-availability '+(presence.busy === true ? 'disabled' : '')+'>'+(presence.availableForWork === true ? 'PAUSAR' : 'FICAR DISPONÍVEL')+'</button></div></section>'
+      ? '<section class="panel" style="margin:0 0 14px;border:1px solid '+(presence.availableForWork === true ? '#A7F3D0' : '#E5E7EB')+';background:'+(presence.availableForWork === true ? '#F0FDF4' : '#F8FAFC')+'"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b style="display:block">STATUS DE DISPONIBILIDADE</b><small style="color:var(--muted)">'+(presence.busy === true ? 'VOCÊ ESTÁ EM UMA ENTREGA' : presence.availableForWork === true ? 'VOCÊ PODE RECEBER NOVOS PEDIDOS E COTAÇÕES' : 'VOCÊ NÃO RECEBERÁ NOVOS PEDIDOS E COTAÇÕES')+'</small></div><button type="button" class="btn '+(presence.availableForWork === true ? 'danger' : 'primary')+' tiny" data-toggle-availability>'+(presence.availableForWork === true ? 'PAUSAR' : 'FICAR DISPONÍVEL')+'</button></div></section>'
       : '';
-    document.getElementById("content").innerHTML = availabilityPanel + show();
+    document.getElementById("content").innerHTML = availabilityPanel + (role === "courier" ? '<button class="btn secondary tiny" type="button" data-action="push-settings">Notificações e som</button>' : '') + show();
+    if(pendingPushOrderId) {
+      const card = document.querySelector('[data-order-id="' + CSS.escape(pendingPushOrderId) + '"]');
+      if(!card && data.orders.some(order => order.id === pendingPushOrderId && order.status === "cotacao")) { view = "quotes"; document.getElementById("content").innerHTML = availabilityPanel + show(); }
+      const target = document.querySelector('[data-order-id="' + CSS.escape(pendingPushOrderId) + '"]');
+      if(target) { target.scrollIntoView({ block: "center" }); target.style.outline = "2px solid var(--primary)"; pendingPushOrderId = null; }
+    }
     renderHero();
   }
 
@@ -1675,7 +1733,7 @@
         await set(alertRef, {
           senderId: currentUser.uid,
           senderRole: role,
-          senderName: String((person() || {}).name || (role === "courier" ? "MOTOBOY" : "LOJISTA")).toLocaleUpperCase("pt-BR").slice(0,60),
+          senderName: String((person() || {}).name || ""),
           message,
           createdAt: Date.now(),
           expiresAt: Date.now() + 2 * 60 * 60 * 1000
@@ -1694,7 +1752,7 @@
       let phone = document.getElementById("prof-phone").value.trim();
       let address = document.getElementById("prof-address").value.trim();
       try {
-        await update(ref(db, "stores/" + actor), { name, phone, address });
+        await command("saveProfile", null, { name, phone, address });
         toast("Perfil atualizado com sucesso!");
         view = "dashboard"; render();
       } catch(err) { toast("Erro ao salvar: " + err.message, "warn"); }
@@ -1764,129 +1822,80 @@
     return '<div class="head"><div><h1>Cadastros Globais</h1></div></div><div class="grid cols"><section class="panel"><h2>Lojistas ('+data.stores.length+')</h2><div class="list">'+data.stores.map(s => '<div class="chip"><b>'+esc(s.name)+'</b></div>').join("")+'</div></section><section class="panel"><h2>Motoboys ('+data.couriers.length+')</h2><div class="list">'+data.couriers.map(c => '<div class="chip"><b>'+esc(c.name)+'</b></div>').join("")+'</div></section></div>';
   }
 
+  const actionsInFlight = new Set();
   async function act(action, id) {
-    let o = data.orders.find(x => x.id === id);
-    if (action !== "save-rates" && !o) return toast("Pedido não encontrado.", "warn");
-    
-    if (action === "share-whatsapp") { await shareTrackingWhatsApp(id); return; }
-
-    if (action === "send-bid") {
-      let input = document.getElementById("bid-input-" + id);
-      let amount = Number(input ? input.value : 0);
-      if (!amount || amount <= 0) return toast("Informe um valor válido.", "warn");
-      await update(ref(db, `orders/${id}/bids/${actor}`), { amount: amount, courierName: (person()||{}).name || "Motoboy", timestamp: Date.now() });
-      toast("Proposta enviada!"); render();
-    }
-    
-    if (action === "roundtrip-step") {
-      let nextStep = Number(document.querySelector(`[data-action="roundtrip-step"][data-id="${id}"]`)?.dataset.step || 0);
-      if (nextStep < 1 || nextStep > 3 || nextStep !== Number(o.tripStage || 0) + 1) return toast("Etapa da viagem inválida.", "warn");
-      let changes = { tripStage: nextStep };
-      if (nextStep === 1) changes.picked = Date.now();
-      await update(ref(db, "orders/" + id), changes);
-      toast(nextStep === 1 ? "Recolha no cliente confirmada." : nextStep === 2 ? "Entrega na loja confirmada." : "Segunda viagem iniciada.");
+    const lock = action + ":" + id;
+    if(actionsInFlight.has(lock)) return;
+    actionsInFlight.add(lock);
+    try {
+      const order = data.orders.find(o => o.id === id);
+      if(action === "share-whatsapp") return await shareTrackingWhatsApp(id);
+      if(action === "push-settings") return await openPushSettings();
+      if(action === "save-rates") {
+        const zones = {};
+        document.querySelectorAll("[data-zone]").forEach(x => { zones[x.dataset.zone] = Number(x.value); });
+        await command("saveRates", null, { ...data.rates, zones });
+        toast("Taxas salvas."); return;
+      }
+      if(!order) throw new Error("Pedido não encontrado.");
+      let input = {};
+      if(action === "send-bid") input.amount = Number(document.getElementById("bid-input-" + id)?.value);
+      if(action === "roundtrip-step") input.step = Number(document.querySelector(`[data-action="roundtrip-step"][data-id="${id}"]`)?.dataset.step);
+      if(action === "accept-bid") {
+        const button = document.querySelector(`[data-action="accept-bid"][data-id="${id}"]`);
+        if(!button || !confirm("Confirmar contratação por " + cash(button.dataset.amount) + "?")) return;
+        input = { courierId: button.dataset.courier, amount: Number(button.dataset.amount) };
+      }
+      if(["cancel", "cancel-quote", "cancel-free"].includes(action) && !confirm("Confirmar cancelamento desta solicitação?")) return;
+      if(action === "accept") input.rain = confirm("Está chovendo no trajeto? OK para aplicar a condição de chuva.");
+      await command(action, id, input);
+      if(["finish", "cancel", "cancel-free"].includes(action)) stopGpsTracking();
+      if(action === "accept") view = "run";
+      if(action === "finish") view = "done";
+      toast(action === "finish" ? "Entrega concluída. Confirme o pagamento quando realizado." : action === "toggle-pay" ? "Pagamento confirmado e sincronizado." : "Atualização confirmada.");
+      if(action === "accept-bid") {
+        const snapshot = await get(ref(db, "storeOrders/" + actor + "/" + id));
+        orderSources.get("store")?.set(id, snapshot.val()); mergeOrders(); window.openOrderSheet(id, "complete-quote");
+      }
       render();
-    }
-
-    if (action === "accept-bid") {
-      let btn = document.querySelector(`[data-action="accept-bid"][data-id="${id}"]`);
-      if (!btn) return;
-      if (!confirm(`Confirmar contratação por ${cash(btn.dataset.amount)}?`)) return;
-      const selectedCourier = btn.dataset.courier;
-      const result = await runTransaction(ref(db, "orders/" + id), current => {
-        if (!current || current.status !== "cotacao") return;
-        const bid = current.bids && current.bids[selectedCourier];
-        if (!bid || Number(bid.amount) !== Number(btn.dataset.amount)) return;
-        return { ...current, status: "cotacao_aceita", courierId: selectedCourier, assignedCourierId: selectedCourier, courierName: bid.courierName || btn.dataset.cname, fee: Number(bid.amount), agreedFee: Number(bid.amount), quoteAcceptedAt: Date.now() };
-      });
-      if (!result.committed) return toast("Esta cotação já foi aceita ou alterada. Atualize a tela.", "warn");
-      const acceptedOrder = result.snapshot.val();
-      data.orders = data.orders.map(item => item.id === id ? { id, ...acceptedOrder } : item);
-      await syncPublicTracking(id, acceptedOrder);
-      toast("Proposta aceita. Complete os dados do cliente para encaminhar ao motoboy."); view = "dashboard"; render(); window.openOrderSheet(id, "complete-quote");
-    }
-
-    if (action === "cancel-free") {
-      if(role!=="store"||o.status!=="run"||o.picked||!o.accepted||Date.now()-Number(o.accepted)<25*60*1000)return toast("O cancelamento sem custo só fica disponível após 25 minutos sem retirada.","warn");
-      if(!confirm("O prazo de 25 minutos foi excedido e a retirada ainda não foi confirmada. Cancelar este pedido sem custo?"))return;
-      const result=await runTransaction(ref(db,"orders/"+id),current=>{
-        if(!current||current.status!=="run"||current.picked||!current.accepted||Date.now()-Number(current.accepted)<25*60*1000)return;
-        return {...current,status:"cancelled",cancelledAt:Date.now(),cancelledBy:actor,cancellationReason:"Prazo de espera de 25 minutos excedido sem retirada",paid:false,location:null};
-      });
-      if(!result.committed)return toast("Não foi possível cancelar. O pedido pode ter sido atualizado ou a retirada confirmada.","warn");
-      stopGpsTracking();await syncPublicTracking(id,result.snapshot.val());toast("Pedido cancelado sem custo.");render();
-    }
-
-    if (action === "cancel-quote") {
-      if(!confirm("Deseja cancelar este orçamento?")) return;
-      const changes = { status: "cancelado_cotacao" };
-      await update(ref(db, "orders/" + id), changes);
-      await syncPublicTracking(id, { ...o, ...changes });
-      toast("Orçamento cancelado."); render();
-    }
-
-    if (action === "accept") {
-      if (data.orders.some(x => x.status === "run" && x.courierId === actor)) return toast("Finalize a corrida atual.", "warn");
-      let isRaining = confirm("Está chovendo no trajeto?\n\nOK: Aplicar taxa de chuva\nCancelar: Tarifa normal");
-      let newFee = isRaining && !o.rain ? calculateFee(o.paymentMethod, true, o.bag, o.bank, o.selectedZone) : o.fee;
-      try {
-        let result = await runTransaction(ref(db, "orders/" + id), current => {
-          if (!current || current.status !== "open" || (current.assignedCourierId && current.assignedCourierId !== actor)) return;
-          return { ...current, status:"run", courierId:actor, courierName:(person()||{}).name||"Motoboy", accepted:Date.now(), rain:isRaining, fee:newFee, tripStage: current.serviceType === "roundtrip" ? 0 : null };
-        });
-        if (!result.committed) throw new Error("Corrida já aceita por outro motoboy.");
-        await syncPublicTracking(id, result.snapshot.val());
-        toast("Corrida aceita! Use o botão GPS.");
-        startGpsTracking(id);
-        view = "run"; render();
-      } catch(err) { toast(err.message, "warn"); }
-    }
-    if (action === "picked") {
-      await update(ref(db, "orders/" + id), { picked: Date.now() });
-      toast("Retirada confirmada!"); render();
-    }
-    if (action === "finish") {
-      stopGpsTracking();
-      let completedAt = Date.now();
-      let durationMs = o.accepted ? Math.max(0, completedAt - Number(o.accepted)) : 0;
-      const finishChanges = { status: "done", completed: completedAt, durationMs, paid: false, location: null };
-      await update(ref(db, "orders/" + id), finishChanges);
-      await syncPublicTracking(id, { ...o, ...finishChanges });
-      toast("Entrega concluída!"); view = "done"; render();
-    }
-    if (action === "cancel") {
-      if(!confirm("Deseja cancelar e retornar para a fila?")) return;
-      stopGpsTracking();
-      let revertStatus = o.bids && Object.keys(o.bids).length > 0 ? "cotacao" : "open";
-      const cancelChanges = { status: revertStatus, courierId: null, assignedCourierId: null, courierName: null, accepted: null, picked: null, location: null, tripStage: null };
-      await update(ref(db, "orders/" + id), cancelChanges);
-      await syncPublicTracking(id, { ...o, ...cancelChanges });
-      toast("Corrida retornada para a fila."); render();
-    }
-    if (action === "toggle-pay") {
-      await update(ref(db, "orders/" + id), { paid: true });
-      toast("Recebimento confirmado!");
-    }
-    if (action === "save-rates") {
-      let zones = {};
-      document.querySelectorAll("[data-zone]").forEach(x => { zones[x.dataset.zone] = Math.max(0, Number(x.value) || 0); });
-      await set(ref(db, "config/rates"), { zones: zones, night: 3, rain: 3, weekend: 2, bag: 10, bankService: 10 });
-      toast("Taxas salvas com sucesso!");
-    }
+    } finally { actionsInFlight.delete(lock); }
+  }
+  async function openPushSettings() {
+    if(role !== "courier" || !currentUser) return;
+    const dialog = document.createElement("dialog");
+    dialog.style.cssText = "width:min(92vw,420px);border:0;border-radius:18px;padding:22px;color:#222";
+    dialog.innerHTML = '<form><h2 style="margin-top:0">Notificações e som</h2>' +
+      [["enabled","Receber novas ofertas"],["orders","Novos pedidos"],["quotes","Novas cotações"],["reminders","Lembretes a cada 5 minutos"]].map(([key,label]) => '<label style="display:flex;align-items:center;gap:10px;margin:14px 0"><input style="width:auto" type="checkbox" name="'+key+'" '+(pushPreferences[key] !== false ? 'checked' : '')+'>'+label+'</label>').join('') +
+      '<p style="font-size:12px">Atualizações das suas entregas continuam disponíveis quando você pausa novas ofertas.</p>' +
+      (window.Capacitor?.isNativePlatform?.() ? '<button type="button" class="btn secondary full" data-sound-settings>Alterar som no Android</button>' : '') +
+      '<p data-feedback role="status"></p><div style="display:flex;gap:8px;margin-top:16px"><button type="button" class="btn secondary" data-close>Fechar</button><button type="submit" class="btn primary">Salvar preferências</button></div></form>';
+    dialog.querySelector('[data-close]').onclick = () => dialog.close();
+    dialog.querySelector('[data-sound-settings]')?.addEventListener('click', async () => {
+      try { await window.ExpressNativePush.NativeSettings.openAndroid({ option: "app_notification" }); }
+      catch(error) { dialog.querySelector('[data-feedback]').textContent = "Abra Configurações do Android, Aplicativos, Express Entregas, Notificações e escolha a categoria."; }
+    });
+    dialog.querySelector('form').onsubmit = async event => {
+      event.preventDefault();
+      const prefs = Object.fromEntries(["enabled","orders","quotes","reminders"].map(key => [key, dialog.querySelector('[name="'+key+'"]').checked]));
+      try { await set(ref(db, "pushPreferences/" + currentUser.uid), prefs); dialog.close(); toast("Preferências salvas."); }
+      catch(error) { dialog.querySelector('[data-feedback]').textContent = "Não foi possível salvar. Verifique sua conexão."; }
+    };
+    dialog.addEventListener('close', () => dialog.remove(), { once: true });
+    document.body.appendChild(dialog); dialog.showModal();
   }
 
   window.__express = {
     prepareSheet: prepareSheet,
-    setView: function(v){ view = v; render(); },
+    setView: function(v){ if(v === "new" && role === "store") return window.openOrderSheet(); view = v; render(); },
     doAction: function(a, id){ return act(a, id).catch(err => toast(err.message, "warn")); },
     enablePush: function(){ return enablePushNotifications().catch(err => toast(err.message || "Falha ao ativar notificações.", "warn")); },
-    toggleAvailability: function(){ return toggleCourierAvailability(); },
+    toggleAvailability: function(){ return toggleCourierAvailability().catch(error => toast(error.message, "warn")); },
     selectLoginRole: function(r){ window.selectLoginRole(r); },
     setAuthTab: function(m){ window.setAuthTab(m); },
     togglePassword: function(){ window.togglePassword(); },
     loginAsAdmin: function(){ return window.loginAsAdmin(); },
     logout: function(){ return window.logout(); },
-    openSheet: function(id){ window.openOrderSheet(id); },
+    openSheet: function(id, mode){ window.openOrderSheet(id, mode); },
     closeSheet: function(){ window.closeOrderSheet(); }
   };
 
@@ -1899,7 +1908,7 @@
     
     let completingQuote = f.dataset.completingQuote === "true";
     let serviceType = f.serviceType.value;
-    let city = f.elements.namedItem("city").value.trim();
+    let city = f.elements.namedItem("city").value.trim() || "ARACRUZ";
     let clientStreet = f.clientStreet.value.trim();
     let clientNumber = f.clientNumber.value.trim();
     let clientNeighborhood = f.clientNeighborhood.value.trim();
@@ -1933,31 +1942,21 @@
         rain: false, bag: isQuote ? false : b, bank: isQuote ? false : k, fee: completingQuote ? Number(data.orders.find(o=>o.id===editId)?.agreedFee||0) : finalFee, status: isQuote ? "cotacao" : "open"
       };
 
-      if (editId) {
-        if(completingQuote){const prior=data.orders.find(o=>o.id===editId)||{};orderPayload.assignedCourierId=prior.assignedCourierId;orderPayload.courierId=prior.courierId;orderPayload.courierName=prior.courierName;orderPayload.accepted=Date.now();orderPayload.quoteAcceptedAt=prior.quoteAcceptedAt;orderPayload.agreedFee=prior.agreedFee;orderPayload.tripStage=serviceType==="roundtrip"?0:null;}
-        await update(ref(db, "orders/" + editId), orderPayload);
-        await syncPublicTracking(editId,{...data.orders.find(o=>o.id===editId),...orderPayload});
-        toast(completingQuote ? "Pedido completo e encaminhado ao motoboy." : "Atualizado com sucesso!");
-      } else {
-        orderPayload.orderCode = code;
-        orderPayload.trackingToken = createTrackingToken();
-        orderPayload.storeId = s.id;
-        orderPayload.storeName = s.name;
-        orderPayload.storeAddress = s.address;
-        orderPayload.created = Date.now();
-        orderPayload.location = null;
-        orderPayload.paid = false;
-        const newOrderRef = push(ref(db, "orders"));
-        await set(newOrderRef, orderPayload);
-        await syncPublicTracking(newOrderRef.key, orderPayload);
-        toast(isQuote ? "Cotação publicada!" : "Pedido enviado!"); 
-      }
+      const requestId = f.dataset.requestId || crypto.randomUUID();
+      f.dataset.requestId = requestId;
+      const payloadFingerprint = JSON.stringify(orderPayload);
+      if(f.dataset.payloadFingerprint && f.dataset.payloadFingerprint !== payloadFingerprint) f.dataset.requestId = crypto.randomUUID();
+      f.dataset.payloadFingerprint = payloadFingerprint;
+      await command("saveOrder", editId || null, { ...orderPayload, isQuote }, f.dataset.requestId);
+      delete f.dataset.requestId; delete f.dataset.payloadFingerprint;
+      toast(completingQuote ? "Pedido encaminhado ao motoboy contratado." : isQuote ? "Cotação publicada!" : "Pedido salvo!");
       closeOrderSheet(); 
       view = isQuote ? "quotes" : "open"; render();
     } catch(err) { toast("Erro ao enviar: " + err.message, "warn"); }
     finally { submitButton.disabled = false; submitButton.textContent = "Confirmar e Enviar Pedido →"; }
   });
 
+  checkUrlTracking();
   window.__expressModuleReady = true;
 </script>
 <script>

@@ -7,7 +7,7 @@ import test, { before, after, beforeEach } from "node:test";
 const envPromise = initializeTestEnvironment({
   projectId: "demo-express-entregas-security",
   database: {
-    rules: readFileSync(resolve(process.cwd(), "database.rules.candidate.json"), "utf8"),
+    rules: readFileSync(resolve(process.cwd(), "../../database.rules.json"), "utf8"),
     host: "127.0.0.1",
     port: 9000
   }
@@ -17,8 +17,8 @@ before(async () => { env = await envPromise; });
 after(async () => { await env?.cleanup(); });
 beforeEach(async () => {
   await env.clearDatabase();
-  await env.withSecurityRulesDisabled(async ({ database }) => {
-    const db = database();
+  await env.withSecurityRulesDisabled(async context => {
+    const db = context.database();
     const now = Date.now();
     await set(ref(db, "profiles/stores/storeA"), { name: "Loja A" });
     await set(ref(db, "profiles/stores/storeB"), { name: "Loja B" });
@@ -31,7 +31,7 @@ beforeEach(async () => {
     await set(ref(db, "availableOrders/orderB"), true);
     await set(ref(db, "quoteBoard/quoteA"), { city: "Aracruz" });
     await set(ref(db, "courierPresence/courierA"), { registered: true, online: true, busy: false, lastSeen: now });
-    await set(ref(db, "publicTracking/public-token"), { status: "run" });
+    await set(ref(db, "publicTracking/public-token"), { status: "run", expiresAt: Date.now()+600000, revoked: false });
     await set(ref(db, "fcmTokens/storeA/deviceA"), { token: "fake-token-12345678901234567890", platform: "android", updatedAt: now });
   });
 });
@@ -58,7 +58,8 @@ test("presença só fica visível para usuários com perfil válido", async () =
 });
 test("somente o próprio motoboy pode alterar sua presença", async () => {
   const next = { registered: true, online: false, busy: false, lastSeen: Date.now() };
-  await assertSucceeds(set(ref(dbAs("courierA"), "courierPresence/courierA"), next));
+  await assertFails(set(ref(dbAs("courierA"), "courierPresence/courierA"), next));
+  await assertSucceeds(update(ref(dbAs("courierA"), "courierPresence/courierA"), { availableForWork: true }));
   await assertFails(set(ref(dbAs("storeA"), "courierPresence/courierA"), next));
   await assertFails(set(ref(dbAs("courierA"), "courierPresence/courierB"), next));
 });

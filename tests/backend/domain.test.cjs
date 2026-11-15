@@ -1,0 +1,153 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { applyCommand } = require('../../functions/domain');
+const now = Date.parse('2026-11-16T15:00:00Z');
+const auth = uid => ({ uid, token: { email: uid + '@example.test' } });
+function fixture() { return {
+  profiles: { stores: { storeA: { name: 'LOJA A', address: 'RUA DA LOJA', phone: '27999999999' }, storeB: { name: 'LOJA B' } }, couriers: { courierA: { name: 'MOTOBOY A' }, courierB: { name: 'MOTOBOY B' } } },
+  courierPresence: { courierA: { registered: true, busy: false, availableForWork: true }, courierB: { registered: true, busy: false, availableForWork: true } }
+}; }
+const input = extra => ({ serviceType: 'delivery', serviceDate: '2026-11-16', city: 'Aracruz', clientNeighborhood: 'Centro', client: 'CLIENTE PRIVADO', phone: '27999999999', clientStreet: 'RUA PRIVADA', clientNumber: '30', selectedZone: '', paymentMethod: 'money', ...extra });
+let nextId = 0;
+function run(state, uid, action, orderId = null, data = {}, overrides = {}) {
+  const requestId = overrides.requestId || 'request_' + ++nextId;
+  const command = { requestId, action, ...(orderId ? { orderId } : {}), input: data };
+  return applyCommand(state, auth(uid), command, { now, newId: 'orderA', token: 'a'.repeat(64), fingerprint: JSON.stringify(command), ...overrides });
+}
+const create = (state = fixture(), extra) => run(state, 'storeA', 'saveOrder', null, input(extra)).state;
+
+test('pedido ignora campos forjados e gera projeção mínima sem cliente, telefone, endereço ou UID', () => {
+  const state = create(fixture(), { fee: 0.01, courierId: 'attacker', paid: true, storeId: 'storeB' });
+  assert.equal(state.orders.orderA.fee, 7);
+  assert.equal(state.orders.orderA.storeId, 'storeA');
+  assert.equal(state.orders.orderA.paid, false);
+  assert.equal(state.orders.orderA.courierId, undefined);
+  assert.equal(state.storeOrders.storeA.orderA.client, 'CLIENTE PRIVADO');
+  assert.deepEqual(Object.keys(state.availableOrders.orderA).filter(k => /client$|phone|Street|Number|storeId|courierId|tracking/i.test(k)), []);
+});
+test('recibo evita pedido e evento duplicados e rejeita reuso para outra operação', () => {
+  const id = 'same_request';
+  const first = run(fixture(), 'storeA', 'saveOrder', null, input(), { requestId: id });
+  const second = run(first.state, 'storeA', 'saveOrder', null, input(), { requestId: id });
+  assert.deepEqual(second.state, first.state);
+  assert.equal(Object.keys(second.state.orders).length, 1);
+  assert.throws(() => run(second.state, 'storeA', 'saveOrder', null, input({ client: 'OUTRO' }), { requestId: id }), /reutilizado/);
+});
+test('loja B e visitante não editam nem confirmam pedido da loja A', () => {
+  const state = create();
+  assert.throws(() => run(state, 'storeB', 'saveOrder', 'orderA', input()), /outra loja/);
+  assert.throws(() => run(state, 'visitor', 'toggle-pay', 'orderA'), /Perfil/);
+  assert.throws(() => applyCommand(state, null, {}, {}), /Entre/);
+});
+test('apenas um motoboy aceita o pedido e o mesmo motoboy não assume duas corridas', () => {
+  let state = create();
+  state = run(state, 'courierA', 'accept', 'orderA').state;
+  assert.equal(state.courierPresence.courierA.busy, true);
+  assert.equal(state.availableOrders.orderA, undefined);
+  assert.throws(() => run(state, 'courierB', 'accept', 'orderA'), /já aceita/);
+  state = run(state, 'storeA', 'saveOrder', null, input(), { newId: 'orderB' }).state;
+  assert.throws(() => run(state, 'courierA', 'accept', 'orderB'), /finalize/);
+});
+test('cancelamento de 25 minutos usa relógio do servidor e exige ausência de retirada', () => {
+  let state = run(create(), 'courierA', 'accept', 'orderA').state;
+  assert.throws(() => run(state, 'storeA', 'cancel-free', 'orderA', {}, { now: now + 1499999 }), /25 minutos/);
+  const picked = run(state, 'courierA', 'picked', 'orderA').state;
+  assert.throws(() => run(picked, 'storeA', 'cancel-free', 'orderA', {}, { now: now + 1500000 }), /25 minutos/);
+  state = run(state, 'storeA', 'cancel-free', 'orderA', {}, { now: now + 1500000 }).state;
+  assert.equal(state.orders.orderA.status, 'cancelled');
+  assert.equal(state.courierPresence.courierA.busy, false);
+});
+test('cotação preserva contratado e valor; cancelamento retorna à cotação sem atribuição antiga', () => {
+  let state = create(fixture(), { isQuote: true });
+  state = run(state, 'courierA', 'send-bid', 'orderA', { amount: 25 }).state;
+  state = run(state, 'storeA', 'accept-bid', 'orderA', { courierId: 'courierA', amount: 25 }).state;
+  assert.throws(() => run(state, 'storeA', 'accept-bid', 'orderA', { courierId: 'courierA', amount: 25 }), /já aceita/);
+  state = run(state, 'storeA', 'saveOrder', 'orderA', input({ fee: 1 })).state;
+  assert.equal(state.orders.orderA.fee, 25);
+  assert.equal(state.orders.orderA.assignedCourierId, 'courierA');
+  assert.equal(state.availableOrders.orderA, undefined);
+  assert.throws(() => run(state, 'courierB', 'accept', 'orderA'), /reservada/);
+  state = run(state, 'courierA', 'accept', 'orderA', { rain: true }).state;
+  assert.equal(state.orders.orderA.fee, 25);
+  state = run(state, 'courierA', 'cancel', 'orderA').state;
+  assert.equal(state.orders.orderA.status, 'cotacao');
+  assert.equal(state.orders.orderA.courierId, undefined);
+  assert.equal(state.courierOrders.courierA.orderA, undefined);
+  assert.equal(state.quoteBoard.orderA.status, 'cotacao');
+  assert.deepEqual(state.orders.orderA.bids, {});
+});
+test('roundtrip exige as três etapas e conclusão libera disponibilidade', () => {
+  let state = run(create(fixture(), { serviceType: 'roundtrip' }), 'courierA', 'accept', 'orderA').state;
+  assert.throws(() => run(state, 'courierA', 'roundtrip-step', 'orderA', { step: 2 }), /Etapa/);
+  assert.throws(() => run(state, 'courierA', 'finish', 'orderA'), /etapas/);
+  for (let step = 1; step <= 3; step++) state = run(state, 'courierA', 'roundtrip-step', 'orderA', { step }).state;
+  assert.throws(() => run(state, 'courierA', 'cancel', 'orderA'), /após retirada/);
+  state = run(state, 'courierA', 'finish', 'orderA', {}, { now: now + 600000 }).state;
+  assert.equal(state.orders.orderA.durationMs, 600000);
+  assert.equal(state.courierPresence.courierA.busy, false);
+});
+test('pagamento sincroniza e preserva primeira autoria em confirmações repetidas', () => {
+  let state = run(create(), 'courierA', 'accept', 'orderA').state;
+  assert.throws(() => run(state, 'storeA', 'toggle-pay', 'orderA'), /Conclua/);
+  state = run(state, 'courierA', 'picked', 'orderA').state;
+  state = run(state, 'courierA', 'finish', 'orderA').state;
+  state = run(state, 'storeA', 'toggle-pay', 'orderA').state;
+  const confirmed = state.orders.orderA.paymentConfirmedAt;
+  state = run(state, 'courierA', 'toggle-pay', 'orderA', {}, { now: now + 5000 }).state;
+  assert.equal(state.orders.orderA.paymentConfirmedBy, 'storeA');
+  assert.equal(state.orders.orderA.paymentConfirmedAt, confirmed);
+  assert.equal(state.courierOrders.courierA.orderA.paid, true);
+});
+test('rastreio tem token mínimo, expira, pode ser revogado e é removido ao concluir', () => {
+  let state = run(create(), 'courierA', 'accept', 'orderA').state;
+  state = run(state, 'storeA', 'tracking', 'orderA').state;
+  assert.equal(state.publicTracking['a'.repeat(64)].expiresAt, now + 86400000);
+  state = run(state, 'courierA', 'location', 'orderA', { lat: -19.8, lng: -40.3 }).state;
+  assert.equal(state.publicTracking['a'.repeat(64)].location.updatedAt, now);
+  assert.throws(() => run(state, 'courierB', 'location', 'orderA', { lat: 0, lng: 0 }), /outro motoboy/);
+  assert.throws(() => run(state, 'courierA', 'location', 'orderA', { lat: 0, lng: 0 }), /Aguarde/);
+  state = run(state, 'storeA', 'tracking', 'orderA', { revoke: true }).state;
+  assert.equal(state.publicTracking['a'.repeat(64)], undefined);
+  state = run(state, 'storeA', 'tracking', 'orderA').state;
+  state = run(state, 'courierA', 'picked', 'orderA').state;
+  state = run(state, 'courierA', 'finish', 'orderA').state;
+  assert.equal(state.publicTracking['a'.repeat(64)], undefined);
+  assert.throws(() => run(state, 'courierA', 'location', 'orderA', { lat: 0, lng: 0 }), /encerrado/);
+});
+test('loja não altera tarifas ou cria perfil administrativo', () => {
+  assert.throws(() => run(fixture(), 'storeA', 'saveRates', null, { zones: { X: 1 } }), /administrativo/);
+  assert.throws(() => run(fixture(), 'visitor', 'createProfile', null, { role: 'admin', name: 'TESTE', phone: '27999999999' }), /Perfil inválido/);
+});
+module.exports = { fixture, input };
+test('confirmações de pagamento repetidas não duplicam evento de pagamento', () => {
+  let state=run(create(),'courierA','accept','orderA').state;
+  state=run(state,'courierA','picked','orderA').state;
+  state=run(state,'courierA','finish','orderA').state;
+  state=run(state,'storeA','toggle-pay','orderA').state;
+  const before=Object.keys(state.orderEvents.orderA).length;
+  state=run(state,'courierA','toggle-pay','orderA').state;
+  assert.equal(Object.keys(state.orderEvents.orderA).length,before);
+});
+test('migração offline preserva pedidos e perfis, revoga links antigos e deixa equipe em OFF', () => {
+  const {migrate}=require('../../scripts/migrate-test-snapshot.cjs');
+  const source={stores:{storeA:{name:'Loja',address:'Rua'}},couriers:{courierA:{name:'Moto'}},orders:{legacy:{storeId:'storeA',courierId:'courierA',status:'run',orderCode:'EXP-OLD',serviceType:'delivery',trackingToken:'old',fee:25}},publicTracking:{old:{client:'PRIVADO'}}};
+  const {state,review}=migrate(source,now);
+  assert.equal(review.length,0);
+  assert.equal(state.storeOrders.storeA.legacy.fee,25);
+  assert.equal(state.courierPresence.courierA.availableForWork,false);
+  assert.equal(state.courierPresence.courierA.busy,true);
+  assert.deepEqual(state.publicTracking,{});
+  assert.equal(source.orders.legacy.trackingToken,'old');
+});
+test('renovação de token e troca de conta não mantêm o aparelho na conta anterior', () => {
+  let state=run(fixture(),'courierA','registerDevice',null,{deviceId:'device_one',token:'a'.repeat(30)}).state;
+  state=run(state,'storeA','registerDevice',null,{deviceId:'device_one',token:'b'.repeat(30)}).state;
+  assert.equal(Object.keys(state.fcmTokens.courierA).length,0);
+  assert.equal(Object.values(state.fcmTokens.storeA)[0].token,'b'.repeat(30));
+  assert.throws(()=>run(state,'visitor','registerDevice',null,{deviceId:'device_one',token:'c'.repeat(30)}),/Perfil/);
+});
+test('Web Push não aceita endpoint arbitrário, credenciais na URL ou porta interna', () => {
+  const {validWebEndpoint}=require('../../functions/notifications');
+  assert.equal(validWebEndpoint('https://fcm.googleapis.com/fcm/send/fake'),true);
+  for(const url of ['https://127.0.0.1/private','https://fcm.googleapis.com.attacker.test/x','https://user:pass@fcm.googleapis.com/x','https://fcm.googleapis.com:9000/x']) assert.equal(validWebEndpoint(url),false);
+});

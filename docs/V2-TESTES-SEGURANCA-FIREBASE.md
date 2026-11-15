@@ -8,7 +8,7 @@ A suíte compara a linha de base das regras atuais com um candidato de regras re
 
 O workflow `.github/workflows/security-rules-v2.yml` executa os testes no Firebase Emulator com o projeto fictício `demo-express-entregas-security`.
 
-Os arquivos `security.rules.test.js` e `target.rules.test.js` testam, respectivamente, as regras atuais e o candidato `database.rules.candidate.json`.
+Os arquivos `security.rules.test.js` e `target.rules.test.js` testam as regras atuais de `database.rules.json`. O candidato antigo foi removido para evitar divergência entre o que é testado e o que seria implantado. Consulte `V2-HOMOLOGACAO-2026-11-15.md` para a rodada atual.
 
 ## Direção de segurança do candidato
 

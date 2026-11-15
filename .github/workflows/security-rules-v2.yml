@@ -28,16 +28,16 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: tests/security/package.json
+          cache-dependency-path: tests/security/package-lock.json
 
       - name: Instalar Firebase CLI
         run: npm install --global firebase-tools@14.22.0
 
       - name: Instalar dependências dos testes
-        run: npm install
+        run: npm ci
 
       - name: Copiar regras atuais para o ambiente isolado
         run: cp ../../database.rules.json ./database.rules.json
 
       - name: Executar Auth e Realtime Database Emulator
-        run: firebase emulators:exec --project demo-express-entregas-security --only auth,database "npm test"
+        run: firebase emulators:exec --project demo-express-entregas-security --only auth,database "node ../../scripts/run-emulator-tests.mjs security.rules.test.js target.rules.test.js"

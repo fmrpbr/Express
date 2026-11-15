@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "firebase emulators:exec --config ../../firebase.json --only database --project demo-express-entregas \"node --test rules.test.mjs\""
+    "test": "firebase emulators:exec --config ../../firebase.json --only database --project demo-express-entregas \"node ../../scripts/run-emulator-tests.mjs rules.test.mjs ../../tests/backend/emulator.integration.cjs ../security/security.rules.test.js ../security/target.rules.test.js\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",

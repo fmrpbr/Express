@@ -1,10 +1,38 @@
-const CACHE_NAME = 'express-entregas-pages-v1';
-const APP_SHELL = ['./','./index.html','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'];
-self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(APP_SHELL))); self.skipWaiting(); });
-self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))); self.clients.claim(); });
-self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== self.location.origin) return;
-  e.respondWith(fetch(e.request).then(r => { if (r && r.ok) { const copy=r.clone(); caches.open(CACHE_NAME).then(c=>c.put(e.request,copy)); } return r; }).catch(()=>caches.match(e.request).then(r=>r || caches.match('./index.html'))));
+const CACHE_NAME = 'express-v2-1e894ead62ee';
+const APP_SHELL = ["./index.html","./www/index.html","./www/manifest.webmanifest","./www/icons/icon-192.png","./www/icons/icon-512.png","./www/vendor/firebase.bundle.js","./www/vendor/native-push.bundle.js"];
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
+  self.skipWaiting();
 });
-self.addEventListener('notificationclick', e => { e.notification.close(); const target=new URL('./',self.location.href).href; e.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(list=>{ for(const client of list){if('focus' in client)return client.focus();} return self.clients.openWindow ? self.clients.openWindow(target) : undefined; })); });
-self.addEventListener('push', e => { let p={}; try{p=e.data?e.data.json():{};}catch(_){} e.waitUntil(self.registration.showNotification(p.title||'Novo pedido no Express Entregas',{body:p.body||'Há uma nova solicitação disponível.',icon:'./icons/icon-192.png',badge:'./icons/icon-192.png',tag:p.tag||'express-push',renotify:true})); });
+self.addEventListener('activate', event => {
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('express-') && key !== CACHE_NAME).map(key => caches.delete(key)))).then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', event => {
+  const request = event.request;
+  const url = new URL(request.url);
+  if(request.method !== 'GET' || url.origin !== self.location.origin) return;
+  // Configuração e APIs nunca recebem HTML de fallback nem entram no cache.
+  if(!APP_SHELL.some(path => new URL(path, self.location.href).pathname === url.pathname) && request.mode !== 'navigate') return;
+  event.respondWith(fetch(request).then(response => {
+    if(response.ok) { const copy = response.clone(); event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(request, copy))); }
+    return response;
+  }).catch(async () => (await caches.match(request)) || (request.mode === 'navigate' ? caches.match('./index.html') : Response.error())));
+});
+self.addEventListener('push', event => {
+  let payload = {}; try { payload = event.data?.json() || {}; } catch (_) {}
+  event.waitUntil(self.registration.showNotification(payload.title || 'Express Entregas', {
+    body: payload.body || 'Há uma nova solicitação disponível.', icon: './icons/icon-192.png', badge: './icons/icon-192.png',
+    tag: payload.tag || 'express-push', data: { orderId: payload.orderId, type: payload.type }
+  }));
+});
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const target = new URL('./index.html', self.location.href);
+  const orderId = event.notification.data?.orderId;
+  if(/^[A-Za-z0-9_-]{1,128}$/.test(orderId || '')) target.hash = 'order=' + orderId;
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clients => {
+    const existing = clients.find(client => client.url.startsWith(target.origin + target.pathname));
+    if(existing) { await existing.navigate(target.href); return existing.focus(); }
+    return self.clients.openWindow(target.href);
+  }));
+});
