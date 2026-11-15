@@ -67,6 +67,16 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon --max-workers=2 --init-script ../scripts/central-mirror.init.gradle assembleDebug
+      - name: Assinar e verificar APK de teste
+        if: inputs.upload_apk || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Publicar APK V2 de teste autorizado'))
+        run: |
+          APK_SIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          test -n "$APK_SIGNER"
+          "$APK_SIGNER" sign --ks "$HOME/.android/debug.keystore" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --out android/app/build/outputs/apk/debug/express-signed.apk android/app/build/outputs/apk/debug/app-debug.apk
+          "$APK_SIGNER" verify --verbose --print-certs android/app/build/outputs/apk/debug/express-signed.apk > /tmp/express-apk-signature.txt
+          cat /tmp/express-apk-signature.txt
+          grep -Fqi 'd4e736f9a49620a3152b8cc0a506d73f0ca065dd82fb558daf4e7150b5cc75b6' /tmp/express-apk-signature.txt
+          mv android/app/build/outputs/apk/debug/express-signed.apk android/app/build/outputs/apk/debug/app-debug.apk
       - uses: actions/upload-artifact@v4
         if: inputs.upload_apk || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Publicar APK V2 de teste autorizado'))
         with:
