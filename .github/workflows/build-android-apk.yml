@@ -40,6 +40,9 @@ jobs:
           mkdir -p assets
           cp icons/icon-512.png assets/icon.png
           npx --yes @capacitor/assets@3.0.5 generate --android --assetPath assets --iconBackgroundColor '#EA1D2C' --iconBackgroundColorDark '#EA1D2C'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
       - run: npx cap sync android
       - name: Restaurar assinatura estável dos testes
         if: inputs.upload_apk
@@ -60,7 +63,7 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew --no-daemon --max-workers=2 --init-script ../scripts/central-mirror.init.gradle assembleDebug
       - uses: actions/upload-artifact@v4
         if: inputs.upload_apk
         with:

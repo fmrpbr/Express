@@ -11,7 +11,7 @@ Referências: issues #5, #6 e #7. Este relatório separa implementação, testes
 | Pedidos | Lojista lê `storeOrders/{uid}`; motoboy lê `courierOrders/{uid}` e murais mínimos. A coleção canônica não é baixada pelo usuário comum. |
 | Integridade | Callable `orderCommand` valida criação, edição, proposta, contratação, aceite, retirada, etapas, cancelamento, conclusão, pagamento, GPS e rastreio. Preço e timestamps vêm do servidor. |
 | Concorrência | Uma transação confirma pedido, projeções, ocupação, evento e recibo juntos. Apenas um motoboy assume a corrida; o mesmo motoboy não assume duas corridas ativas. Repetições com o mesmo recibo retornam o mesmo resultado. |
-| Cotação | Contratação preserva motoboy e preço ao completar os dados. Chuva não altera preço acordado. Devolução antes da retirada remove a atribuição e reabre cotação sem propostas antigas. |
+| Cotação | Contratação preserva motoboy e preço ao completar os dados. A resposta da contratação entrega o pedido confirmado para abrir o formulário sem depender da chegada do listener; revisões antigas não substituem registros mais recentes. Chuva não altera preço acordado. Devolução antes da retirada remove a atribuição e reabre cotação sem propostas antigas. |
 | Pagamento | Loja ou motoboy pode confirmar após conclusão. Autoria e horário da primeira confirmação são preservados. Repetições não geram novos eventos de pagamento. |
 | Cancelamento | Prazo de 25 minutos é conferido pelo servidor, junto ao estado e à ausência de retirada. Uma corrida com retirada não volta silenciosamente à fila. |
 | Presença | `availableForWork` é independente da conexão. Sessões em `courierConnections` têm heartbeat, expiração visual de 90 segundos e remoção por desconexão. Ocupação deriva dos pedidos no servidor. OFF pausa novas ofertas, inclusive lembretes. |
@@ -89,3 +89,9 @@ Registro de cada execução: `ID | commit/APK | conta/perfil | aparelho/Android 
 - OFF não consegue recolher uma notificação já entregue ao sistema operacional. Há revalidação imediatamente antes de cada submissão.
 - Navegador não oferece o mesmo serviço nativo de localização do APK. Force Stop, permissões e restrições do fabricante precisam de evidência real.
 - Funcionalidades adicionais da V3 continuam no plano mestre. Nenhuma integração de cobrança Pix/cartão foi ativada.
+
+## Verificação adicional no CI
+
+A primeira compilação Android foi interrompida por HTTP 429 ao baixar dependências do Maven Central. O build agora usa cache Gradle, dois workers e o espelho público hospedado no Google Cloud, documentado em https://docs.cloud.google.com/docs/buildpacks/java#google_cloud_hosted_maven_central_mirror. Não houve troca das versões dos artefatos nem uso de repositório privado.
+
+A repetição dos testes de navegador identificou sincronização intermitente do preço visual da cotação. O formulário passou a usar o pedido confirmado na resposta do servidor e a preservar seu valor contratado durante recálculos. O teste continua exigindo os R$ 25,00 contratados.

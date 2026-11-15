@@ -11,7 +11,7 @@ const { DomainError } = require("./domain");
 const webPush = require("web-push");
 
 const projectId = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT;
-if (projectId && projectId !== "express-entregas-2-testes" && !projectId.startsWith("demo-express-entregas")) throw new Error("Backend V2 restrito ao projeto de testes.");
+if (!projectId || (projectId !== "express-entregas-2-testes" && !projectId.startsWith("demo-express-entregas"))) throw new Error("Backend V2 restrito ao projeto de testes.");
 admin.initializeApp(process.env.FUNCTIONS_EMULATOR === "true" ? { projectId, databaseURL: `https://${projectId}-default-rtdb.firebaseio.com` } : undefined);
 setGlobalOptions({ region: "southamerica-east1", maxInstances: 5 });
 const db = admin.database();

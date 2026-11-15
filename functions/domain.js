@@ -242,6 +242,7 @@ function applyCommand(original, auth, command, context) {
       }
     }
     result = { ok: true, orderId: id };
+    if (action === "accept-bid") result.order = structuredClone(order);
     if (action === "tracking" && order.trackingToken) result.token = order.trackingToken;
   }
   put(state, `operationReceipts/${uid}/${requestId}`, { fingerprint: context.fingerprint, result, createdAt: now });

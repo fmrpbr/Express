@@ -969,7 +969,13 @@
   function listenOrders(sourceKey, path) {
     unsubscribers.push(onValue(ref(db, path), snap => {
       const entries = Object.entries(snap.val() || {});
-      orderSources.set(sourceKey, new Map(entries));
+      const incoming = new Map(entries);
+      const prior = orderSources.get(sourceKey);
+      for(const [id, value] of incoming) {
+        const existing = prior?.get(id);
+        if(existing && Number(existing.revision || 0) > Number(value.revision || 0)) incoming.set(id, existing);
+      }
+      orderSources.set(sourceKey, incoming);
       mergeOrders();
     }, error => toast("Não foi possível carregar seus pedidos: " + error.message, "warn")));
   }
@@ -1232,7 +1238,7 @@
     catch (err) { setAuthFeedback(authError(err), "error"); document.getElementById("login-screen").style.display = "flex"; }
   });
 
-  window.openOrderSheet = function(editId, mode) {
+  window.openOrderSheet = function(editId, mode, confirmedOrder) {
     let store = person();
     if (role === "store" && mode !== "quote" && store && !store.address) {
       if(!confirm("⚠️ Você ainda não cadastrou o endereço da sua loja no seu perfil.\nDeseja cadastrar agora?")) return;
@@ -1242,7 +1248,7 @@
     const form = document.getElementById("mobile-order-form");
     if(!editId) form.reset();
     delete form.dataset.requestId; delete form.dataset.payloadFingerprint;
-    prepareSheet(editId, mode || "delivery");
+    prepareSheet(editId, mode || "delivery", confirmedOrder);
   };
 
   window.closeOrderSheet = function() {
@@ -1252,7 +1258,8 @@
     document.getElementById("sheet-title-text").textContent = "🚀 Solicitar Motoboy";
   };
 
-  function prepareSheet(editId, mode) {
+  function prepareSheet(editId, mode, confirmedOrder) {
+    document.getElementById("mobile-order-form").dataset.agreedFee = "";
     const quoteMode = !editId && mode === "quote";
     document.getElementById("mobile-order-form").dataset.mode = quoteMode ? "quote" : "delivery";
     document.getElementById("mobile-order-form").dataset.completingQuote = "false";
@@ -1265,8 +1272,9 @@
       configureOrderFormMode(quoteMode);
       return;
     }
-    let o = data.orders.find(x => x.id === editId);
+    let o = confirmedOrder || data.orders.find(x => x.id === editId);
     if (!o) return;
+    document.getElementById("mobile-order-form").dataset.agreedFee = String(o.agreedFee || "");
     document.getElementById("edit-order-id").value = o.id;
     document.getElementById("sheet-title-text").textContent = o.status === "cotacao_aceita" ? "📋 Completar pedido contratado" : "✏️ Editar Solicitação";
     document.getElementById("mobile-order-form").dataset.mode = o.status === "cotacao" ? "quote" : "delivery";
@@ -1334,7 +1342,7 @@
       let k = document.getElementById("chk-bank-mob").checked;
       let zoneVal = document.getElementById("zone-select-mobile").value;
       const prior = data.orders.find(o => o.id === editId);
-      let total = prior?.agreedFee || calculateFee(p, false, b, k, zoneVal);
+      let total = Number(document.getElementById("mobile-order-form").dataset.agreedFee || 0) || prior?.agreedFee || calculateFee(p, false, b, k, zoneVal);
       document.getElementById("quote-price-mobile").textContent = cash(total);
     }
   }
@@ -1848,14 +1856,15 @@
       }
       if(["cancel", "cancel-quote", "cancel-free"].includes(action) && !confirm("Confirmar cancelamento desta solicitação?")) return;
       if(action === "accept") input.rain = confirm("Está chovendo no trajeto? OK para aplicar a condição de chuva.");
-      await command(action, id, input);
+      const confirmed = await command(action, id, input);
       if(["finish", "cancel", "cancel-free"].includes(action)) stopGpsTracking();
       if(action === "accept") view = "run";
       if(action === "finish") view = "done";
       toast(action === "finish" ? "Entrega concluída. Confirme o pagamento quando realizado." : action === "toggle-pay" ? "Pagamento confirmado e sincronizado." : "Atualização confirmada.");
       if(action === "accept-bid") {
-        const snapshot = await get(ref(db, "storeOrders/" + actor + "/" + id));
-        orderSources.get("store")?.set(id, snapshot.val()); mergeOrders(); window.openOrderSheet(id, "complete-quote");
+        const order = { id, ...confirmed.order };
+        orderSources.get("store")?.set(id, order);
+        mergeOrders(); window.openOrderSheet(id, "complete-quote", order);
       }
       render();
     } finally { actionsInFlight.delete(lock); }

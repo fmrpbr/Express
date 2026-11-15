@@ -1,0 +1,16 @@
+// Cache público do Maven Central documentado pelo Google Cloud.
+// O repositório Android Google permanece inalterado.
+import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+
+def useCentralMirror = { repositories ->
+    repositories.all { repository ->
+        if (repository instanceof MavenArtifactRepository &&
+            repository.url?.host in ['repo.maven.apache.org', 'repo1.maven.org']) {
+            repository.url = new URI('https://maven-central.storage-download.googleapis.com/maven2/')
+        }
+    }
+}
+gradle.allprojects { project ->
+    useCentralMirror(project.buildscript.repositories)
+    useCentralMirror(project.repositories)
+}

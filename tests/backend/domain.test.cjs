@@ -60,7 +60,10 @@ test('cancelamento de 25 minutos usa relógio do servidor e exige ausência de r
 test('cotação preserva contratado e valor; cancelamento retorna à cotação sem atribuição antiga', () => {
   let state = create(fixture(), { isQuote: true });
   state = run(state, 'courierA', 'send-bid', 'orderA', { amount: 25 }).state;
-  state = run(state, 'storeA', 'accept-bid', 'orderA', { courierId: 'courierA', amount: 25 }).state;
+  const accepted = run(state, 'storeA', 'accept-bid', 'orderA', { courierId: 'courierA', amount: 25 });
+  assert.equal(accepted.result.order.agreedFee, 25);
+  assert.equal(accepted.result.order.assignedCourierId, 'courierA');
+  state = accepted.state;
   assert.throws(() => run(state, 'storeA', 'accept-bid', 'orderA', { courierId: 'courierA', amount: 25 }), /já aceita/);
   state = run(state, 'storeA', 'saveOrder', 'orderA', input({ fee: 1 })).state;
   assert.equal(state.orders.orderA.fee, 25);

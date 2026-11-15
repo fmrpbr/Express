@@ -36,9 +36,12 @@ jobs:
       - run: npx cap add android
       - run: cp google-services.json android/app/google-services.json
       - run: node scripts/prepare-android.mjs
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
       - run: npx cap sync android
       - name: Validar compilação Android sem disponibilizar APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew --no-daemon --max-workers=2 --init-script ../scripts/central-mirror.init.gradle assembleDebug
