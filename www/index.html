@@ -269,6 +269,11 @@
 
   document.addEventListener("click", function(e){
     if(e.target && e.target.id === "order-sheet-overlay"){ closeSheetLocal(); return; }
+    var availabilityToggle = e.target.closest ? e.target.closest("[data-toggle-availability]") : null;
+    if(availabilityToggle){
+      if(window.__expressModuleReady && window.__express && window.__express.toggleAvailability) window.__express.toggleAvailability();
+      return;
+    }
     var ui = e.target.closest ? e.target.closest("[data-login-role],[data-auth-tab],[data-toggle-password],[data-open-sheet],[data-close-sheet],[data-enable-push]") : null;
     if(ui){
       if(ui.hasAttribute("data-login-role")){
@@ -1042,6 +1047,25 @@
     }));
   }
 
+  async function toggleCourierAvailability() {
+    if (role !== "courier" || !currentUser) return;
+    const presence = (data.presence || []).find(p => p.id === currentUser.uid) || {};
+    if (presence.busy === true) {
+      toast("Finalize a entrega atual antes de alterar sua disponibilidade.", "warn");
+      return;
+    }
+    const next = presence.availableForWork !== true;
+    try {
+      await update(ref(db, "courierPresence/" + currentUser.uid), {
+        registered:true, availableForWork:next, lastSeen:serverTimestamp()
+      });
+      toast(next ? "Você está disponível para receber entregas." : "Você pausou o recebimento de novas entregas.");
+      render();
+    } catch (error) {
+      toast("Não foi possível alterar sua disponibilidade. Verifique as regras do Firebase.", "warn");
+    }
+  }
+
   function syncCourierPresenceBusy() {
     if (role !== "courier" || !currentUser) return;
     const isBusy = data.orders.some(o => o.status === "run" && o.courierId === currentUser.uid);
@@ -1556,7 +1580,11 @@
     document.getElementById("actor").disabled = role === "admin" || !people.length;
     document.getElementById("avatar").textContent = initials(role === "admin" ? "Admin" : (person()||{}).name);
     document.getElementById("crumb").textContent = label + " / " + title(); document.getElementById("page-title").textContent = title();
-    document.getElementById("content").innerHTML = show();
+    const presence = role === "courier" ? (data.presence || []).find(p => p.id === currentUser?.uid) || {} : {};
+    const availabilityPanel = role === "courier"
+      ? '<section class="panel" style="margin:0 0 14px;border:1px solid '+(presence.availableForWork === true ? '#A7F3D0' : '#E5E7EB')+';background:'+(presence.availableForWork === true ? '#F0FDF4' : '#F8FAFC')+'"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b style="display:block">STATUS DE DISPONIBILIDADE</b><small style="color:var(--muted)">'+(presence.busy === true ? 'VOCÊ ESTÁ EM UMA ENTREGA' : presence.availableForWork === true ? 'VOCÊ PODE RECEBER NOVOS PEDIDOS E COTAÇÕES' : 'VOCÊ NÃO RECEBERÁ NOVOS PEDIDOS E COTAÇÕES')+'</small></div><button type="button" class="btn '+(presence.availableForWork === true ? 'danger' : 'primary')+' tiny" data-toggle-availability '+(presence.busy === true ? 'disabled' : '')+'>'+(presence.availableForWork === true ? 'PAUSAR' : 'FICAR DISPONÍVEL')+'</button></div></section>'
+      : '';
+    document.getElementById("content").innerHTML = availabilityPanel + show();
     renderHero();
   }
 
@@ -1852,6 +1880,7 @@
     setView: function(v){ view = v; render(); },
     doAction: function(a, id){ return act(a, id).catch(err => toast(err.message, "warn")); },
     enablePush: function(){ return enablePushNotifications().catch(err => toast(err.message || "Falha ao ativar notificações.", "warn")); },
+    toggleAvailability: function(){ return toggleCourierAvailability(); },
     selectLoginRole: function(r){ window.selectLoginRole(r); },
     setAuthTab: function(m){ window.setAuthTab(m); },
     togglePassword: function(){ window.togglePassword(); },
