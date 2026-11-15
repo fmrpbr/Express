@@ -1,6 +1,6 @@
 # V2: correções e homologação de 15/11/2026
 
-Atualização posterior: a versão 2.0.3 prepara rastreio público com compartilhamento nativo e capacidade de duas corridas. Ver [escopo, testes e implantação](V2-2.0.3-RASTREIO-E-DUAS-CORRIDAS.md). Os testes locais passaram: 26 Node, 42 regras/integração, 7 navegador (75 no total). A publicação dessa atualização no Firebase ainda depende da execução no Cloud Shell do usuário; a implantação 2.0.2 registrada abaixo permanece como última evidência operacional.
+Atualização posterior: a versão 2.0.3 prepara rastreio público com compartilhamento nativo e capacidade de duas corridas. Ver [escopo, testes e implantação](V2-2.0.3-RASTREIO-E-DUAS-CORRIDAS.md). Os testes locais passaram: 26 Node, 42 regras/integração, 7 navegador (75 no total). A publicação das quatro funções e do site dedicado da versão 2.0.3 foi confirmada pela captura do Cloud Shell enviada pelo usuário às 20h26; a matriz operacional de WhatsApp e duas corridas no aparelho continua pendente. Os registros 2.0.2 abaixo são históricos.
 
 Base: `f9ce1f82402d7ad0f6f3852c5938faedf3112e38`, branch `v2.0-testes-reais`.
 Referências: issues #5, #6 e #7. Este relatório separa implementação, testes locais e validação operacional. A V2 continua sem liberação para o piloto.
