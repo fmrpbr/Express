@@ -61,7 +61,7 @@ node scripts/run-browser-emulators.mjs
 3. Revisar dados de teste legados e os índices. Há conversor offline em `scripts/migrate-test-snapshot.cjs`; ele não acessa o Firebase. Exportação, revisão e importação devem ser aprovadas. Não apontar clientes antigos às novas regras durante essa transição.
 4. Configurar VAPID público, segredo privado `EXPRESS_VAPID_PRIVATE_KEY` e `EXPRESS_VAPID_SUBJECT` para Web Push. A chave privada nunca deve ser colocada no app ou no Git. Sem configuração, não há promessa de Web Push.
 5. Definir URL HTTPS pública de testes em `publicTrackingBaseUrl`, acessível fora do APK. Um endereço `capacitor://localhost` nunca é usado para compartilhar rastreio.
-6. Obter resultado aprovado da compilação Gradle no CI. Para disponibilizar APK atualizável, configurar o segredo `ANDROID_TEST_KEYSTORE_BASE64` com um debug.keystore estável, usando alias/senhas padrão de debug. Não substituir a chave de produção. APK antigo de chave desconhecida pode exigir reinstalação inicial.
+6. A compilação Gradle do código `c142196` foi aprovada no CI. Para disponibilizar APK atualizável, configurar o segredo `ANDROID_TEST_KEYSTORE_BASE64` com um debug.keystore estável, usando alias/senhas padrão de debug. Não substituir a chave de produção. APK antigo de chave desconhecida pode exigir reinstalação inicial.
 7. Executar a matriz de aparelho abaixo, registrando versão, commit, modelo, Android, horário e evidência. Só depois aprovar o piloto de 5 lojas e 5 motoboys.
 
 ## Matriz obrigatória em aparelhos
@@ -91,6 +91,8 @@ Registro de cada execução: `ID | commit/APK | conta/perfil | aparelho/Android 
 - Funcionalidades adicionais da V3 continuam no plano mestre. Nenhuma integração de cobrança Pix/cartão foi ativada.
 
 ## Verificação adicional no CI
+
+**Resultado final: aprovado.** O commit de código `c142196e2acec905aa215a6335139a9e8b4f4e38` passou as 58 verificações automatizadas e a compilação Android no [run 43729725749](https://github.com/fmrpbr/Express/actions/runs/43729725749). Backend e segurança também foram aprovados. Nenhum APK foi disponibilizado e nenhum serviço/regras foi implantado. O piloto continua bloqueado pelas dependências e pela matriz real de aparelhos acima.
 
 A primeira compilação Android foi interrompida por HTTP 429 ao baixar dependências do Maven Central. O build agora usa cache Gradle, dois workers e o espelho público hospedado no Google Cloud, documentado em https://docs.cloud.google.com/docs/buildpacks/java#google_cloud_hosted_maven_central_mirror. Não houve troca das versões dos artefatos nem uso de repositório privado.
 
