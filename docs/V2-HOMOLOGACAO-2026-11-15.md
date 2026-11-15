@@ -56,12 +56,12 @@ node scripts/run-browser-emulators.mjs
 
 ## Pendências que bloqueiam a liberação
 
-1. Revisar a mudança e aprovar implantação exclusivamente no Firebase `express-entregas-2-testes`. Não houve publicação de regras, funções, site ou APK nesta rodada.
+1. Implantação no Firebase de testes autorizada pelo usuário. Conectar a conta Firebase para verificar plano/permissões e executar exclusivamente em `express-entregas-2-testes`. Regras, funções e site ainda não foram implantados. O APK foi disponibilizado separadamente, conforme registro abaixo.
 2. Confirmar plano/permissões/custos para Functions e Scheduler antes de qualquer ativação. Blaze e billing não foram alterados.
 3. Revisar dados de teste legados e os índices. Há conversor offline em `scripts/migrate-test-snapshot.cjs`; ele não acessa o Firebase. Exportação, revisão e importação devem ser aprovadas. Não apontar clientes antigos às novas regras durante essa transição.
 4. Configurar VAPID público, segredo privado `EXPRESS_VAPID_PRIVATE_KEY` e `EXPRESS_VAPID_SUBJECT` para Web Push. A chave privada nunca deve ser colocada no app ou no Git. Sem configuração, não há promessa de Web Push.
 5. Definir URL HTTPS pública de testes em `publicTrackingBaseUrl`, acessível fora do APK. Um endereço `capacitor://localhost` nunca é usado para compartilhar rastreio.
-6. A compilação Gradle do código `c142196` foi aprovada no CI. Para disponibilizar APK atualizável, configurar o segredo `ANDROID_TEST_KEYSTORE_BASE64` com um debug.keystore estável, usando alias/senhas padrão de debug. Não substituir a chave de produção. APK antigo de chave desconhecida pode exigir reinstalação inicial.
+6. APK de testes disponibilizado com assinatura estável autorizada pelo usuário e guardada no segredo `ANDROID_TEST_KEYSTORE_BASE64`. Assinatura verificada antes de publicar e novamente no arquivo baixado. APK antigo de chave desconhecida pode exigir reinstalação inicial. A instalação e atualização no aparelho continuam pendentes.
 7. Executar a matriz de aparelho abaixo, registrando versão, commit, modelo, Android, horário e evidência. Só depois aprovar o piloto de 5 lojas e 5 motoboys.
 
 ## Matriz obrigatória em aparelhos
@@ -92,8 +92,24 @@ Registro de cada execução: `ID | commit/APK | conta/perfil | aparelho/Android 
 
 ## Verificação adicional no CI
 
-**Resultado final: aprovado.** O commit de código `c142196e2acec905aa215a6335139a9e8b4f4e38` passou as 58 verificações automatizadas e a compilação Android no [run 43729725749](https://github.com/fmrpbr/Express/actions/runs/43729725749). Backend e segurança também foram aprovados. Nenhum APK foi disponibilizado e nenhum serviço/regras foi implantado. O piloto continua bloqueado pelas dependências e pela matriz real de aparelhos acima.
+**Resultado final: aprovado.** O commit de código `c142196e2acec905aa215a6335139a9e8b4f4e38` passou as 58 verificações automatizadas e a compilação Android no [run 43729725749](https://github.com/fmrpbr/Express/actions/runs/43729725749). Backend e segurança também foram aprovados. Naquela execução nenhum APK foi disponibilizado. A disponibilização posterior está registrada abaixo; nenhum serviço/regras foi implantado. O piloto continua bloqueado pelas dependências e pela matriz real de aparelhos acima.
 
 A primeira compilação Android foi interrompida por HTTP 429 ao baixar dependências do Maven Central. O build agora usa cache Gradle, dois workers e o espelho público hospedado no Google Cloud, documentado em https://docs.cloud.google.com/docs/buildpacks/java#google_cloud_hosted_maven_central_mirror. Não houve troca das versões dos artefatos nem uso de repositório privado.
 
 A repetição dos testes de navegador identificou sincronização intermitente do preço visual da cotação. O formulário passou a usar o pedido confirmado na resposta do servidor e a preservar seu valor contratado durante recálculos. O teste continua exigindo os R$ 25,00 contratados.
+
+## APK autorizado e verificado
+
+Em 15/11/2026, o usuário autorizou disponibilizar o APK de testes e armazenar sua chave de assinatura no segredo do repositório. Alterações restritas à branch `v2.0-testes-reais`; main, produção e billing não foram alterados.
+
+- Commit do APK: `8b20ccdf771a18129b7f29687cf74cbbe5522e9f`.
+- [Build e assinatura aprovados](https://github.com/fmrpbr/Express/actions/runs/43733544753).
+- [Validação V2 e regras aprovada novamente](https://github.com/fmrpbr/Express/actions/runs/43733544761).
+- Artefato: `Express-Entregas-2.0-TESTE-APK`, id `14169435970`.
+- APK: `com.fmrpbr.express.v2`, 5.018.147 bytes.
+- SHA-256 do APK: `bf405f24d127d906de73da7d4ed213b72576426c6adf27ab359b188576cc3395`.
+- SHA-256 do certificado: `d4e736f9a49620a3152b8cc0a506d73f0ca065dd82fb558daf4e7150b5cc75b6`.
+- `apksigner verify` aprovou assinaturas v1, v2 e v3. Certificado reconferido no APK extraído do artefato.
+- A primeira tentativa de disponibilização gerou assinatura diferente da chave autorizada e foi descartada. A publicação agora assina explicitamente o APK e exige o fingerprint esperado antes de liberar o artefato.
+
+Este APK depende das novas funções/regras ainda não implantadas. Disponibilizar o arquivo não libera o piloto. Conexão Firebase, configuração de Web Push/URL pública, transição dos dados e matriz de aparelhos continuam obrigatórias.
