@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { initializeTestEnvironment, assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
-import { get, ref, set } from "firebase/database";
+import { get, ref, set, update } from "firebase/database";
 import test, { before, after, beforeEach } from "node:test";
 
 const envPromise = initializeTestEnvironment({
@@ -61,6 +61,13 @@ test("somente o próprio motoboy pode alterar sua presença", async () => {
   await assertSucceeds(set(ref(dbAs("courierA"), "courierPresence/courierA"), next));
   await assertFails(set(ref(dbAs("storeA"), "courierPresence/courierA"), next));
   await assertFails(set(ref(dbAs("courierA"), "courierPresence/courierB"), next));
+});
+test("motoboy pode ativar e pausar sua disponibilidade sem alterar presença online", async () => {
+  const ownPresence = ref(dbAs("courierA"), "courierPresence/courierA");
+  await assertSucceeds(update(ownPresence, { availableForWork: true }));
+  await assertSucceeds(update(ownPresence, { availableForWork: false }));
+  await assertFails(update(ref(dbAs("storeA"), "courierPresence/courierA"), { availableForWork: true }));
+  await assertFails(update(ref(dbAs("courierA"), "courierPresence/courierB"), { availableForWork: true }));
 });
 test("rastreamento continua público apenas para token existente", async () => {
   await assertSucceeds(get(ref(anon(), "publicTracking/public-token")));
