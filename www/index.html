@@ -608,6 +608,29 @@
     });
   }
 
+  const EXPRESS_PUSH_CHANNELS = [
+    { id: "express_orders_v2", name: "Novos pedidos", description: "Novas corridas disponíveis para aceitar" },
+    { id: "express_quotes_v2", name: "Novas cotações", description: "Novas solicitações de cotação" },
+    { id: "express_reminders_v2", name: "Lembretes", description: "Lembretes de pedidos aguardando resposta" }
+  ];
+
+  async function prepareNativePushChannels(pushApi){
+    if(!window.Capacitor?.isNativePlatform?.() || !pushApi?.createChannel) return;
+    const existing = await pushApi.listChannels().catch(() => ({ channels: [] }));
+    const existingIds = new Set((existing.channels || []).map(channel => channel.id));
+    for(const channel of EXPRESS_PUSH_CHANNELS){
+      if(existingIds.has(channel.id)) continue;
+      await pushApi.createChannel({
+        ...channel,
+        importance: 5,
+        visibility: 1,
+        vibration: true,
+        lights: true,
+        lightColor: "#EA1D2C"
+      });
+    }
+  }
+
   let nativePushSetupPromise = null;
   async function setupNativePushListeners(){
     const pushApi = window.ExpressNativePush?.PushNotifications;
@@ -615,6 +638,7 @@
     if(nativePushListenersReady) return true;
     if(nativePushSetupPromise) return nativePushSetupPromise;
     nativePushSetupPromise = (async () => {
+      await prepareNativePushChannels(pushApi);
       await Promise.all([
         pushApi.addListener("registration", async token => {
           pendingFcmToken = token.value;
@@ -1368,6 +1392,7 @@
       let permission = await pushApi.checkPermissions();
       if(permission.receive !== "granted") permission = await pushApi.requestPermissions();
       if(permission.receive !== "granted"){ toast("Permissão de notificações não concedida.", "warn"); return; }
+      await prepareNativePushChannels(pushApi);
       await pushApi.register();
       toast("Solicitação de ativação enviada. O aparelho será registrado ao receber o token FCM.");
       return;
