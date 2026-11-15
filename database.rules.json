@@ -62,6 +62,9 @@
         "busy": {
           ".validate": "newData.isBoolean()"
         },
+        "availableForWork": {
+          ".validate": "newData.isBoolean()"
+        },
         "lastSeen": {
           ".validate": "newData.isNumber()"
         },
