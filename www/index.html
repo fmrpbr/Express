@@ -2153,7 +2153,8 @@
         else if(action==='open-password-recovery'||action==='reset-password')openPasswordRecovery(false);
         else {
           document.getElementById('auth-email').value=document.getElementById('recovery-email').value.trim()||document.getElementById('auth-email').value;
-          if(action==='back-to-profiles'){adminLoginMode=false;adminLoginRequested=false;window.setAuthTab('login');}
+          if(action==='back-to-profiles'){adminLoginMode=false;adminLoginRequested=false;}
+          window.setAuthTab('login');
           showLoginLayout();setAuthFeedback('','info');
         }
         return;

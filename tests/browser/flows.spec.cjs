@@ -370,7 +370,7 @@ test('recuperação troca a senha existente e não concede admin a uma loja',asy
   const email='reset-store-'+Date.now()+'@example.test',oldPassword='senha-anterior-123',newPassword='senha-recuperada-456';
   const user=await app.auth().createUser({email,password:oldPassword});
   await db.ref('profiles/stores/'+user.uid).set({name:'LOJA RECUPERADA',address:'RUA DA LOJA',phone:'27999999999'});
-  await page.goto(base);await page.locator('#auth-email').fill(email);
+  await page.goto(base);await page.locator('#tab-register').click();await page.locator('#auth-email').fill(email);
   await page.locator('[data-action=open-password-recovery]').click();
   await expect(page.locator('#recovery-email')).toHaveValue(email);
   await page.locator('#recovery-submit').click();
@@ -380,6 +380,8 @@ test('recuperação troca a senha existente e não concede admin a uma loja',asy
   const old=await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:oldPassword,returnSecureToken:true})});
   expect(old.status).toBe(400);
   await page.locator('[data-action=recovery-back]').click();await page.locator('#auth-password').fill(newPassword);
+  await expect(page.locator('#tab-login')).toHaveClass(/active/);
+  await expect(page.locator('#field-extra')).toBeHidden();
   await page.locator('[data-admin-login]').click();
   await expect(page.locator('#auth-feedback')).toContainText('não possui permissão de administrador');
   expect((await app.auth().getUser(user.uid)).customClaims?.admin).not.toBe(true);
