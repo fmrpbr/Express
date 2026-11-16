@@ -5,6 +5,7 @@ on:
     branches: [v2.0-testes-reais]
     paths:
       - 'functions/**'
+      - 'tests/backend/**'
       - 'firebase.json'
       - '.github/workflows/functions-backend-v2.yml'
   workflow_dispatch:

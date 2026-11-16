@@ -1,5 +1,5 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const vm=require('node:vm');const fs=require('node:fs');
-const html=fs.readFileSync('www/index.html','utf8');
+const html=fs.readFileSync(require('node:path').join(__dirname,'../../www/index.html'),'utf8');
 const source=html.slice(html.indexOf('  async function saveNativeFcmToken('),html.indexOf('  const NotificationPolicy='));
 function setup(command){const context={currentUser:{uid:'owner'},role:'courier',tokenKeyForDevice:null,localStorage:{getItem:()=> 'device'},digestKey:async()=> 'hashed-token',window:{Capacitor:{isNativePlatform:()=>true},ExpressNotificationPolicy:{SCHEMA:'sound-v1'}},command};vm.createContext(context);vm.runInContext(source,context);return context;}
 test('Android activation only succeeds after schema acknowledgement, never after changing account',async()=>{
