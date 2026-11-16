@@ -242,6 +242,19 @@
       ".indexOn": [
         "nextAt"
       ]
+    },
+    "courierOffers": {
+      "$uid": {
+        ".read": "(auth != null && auth.uid === $uid || (auth != null && auth.token.admin === true)) && (auth != null && (auth.token.admin === true || (root.child('profiles/stores').child(auth.uid).exists() && (!root.child('profiles/stores').child(auth.uid).child('accessStatus').exists() || root.child('profiles/stores').child(auth.uid).child('accessStatus').val() === 'approved')) || (root.child('profiles/couriers').child(auth.uid).exists() && (!root.child('profiles/couriers').child(auth.uid).child('accessStatus').exists() || root.child('profiles/couriers').child(auth.uid).child('accessStatus').val() === 'approved'))))",
+        ".write": false
+      }
+    },
+    "returnTimers": {
+      ".read": false,
+      ".write": false,
+      ".indexOn": [
+        "until"
+      ]
     }
   }
 }

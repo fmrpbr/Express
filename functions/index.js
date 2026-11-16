@@ -8,6 +8,7 @@ const { defineSecret, defineString } = require("firebase-functions/params");
 const { createCommandHandler } = require("./commands");
 const { createDispatcher, createUpdateDispatcher } = require("./notifications");
 const { DomainError } = require("./domain");
+const {releaseDueReturns}=require('./return-scheduler');
 const { activateTariffs } = require("./tariff-scheduler");
 const webPush = require("web-push");
 
@@ -42,6 +43,7 @@ exports.onPushJobCreated = onValueCreated({ ref: "/pushJobs/{jobId}", region: "u
 exports.processPushReminders = onSchedule({ schedule: "every 1 minutes", secrets: pushSecrets }, async () => {
   const now=Date.now();
   await activateTariffs(db,now);
+  await releaseDueReturns(db,now);
   const due = await db.ref("pushJobs").orderByChild("nextAt").endAt(Date.now()).limitToFirst(100).get();
   for (const id of Object.keys(due.val() || {})) {
     const t = transports(); await createDispatcher(db, t.messaging, Date.now, t.web)(id);

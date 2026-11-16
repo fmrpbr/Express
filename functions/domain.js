@@ -3,6 +3,7 @@
 const FIVE_MINUTES = 300000;
 const { paymentState, normalizePix } = require("./payments");
 const Tariffs = require("./tariffs");
+const Logistics = require("./logistics");
 class DomainError extends Error {
   constructor(code, message) { super(message); this.code = code; }
 }
@@ -37,24 +38,27 @@ function put(state, path, value) {
 const accessAllowed = entry => !!entry && (!entry.accessStatus || entry.accessStatus === "approved");
 function publicOrder(order) {
   const result = {};
-  for (const field of ["orderCode", "status", "serviceType", "serviceDate", "city", "clientNeighborhood", "neighborhood", "selectedZone", "fee", "created", "updatedAt", "revision", "fragile", "importantNotes"])
+  for (const field of ["orderCode", "status", "serviceType", "serviceDate", "city", "clientNeighborhood", "neighborhood", "selectedZone", "fee", "created", "updatedAt", "revision", "fragile", "importantNotes", "kind", "deliveryCount", "completedStops", "routeValues", "priorityUntil", "roundtripSchema", "legNumber", "roundtripTotalFee", "offerCreatedAt"])
     if (order[field] !== undefined) result[field] = order[field];
   return result;
 }
 function eligibleOrder(order, now) {
-  return !!order && ["open", "cotacao"].includes(order.status) && (!order.expiresAt || order.expiresAt > now);
+  return !!order && ["open", "cotacao", "route_open", "return_priority"].includes(order.status) && (!order.expiresAt || order.expiresAt > now);
 }
 const COURIER_CAPACITY = 2;
 function courierSlots(state, uid, excludeId) {
   return Object.entries(state.orders || {}).filter(([id, o]) => id !== excludeId &&
-    o.courierId === uid && (o.status === "run" || o.status === "cotacao_aceita" || (o.status === "open" && o.assignedCourierId === uid)));
+    !o.routeId && o.courierId === uid && (o.status === "run" || o.status === "cotacao_aceita" || (o.status === "open" && o.assignedCourierId === uid)));
 }
+function courierLoad(state,uid,excludeId){return courierSlots(state,uid,excludeId).reduce((sum,[,o])=>sum+(o.kind==='route'?COURIER_CAPACITY:1),0);}
+function canTakeOrder(state,uid,order,excludeId){const load=courierLoad(state,uid,excludeId);return state.courierPresence?.[uid]?.availableForWork===true&&(order?.kind==='route'?load===0:load<COURIER_CAPACITY);}
+function offerAllowed(order,uid,now){return order?.status!=='return_priority'||order.priorityUntil<=now||order.priorityCourierId===uid;}
 function syncTracking(state, order, now) {
   if (!order.trackingToken) return;
   const active = ["open", "run"].includes(order.status) && order.trackingExpiresAt > now;
   put(state, `publicTracking/${order.trackingToken}`, active ? {
     orderCode: order.orderCode, status: order.status,
-    serviceTypeLabel: order.serviceType === "roundtrip" ? "Recolha e entrega" : order.serviceType === "collection" ? "Recolha" : "Entrega",
+    serviceTypeLabel: order.serviceType === "roundtrip" ? "Recolha e entrega" : order.serviceType === "collection" ? "Recolha" : order.kind==='route'?"Rota múltipla":"Entrega",
     queuePosition: order.status === "run" ? Number(order.queuePosition || 1) : 0,
     location: order.status === "run" ? order.location || null : null,
     updatedAt: now, expiresAt: order.trackingExpiresAt, revoked: false
@@ -80,9 +84,10 @@ function syncCourierWork(state, uid, now) {
     put(state, `storeOrders/${order.storeId}/${id}`, order);
     put(state, `courierOrders/${uid}/${id}`, order);
     syncTracking(state, order, now);
+    if(order.kind==='route')for(const stopId of order.routeOrderIds||[]){const stop=state.orders?.[stopId];if(stop?.status!=='run')continue;const childLocation=latest&&latest.updatedAt>Number(stop.location?.updatedAt||0);if(childLocation||stop.queuePosition!==position){stop.queuePosition=position;if(childLocation)stop.location={...latest};stop.revision=Number(stop.revision||0)+1;stop.updatedAt=now;put(state,`storeOrders/${stop.storeId}/${stopId}`,stop);put(state,`courierOrders/${uid}/${stopId}`,stop);syncTracking(state,stop,now);}}
   });
   const presence = state.courierPresence?.[uid];
-  if (presence) Object.assign(presence, { busy: running.length > 0, activeCount: running.length, occupiedSlots: slots.length, capacity: COURIER_CAPACITY });
+  if (presence) Object.assign(presence, { busy: running.length > 0, activeCount: running.length, occupiedSlots: courierLoad(state,uid), routeActive:running.some(([,o])=>o.kind==='route'), capacity: COURIER_CAPACITY });
   if (!running.length) put(state, `courierLocations/${uid}`, null);
 }
 function queueJob(state, id, order, now) {
@@ -99,7 +104,8 @@ function projectOrder(state, id, order, previous, now) {
   if (previous?.courierId && previous.courierId !== order.courierId)
     put(state, `courierOrders/${previous.courierId}/${id}`, null);
   if (order.courierId) put(state, `courierOrders/${order.courierId}/${id}`, order);
-  put(state, `availableOrders/${id}`, order.status === "open" && !order.assignedCourierId ? publicOrder(order) : null);
+  put(state, `availableOrders/${id}`, ["open","route_open","return_priority"].includes(order.status) && !order.assignedCourierId ? publicOrder(order) : null);
+  for(const target of new Set([previous?.priorityCourierId,order.priorityCourierId].filter(Boolean)))put(state,`courierOffers/${target}/${id}`,order.status==='return_priority'&&target===order.priorityCourierId?{...publicOrder(order),isPriorityOffer:true}:null);
   put(state, `quoteBoard/${id}`, order.status === "cotacao" ? publicOrder(order) : null);
   if (previous?.trackingToken && previous.trackingToken !== order.trackingToken)
     put(state, `publicTracking/${previous.trackingToken}`, null);
@@ -109,6 +115,15 @@ function projectOrder(state, id, order, previous, now) {
   }
   queueJob(state, id, order, now);
 }
+function commitOrder(state,id,order,previous,now,actor,action,requestId){
+ order.revision=Number(order.revision||0)+1;order.updatedAt=now;order.lastActorUid=actor;
+ projectOrder(state,id,order,previous,now);
+ put(state,`orderEvents/${id}/${actor}_${requestId}`,{action,actorUid:actor,at:now,revision:order.revision});
+ const recipients=[...new Set([order.storeId,order.courierId,previous?.courierId].filter(x=>x&&x!==actor))];
+ if(recipients.length&&(!order.routeId||action==='finish')&&action!=='finishRouteStop')put(state,`pushUpdates/${id}_${order.revision}`,{orderId:id,action,status:order.status,recipients,createdAt:now});
+}
+const logisticsApi={fail,key,put,commit:commitOrder,projectOrder,courierSlots};
+function settleReturns(original,now){const state=structuredClone(original||{});return Logistics.expireReturns(state,now,logisticsApi)?state:null;}
 const defaultRates = require("./default-rates.json");
 function orderInput(input, quote) {
   fail(input && typeof input === "object", "Pedido inválido.", "invalid-argument");
@@ -147,14 +162,17 @@ function applyCommand(original, auth, command, context) {
     fail(receipt.fingerprint === context.fingerprint, "Identificador reutilizado com outros dados.", "already-exists");
     return { state, result: receipt.result };
   }
+  Logistics.expireReturns(state,now,logisticsApi);
+  const logisticsContext={...context,uid,requestId};
   let result = { ok: true };
   let id = command.orderId ? key(command.orderId, "Pedido") : null;
   let order = id ? state.orders?.[id] : null;
   const previous = order ? structuredClone(order) : null;
   const store = () => fail(who?.role === "store" && order?.storeId === uid, "Pedido de outra loja.", "permission-denied");
   const courier = () => fail(who?.role === "courier" && order?.courierId === uid, "Corrida de outro motoboy.", "permission-denied");
-  const available = () => fail(who?.role === "courier" && state.courierPresence?.[uid]?.availableForWork === true && courierSlots(state, uid, id).length < COURIER_CAPACITY, "Ative sua disponibilidade. Limite de duas corridas aceitas ou reservadas.");
-  if (action === "createProfile") {
+  const available = () => fail(who?.role === "courier" && canTakeOrder(state,uid,order,id), "Ative sua disponibilidade. Limite de duas corridas aceitas ou reservadas.");
+  if(Logistics.handles(action))result=Logistics.dispatch(state,uid,who,action,id,input,logisticsContext,logisticsApi);
+  else if (action === "createProfile") {
     fail(!who, "Esta conta já possui perfil.");
     fail(["store", "courier"].includes(input.role), "Perfil inválido.");
     const entry = { name: text(input.name, 80, true), phone: text(input.phone, 30, true), email: String(auth.token?.email || ""), address: "", created: now, accessStatus: "pending" };
@@ -190,8 +208,8 @@ function applyCommand(original, auth, command, context) {
     put(state, `adminEvents/${uid}_${requestId}`, {action, actorUid: uid, alertId, at: now});
   } else if (action === "previewOrderCare") {
     available();
-    fail(order?.status === "open" && (!order.assignedCourierId || order.assignedCourierId === uid), "Pedido indisponível.");
-    result.care = {fragile: order.fragile === true, importantNotes: order.importantNotes === true, notes: order.fragile || order.importantNotes ? order.notes || "" : "", revision: Number(order.revision || 0)};
+    fail(["open","route_open","return_priority"].includes(order?.status)&&offerAllowed(order,uid,now)&&(!order.assignedCourierId||order.assignedCourierId===uid),"Pedido indisponível.");
+    result.care=Logistics.careFor(state,order);
   } else if (action === "saveProfile") {
     fail(who, "Perfil não encontrado.", "permission-denied");
     const entry = { ...state.profiles[who.role === "store" ? "stores" : "couriers"][uid], name: text(input.name, 80, true), phone: text(input.phone, 30, true), address: text(input.address, 300, true) };
@@ -277,11 +295,13 @@ function applyCommand(original, auth, command, context) {
     fail(who || auth.token?.admin === true, "Perfil não encontrado.", "permission-denied");
     if (action === "saveOrder") {
       fail(who?.role === "store", "Somente lojistas criam pedidos.", "permission-denied");
-      if (id) { fail(order, "Pedido não encontrado.", "not-found"); store(); fail(["open", "cotacao", "cotacao_aceita"].includes(order.status), "Pedido não pode ser editado nesta etapa."); }
+      if (id) { fail(order, "Pedido não encontrado.", "not-found"); store(); fail(["open", "cotacao", "cotacao_aceita","route_draft"].includes(order.status)&&!order.routeId&&order.kind!=="route", "Pedido não pode ser editado nesta etapa."); }
       const completing = order?.status === "cotacao_aceita";
       const quote = completing ? false : input.isQuote === true;
       if (order && !completing) fail(quote === (order.status === "cotacao"), "Não é possível trocar o modo do pedido.");
       const fields = orderInput(input, quote);
+      if(previous&&!completing)fail(fields.serviceType===(previous.roundtripSchema&&previous.legNumber===1?'roundtrip':previous.serviceType),'Para alterar a modalidade, cancele e crie outro pedido.');
+      if(input.routeDraft===true)fail(!quote&&fields.serviceType==='delivery','Rascunhos de rota devem ser entregas simples.');
       if(previous && !quote && !completing) {
         for(const field of ['selectedZone','paymentMethod','bag','bank']) fail((previous[field]||(field==='selectedZone'?Tariffs.SEDE:false))===(fields[field]||(field==='selectedZone'?Tariffs.SEDE:false)),'Para alterar região ou adicionais, cancele e crie um novo pedido. O valor registrado é preservado.');
       }
@@ -295,10 +315,16 @@ function applyCommand(original, auth, command, context) {
         let priced;try{priced=Tariffs.price(fields,Tariffs.resolve(state.config,now,defaultRates),Tariffs.rain(state.config,now),now);}catch(error){throw new DomainError('invalid-argument',error.message);}
         order.fee=priced.fee;order.priceSnapshot=priced.snapshot;order.rain=priced.snapshot.rainFee>0;
       }
+      if(!quote){
+        Logistics.linkRoundtrip(state,id,order,previous,completing,logisticsContext,logisticsApi);
+        if(input.routeDraft===true||previous?.status==='route_draft')order.status='route_draft';
+      }
       if (quote) { order.bids = {}; for (const courierUid of Object.keys(previous?.bids || {})) put(state, `courierBids/${courierUid}/${id}`, null); }
       if (!previous || previous.status !== order.status) order.offerGeneration += 1;
     } else {
       fail(order, "Pedido não encontrado.", "not-found");
+      if(order.routeId)fail(["report-payment","confirm-payment","toggle-pay","tracking"].includes(action),'Gerencie esta entrega pelos controles da rota.');
+      if(order.kind==='route')fail(["accept","focus","location","tracking"].includes(action),'Use os controles da rota múltipla.');
       if (action === "send-bid") {
         available(); fail(order.status === "cotacao", "Cotação encerrada.");
         const bid = { amount: money(input.amount), courierName: who.name, timestamp: now };
@@ -308,15 +334,18 @@ function applyCommand(original, auth, command, context) {
         store(); fail(order.status === "cotacao", "Cotação já aceita ou encerrada.");
         const selected = key(input.courierId);
         const bid = order.bids?.[selected]; fail(bid && Number(input.amount) === bid.amount, "Proposta alterada ou inválida.");
-        fail(accessAllowed(state.profiles?.couriers?.[selected]) && state.courierPresence?.[selected]?.availableForWork === true && courierSlots(state, selected, id).length < COURIER_CAPACITY, "Motoboy indisponível: limite de duas corridas aceitas ou reservadas.");
+        fail(accessAllowed(state.profiles?.couriers?.[selected]) && canTakeOrder(state,selected,order,id), "Motoboy indisponível: limite de duas corridas aceitas ou reservadas.");
         Object.assign(order, { status: "cotacao_aceita", courierId: selected, assignedCourierId: selected, courierName: bid.courierName, fee: bid.amount, agreedFee: bid.amount, quoteAcceptedAt: now });
       } else if (action === "accept") {
-        available(); fail(order.status === "open" && (!order.assignedCourierId || order.assignedCourierId === uid), "Corrida já aceita ou reservada.");
-        if (order.fragile || order.importantNotes) {
+        available(); fail(["open","route_open","return_priority"].includes(order.status)&&offerAllowed(order,uid,now)&&(!order.assignedCourierId||order.assignedCourierId===uid), "Corrida já aceita, reservada ou em prioridade para outro motoboy.");
+        const care=Logistics.careFor(state,order);
+        if (care.fragile || care.importantNotes) {
           fail(input.careAcknowledged === true && input.careRevision === Number(order.revision || 0), "Leia e confirme os cuidados atualizados antes de aceitar.");
           order.careAcknowledgedAt = now; order.careAcknowledgedBy = uid;
         }
         Object.assign(order, { status: "run", courierId: uid, courierName: who.name, accepted: now, tripStage: 0 });
+        if(order.kind==='route')Logistics.acceptRoute(state,id,order,who,uid,now,{...input,requestId},logisticsApi);
+        if(order.legNumber===2)put(state,'returnTimers/'+id,null);
         // Aceite nunca modifica o valor registrado, inclusive em APK antigo.
       } else if (action === "focus") {
         courier(); fail(order.status === "run", "Corrida não está em andamento.");
@@ -369,6 +398,7 @@ function applyCommand(original, auth, command, context) {
         else if (!order.trackingToken || order.trackingExpiresAt <= now || input.rotate === true) { order.trackingToken = token; order.trackingExpiresAt = now + 86400000; }
       } else throw new DomainError("invalid-argument", "Ação desconhecida.");
     }
+    Logistics.afterOrder(state,id,order,previous,logisticsContext,logisticsApi);
     const paymentCommand = ["toggle-pay", "report-payment", "confirm-payment"].includes(action);
     const redundant = paymentCommand && paymentState(previous) === paymentState(order);
     if (!redundant) {
@@ -390,4 +420,4 @@ function applyCommand(original, auth, command, context) {
   put(state, `operationReceipts/${uid}/${requestId}`, { fingerprint: context.fingerprint, result, createdAt: now });
   return { state, result };
 }
-module.exports = { applyCommand, DomainError, eligibleOrder, publicOrder, projectOrder, courierSlots, COURIER_CAPACITY, FIVE_MINUTES, accessAllowed };
+module.exports = { applyCommand, DomainError, eligibleOrder, publicOrder, projectOrder, courierSlots, COURIER_CAPACITY, FIVE_MINUTES, accessAllowed, courierLoad,canTakeOrder,offerAllowed,settleReturns };

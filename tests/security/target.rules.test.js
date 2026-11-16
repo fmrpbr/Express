@@ -101,3 +101,11 @@ test('pendente/reprovado/bloqueado lê apenas seu cadastro e não opera por clie
   await env.withSecurityRulesDisabled(context=>update(ref(context.database(),'profiles/couriers/courierA'),{accessStatus:'approved'}));
   await assertSucceeds(get(ref(dbAs('courierA'),'availableOrders')));
 });
+
+test('ofertas prioritárias só são lidas pelo destinatário/admin e prazos não são alterados por clientes',async()=>{
+ await env.withSecurityRulesDisabled(async context=>{await set(ref(context.database(),'courierOffers/courierA/return'),{status:'return_priority',fee:7,priorityUntil:Date.now()+300000});});
+ await assertSucceeds(get(ref(dbAs('courierA'),'courierOffers/courierA')));
+ await assertFails(get(ref(dbAs('storeA'),'courierOffers/courierA')));
+ await assertFails(set(ref(dbAs('courierA'),'courierOffers/courierA/return/priorityUntil'),0));
+ await assertFails(set(ref(dbAs('courierA'),'returnTimers/return'),{until:0}));
+});

@@ -125,7 +125,7 @@ test('visitante abre rastreio sem login, recebe atualização e perde acesso ao 
   await db.ref('publicTracking/'+token).remove();
   await expect(page.locator('#public-track-content')).toContainText(/encerrado|indisponível/);
 });
-test('cotação contratada mantém valor e motoboy no serviço de duas viagens',async({browser})=>{
+test('cotação de duas viagens divide o total e libera o motoboy entre as etapas',async({browser})=>{
   const sc=await browser.newContext({viewport:{width:393,height:852}}),cc=await browser.newContext({viewport:{width:393,height:852}});
   const store=await sc.newPage(),courier=await cc.newPage();
   store.on('dialog',d=>d.accept());courier.on('dialog',d=>d.dismiss());
@@ -149,7 +149,7 @@ test('cotação contratada mantém valor e motoboy no serviço de duas viagens',
   await expect(store.locator('[data-action=accept-bid]')).toHaveCount(1);
   await store.locator('[data-action=accept-bid]').click();
   await expect(store.locator('#order-sheet-overlay')).toHaveClass(/active/);
-  await expect(store.locator('#quote-price-mobile')).toHaveText('R$ 25,00');
+  await expect(store.locator('#quote-price-mobile')).toContainText('R$ 25,00');
   await store.locator('#inp-client').fill('Cliente da Cotação');
   await store.locator('#inp-street').fill('Rua Cliente');
   await store.locator('#inp-number').fill('20');
@@ -157,13 +157,15 @@ test('cotação contratada mantém valor e motoboy no serviço de duas viagens',
   await expect(store.locator('#order-sheet-overlay')).not.toHaveClass(/active/);
   await courier.locator('[data-nav=available]').click();
   await courier.locator('[data-action=accept]').click();
-  for(const step of [1,2,3]) {
-    await expect(courier.locator('[data-action=roundtrip-step]')).toHaveAttribute('data-step',String(step));
-    await courier.locator('[data-action=roundtrip-step]').click();
-  }
+  await courier.locator('[data-action=picked]').click();
   await courier.locator('[data-action=finish]').click();
-  await expect(courier.locator('#content')).toContainText('Entregue');
-  await expect(courier.locator('.fee')).toHaveText('R$ 25,00');
+  await expect(courier.locator('[data-work-status]')).toHaveText('DISPONÍVEL');
+  await expect(courier.locator('.fee')).toHaveText('R$ 12,50');
+  await store.evaluate(()=>window.__express.setView('open'));
+  await store.locator('[data-action=requestReturn]').click();await store.locator('dialog [data-decision=confirm]').click();
+  await courier.locator('[data-nav=available]').click();await expect(courier.locator('#content')).toContainText('Prioridade do primeiro motoboy');
+  await courier.locator('[data-action=accept]').click();await courier.locator('[data-action=picked]').click();await courier.locator('[data-action=finish]').click();
+  await expect(courier.locator('.fee')).toHaveCount(2);
   await courier.screenshot({path:'/tmp/express-v2-courier.png',fullPage:true});
   await sc.close();await cc.close();
 });
@@ -540,4 +542,47 @@ test('aceite consulta cuidados no servidor mesmo com resumo antigo e pede nova l
     expect(order.fee).toBe(7);expect(order.notes).toBe('LIGAR AO CHEGAR. NÃO BUZINAR.');
     await expect(rider.locator('[data-order-id="'+id+'"]')).toContainText('LIGAR AO CHEGAR');
   }finally{await shopContext.close();await riderContext.close();}
+});
+
+test('duas viagens cobram separado, liberam o primeiro motoboy e permitem repassar a devolução',async({browser})=>{
+ const contexts=await Promise.all([1,2,3].map(()=>browser.newContext({viewport:{width:393,height:852}})));const [shop,a,b]=await Promise.all(contexts.map(c=>c.newPage()));const suffix=Date.now();
+ try{
+  await register(shop,'store','two-shop-'+suffix+'@example.test');await shop.evaluate(()=>window.__express.setView('profile'));await shop.locator('#prof-address').fill('RUA DA LOJA, 1');await shop.locator('#store-profile-form button[type=submit]').click();await expect(shop.locator('#store-profile-form')).toHaveCount(0);
+  await register(a,'courier','two-a-'+suffix+'@example.test');await register(b,'courier','two-b-'+suffix+'@example.test');await a.locator('[data-toggle-availability]').click();await b.locator('[data-toggle-availability]').click();
+  await shop.evaluate(()=>window.__express.openSheet());await shop.locator('#service-type-select').selectOption('roundtrip');await shop.locator('#inp-client').fill('CLIENTE DAS DUAS VIAGENS');await shop.locator('#inp-street').fill('RUA DO CLIENTE');await shop.locator('#inp-number').fill('1');await shop.locator('#input-neighborhood').fill('CENTRO');await expect(shop.locator('#quote-price-mobile')).toContainText('R$ 14,00');await shop.locator('#btn-submit-order').click();await expect(shop.locator('#order-sheet-overlay')).not.toHaveClass(/active/);
+  const user=await app.auth().getUserByEmail('two-shop-'+suffix+'@example.test');const os=(await db.ref('storeOrders/'+user.uid).get()).val();const id=Object.keys(os).find(id=>os[id].legNumber===1),ret=os[id].returnOrderId;
+  await a.locator('[data-action=accept][data-id="'+id+'"]').click();await a.locator('[data-action=picked][data-id="'+id+'"]').click();await a.locator('[data-action=finish][data-id="'+id+'"]').click();await expect(a.locator('[data-work-status]')).toHaveText('DISPONÍVEL');
+  await shop.locator('[data-action=requestReturn][data-id="'+ret+'"]').click();await shop.locator('dialog [data-decision=confirm]').click();await a.evaluate(()=>window.__express.setView('available'));
+  await expect(a.locator('[data-order-id="'+ret+'"]')).toContainText('Prioridade do primeiro motoboy');await expect(b.locator('[data-order-id="'+ret+'"]')).toHaveCount(0);
+  await a.locator('[data-action=releaseReturn][data-id="'+ret+'"]').click();await a.locator('dialog [data-decision=confirm]').click();await b.locator('[data-action=accept][data-id="'+ret+'"]').click();await b.locator('[data-action=picked][data-id="'+ret+'"]').click();await b.locator('[data-action=finish][data-id="'+ret+'"]').click();
+  await expect.poll(async()=>(await db.ref('orders/'+ret+'/status').get()).val()).toBe('done');
+  const first=(await db.ref('orders/'+id).get()).val(),second=(await db.ref('orders/'+ret).get()).val();expect(first.fee).toBe(7);expect(second.fee).toBe(7);expect(first.courierId).not.toBe(second.courierId);expect(first.status).toBe('done');expect(second.status).toBe('done');
+ }finally{for(const c of contexts)await c.close();}
+});
+
+test('rota múltipla soma tarifas, mostra bairros, bloqueia novas corridas e libera após todas as paradas',async({browser})=>{
+ const sc=await browser.newContext({viewport:{width:393,height:852}}),cc=await browser.newContext({viewport:{width:393,height:852}});const shop=await sc.newPage(),rider=await cc.newPage(),suffix=Date.now();
+ try{
+  await register(shop,'store','route-shop-'+suffix+'@example.test');await shop.evaluate(()=>window.__express.setView('profile'));await shop.locator('#prof-address').fill('RUA DA COLETA, 1');await shop.locator('#store-profile-form button[type=submit]').click();await expect(shop.locator('#store-profile-form')).toHaveCount(0);
+  await register(rider,'courier','route-rider-'+suffix+'@example.test');await rider.locator('[data-toggle-availability]').click();await shop.evaluate(()=>window.__express.setView('routes'));
+  for(const [index,bairro]of ['CENTRO','ITAPUTERA','SÃO MARCOS'].entries()){
+   await shop.locator('[data-action=route-add]').click();await shop.locator('#inp-client').fill('CLIENTE '+(index+1));await shop.locator('#inp-street').fill('RUA '+(index+1));await shop.locator('#inp-number').fill('1');await shop.locator('#input-neighborhood').fill(bairro);if(index===1){await shop.locator('#inp-fragile').check();await shop.locator('#inp-notes').fill('MANTER EM PÉ');}await shop.locator('#btn-submit-order').click();await expect(shop.locator('#order-sheet-overlay')).not.toHaveClass(/active/);await expect(shop.locator('#content h2').first()).toContainText((index+1)+' entregas');
+  }
+  await expect(shop.locator('#content h2').first()).toContainText('R$ 21,00');await shop.locator('[data-action=route-publish]').click();await shop.locator('dialog [data-decision=confirm]').click();
+  const user=await app.auth().getUserByEmail('route-shop-'+suffix+'@example.test');await expect.poll(async()=>Object.values((await db.ref('storeOrders/'+user.uid).get()).val()||{}).some(o=>o.kind==='route')).toBe(true);const os=(await db.ref('storeOrders/'+user.uid).get()).val();const id=Object.keys(os).find(k=>os[k].kind==='route');const card=rider.locator('[data-order-id="'+id+'"]');await expect(card).toContainText('3 ENTREGAS');await expect(card).toContainText('ITAPUTERA');await expect(card).toContainText('R$ 21,00');await expect(card).not.toContainText('CLIENTE 1');
+  await card.locator('[data-action=accept]').click();await expect(rider.locator('dialog')).toContainText('MANTER EM PÉ');await rider.locator('dialog [data-decision=confirm]').click();await expect(rider.locator('#content')).toContainText('ROTA EM EXECUÇÃO');
+  await rider.locator('[data-action=routePickup]').click();await rider.locator('dialog [data-decision=confirm]').click();
+  for(let i=0;i<3;i++){
+   const button=rider.locator('[data-action=finishRouteStop]');await expect(button).toHaveCount(1);await button.click();await rider.locator('dialog [data-decision=confirm]').click();await expect.poll(async()=>(await db.ref('orders/'+id+'/completedStops').get()).val()).toBe(i+1);if(i<2)await expect(rider.locator('#content')).toContainText('NOVAS CORRIDAS BLOQUEADAS');
+  }
+  await expect(rider.locator('[data-work-status]')).toHaveText('DISPONÍVEL');await rider.evaluate(()=>window.__express.setView('done'));await expect(rider.locator('[data-order-id]')).toHaveCount(3);
+  for(const page of [shop,rider])expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ }finally{await sc.close();await cc.close();}
+});
+
+test('cliente atualizado preserva entregas simples enquanto o servidor novo ainda não foi publicado',async({page})=>{
+ await page.route('**/southamerica-east1/orderCommand',route=>{const data=route.request().postDataJSON()?.data;if(data?.action==='getCapabilities')return route.fulfill({status:400,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},body:JSON.stringify({error:{status:'INVALID_ARGUMENT',message:'Ação desconhecida.'}})});return route.continue();});
+ await register(page,'store','rollout-shop-'+Date.now()+'@example.test');await page.evaluate(()=>window.__express.setView('profile'));await page.locator('#prof-address').fill('RUA DA LOJA, 1');await page.locator('#store-profile-form button[type=submit]').click();await expect(page.locator('#store-profile-form')).toHaveCount(0);
+ await page.evaluate(()=>window.__express.setView('routes'));await expect(page.locator('#content')).toContainText('atualização do servidor');await expect(page.locator('[data-action=route-publish]')).toHaveCount(0);
+ await page.evaluate(()=>window.__express.openSheet());await expect(page.locator('#service-type-select option[value=roundtrip]')).toBeDisabled();await page.locator('#inp-client').fill('CLIENTE NORMAL');await page.locator('#inp-street').fill('RUA NORMAL');await page.locator('#inp-number').fill('1');await page.locator('#input-neighborhood').fill('CENTRO');await page.locator('#btn-submit-order').click();await expect(page.locator('#order-sheet-overlay')).not.toHaveClass(/active/);await expect(page.locator('#content')).toContainText('CLIENTE NORMAL');
 });

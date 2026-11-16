@@ -204,3 +204,30 @@ test('transient update failure retries at most three attempts; successful device
  clock+=120000;await dispatch('retry');assert.equal(calls,3);assert.equal((await db.ref('pushUpdateRetries/retry').get()).exists(),false);
  await dispatch('retry');assert.equal(calls,3);
 });
+
+test('duas viagens: prioridade de cinco minutos e dois aceites concorrentes têm um único vencedor',{timeout:30000},async()=>{
+ const first=(await execute(auth('storeA'),request('saveOrder',null,{...fields,serviceType:'roundtrip'}))).orderId;
+ await execute(auth('courierA'),request('accept',first));await execute(auth('courierA'),request('picked',first));await execute(auth('courierA'),request('finish',first));
+ const ret=(await db.ref('orders/'+first+'/returnOrderId').get()).val();await execute(auth('storeA'),request('requestReturn',ret));
+ await assert.rejects(()=>execute(auth('courierB'),request('accept',ret)),/prioridade/);
+ const late=createCommandHandler(db,()=>now+300000);const results=await Promise.allSettled(['courierA','courierB'].map(uid=>late(auth(uid),request('accept',ret))));assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+ const root=(await db.ref().get()).val();assert.equal(root.orders[first].fee,7);assert.equal(root.orders[ret].fee,7);assert.equal(root.orders[first].status,'done');assert.equal(root.orders[ret].status,'run');assert.equal(root.returnTimers?.[ret],undefined);
+});
+test('rota e corrida avulsa concorrentes para o mesmo motoboy nunca são aceitas juntas',{timeout:30000},async()=>{
+ const ids=[];for(let i=0;i<3;i++)ids.push((await execute(auth('storeA'),request('saveOrder',null,fields))).orderId);
+ const route=(await execute(auth('storeA'),request('createRoute',null,{orderIds:ids.slice(0,2)}))).orderId;
+ const results=await Promise.allSettled([execute(auth('courierA'),request('accept',route,{logisticsVersion:1})),execute(auth('courierA'),request('accept',ids[2]))]);assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+ const root=(await db.ref().get()).val();if(root.orders[route].status==='run'){assert.equal(root.orders[ids[2]].status,'open');for(const id of ids.slice(0,2))assert.equal(root.orders[id].courierId,'courierA');assert.equal(root.courierPresence.courierA.occupiedSlots,2);}else assert.equal(root.orders[ids[2]].status,'run');
+});
+test('dois motoboys disputam uma rota e todas as paradas ficam com um único dono',{timeout:30000},async()=>{
+ const ids=[];for(let i=0;i<3;i++)ids.push((await execute(auth('storeA'),request('saveOrder',null,{...fields,routeDraft:true}))).orderId);
+ const route=(await execute(auth('storeA'),request('createRoute',null,{orderIds:ids}))).orderId;
+ const results=await Promise.allSettled(['courierA','courierB'].map(uid=>execute(auth(uid),request('accept',route,{logisticsVersion:1}))));assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+ const root=(await db.ref().get()).val(),winner=root.orders[route].courierId;for(const id of ids){assert.equal(root.orders[id].courierId,winner);assert.equal(root.availableOrders?.[id],undefined);}assert.equal(root.courierPresence[winner].occupiedSlots,2);
+});
+test('agendador libera devolução sem app aberto e não reabre corrida já aceita',{timeout:30000},async()=>{
+ const {releaseDueReturns}=require('../../functions/return-scheduler');const first=(await execute(auth('storeA'),request('saveOrder',null,{...fields,serviceType:'roundtrip'}))).orderId;
+ await execute(auth('courierA'),request('accept',first));await execute(auth('courierA'),request('picked',first));await execute(auth('courierA'),request('finish',first));const id=first+'_return';await execute(auth('storeA'),request('requestReturn',id));
+ await releaseDueReturns(db,now+300000);assert.equal((await db.ref('orders/'+id+'/status').get()).val(),'open');
+ const late=createCommandHandler(db,()=>now+300000);await late(auth('courierB'),request('accept',id));await releaseDueReturns(db,now+600000);assert.equal((await db.ref('orders/'+id+'/status').get()).val(),'run');
+});

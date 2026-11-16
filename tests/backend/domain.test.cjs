@@ -124,8 +124,9 @@ test('cotação preserva contratado e valor; cancelamento retorna à cotação s
   assert.equal(state.quoteBoard.orderA.status, 'cotacao');
   assert.deepEqual(state.orders.orderA.bids, {});
 });
-test('roundtrip exige as três etapas e conclusão libera disponibilidade', () => {
-  let state = run(create(fixture(), { serviceType: 'roundtrip' }), 'courierA', 'accept', 'orderA').state;
+test('roundtrip legado mantém as três etapas e seu preço original', () => {
+  let legacy=create();legacy.orders.orderA.serviceType='roundtrip';legacy.storeOrders.storeA.orderA.serviceType='roundtrip';
+  let state = run(legacy, 'courierA', 'accept', 'orderA').state;
   assert.throws(() => run(state, 'courierA', 'roundtrip-step', 'orderA', { step: 2 }), /Etapa/);
   assert.throws(() => run(state, 'courierA', 'finish', 'orderA'), /etapas/);
   for (let step = 1; step <= 3; step++) state = run(state, 'courierA', 'roundtrip-step', 'orderA', { step }).state;
