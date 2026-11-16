@@ -8,6 +8,7 @@ const { defineSecret, defineString } = require("firebase-functions/params");
 const { createCommandHandler } = require("./commands");
 const { createDispatcher, createUpdateDispatcher } = require("./notifications");
 const { DomainError } = require("./domain");
+const { activateTariffs } = require("./tariff-scheduler");
 const webPush = require("web-push");
 
 const projectId = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT;
@@ -39,6 +40,8 @@ exports.orderCommand = onCall(async request => {
 });
 exports.onPushJobCreated = onValueCreated({ ref: "/pushJobs/{jobId}", region: "us-central1", secrets: pushSecrets }, async event => { const t = transports(); return createDispatcher(db, t.messaging, Date.now, t.web)(event.params.jobId); });
 exports.processPushReminders = onSchedule({ schedule: "every 1 minutes", secrets: pushSecrets }, async () => {
+  const now=Date.now();
+  await activateTariffs(db,now);
   const due = await db.ref("pushJobs").orderByChild("nextAt").endAt(Date.now()).limitToFirst(100).get();
   for (const id of Object.keys(due.val() || {})) {
     const t = transports(); await createDispatcher(db, t.messaging, Date.now, t.web)(id);

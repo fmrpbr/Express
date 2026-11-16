@@ -60,6 +60,20 @@ test("Pix privado só é acessível no próprio perfil e nos pedidos próprios, 
   await assertFails(set(ref(store, 'storeOrders/storeA/orderA/paid'), true));
 });
 
+test('tarifas e avisos são legíveis por perfis válidos e nunca gravados diretamente, inclusive pelo admin',async()=>{
+ const paths=['config/tariffPlans','config/tariffCancellations','config/rainPlans','systemNotices'];
+ for(const path of paths){
+  await env.withSecurityRulesDisabled(async ctx=>set(ref(ctx.database(),path),{sample:{effectiveAt:Date.now()+60000}}));
+  for(const uid of ['storeA','courierA'])await assertSucceeds(get(ref(env.authenticatedContext(uid).database(),path)));
+  await assertFails(get(ref(env.unauthenticatedContext().database(),path)));
+  await assertFails(get(ref(env.authenticatedContext('unknown').database(),path)));
+  await assertFails(set(ref(env.authenticatedContext('storeA').database(),path+'/forged'),{fee:0}));
+  await assertFails(set(ref(env.authenticatedContext('admin',{admin:true}).database(),path+'/forged'),{fee:0}));
+ }
+ await assertSucceeds(get(ref(env.authenticatedContext('admin',{admin:true}).database(),'rainSignals')));
+ await assertFails(get(ref(env.authenticatedContext('storeA').database(),'rainSignals')));
+});
+
 test("loja lê apenas o próprio perfil", async () => {
   const db = env.authenticatedContext("storeA").database();
   await assertSucceeds(get(ref(db, "profiles/stores/storeA")));

@@ -6,6 +6,7 @@ assets/
 www/icons/
 www/vendor/firebase.bundle.js
 www/payments.js
+www/tariffs.js
 firebase-debug.log
 database-debug.log
 *-debug.log

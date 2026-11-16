@@ -2,6 +2,7 @@
 
 const FIVE_MINUTES = 300000;
 const { paymentState, normalizePix } = require("./payments");
+const Tariffs = require("./tariffs");
 class DomainError extends Error {
   constructor(code, message) { super(message); this.code = code; }
 }
@@ -108,19 +109,6 @@ function projectOrder(state, id, order, previous, now) {
   queueJob(state, id, order, now);
 }
 const defaultRates = require("./default-rates.json");
-function feeFor(input, rates, now) {
-  rates ||= defaultRates;
-  const zone = input.selectedZone || "Sede e Bairros (Padrão)";
-  let base = Number(rates.zones?.[zone]);
-  fail(Number.isFinite(base) && base >= 0, "Zona sem tarifa configurada.");
-  const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "America/Sao_Paulo", hour: "2-digit", hourCycle: "h23" }).format(new Date(now)));
-  if(input.paymentMethod === "card") base = Math.max(base, 10);
-  if(hour >= 23) base = Math.max(base, 10);
-  else if(hour >= 18) base += Number(rates.night || 3);
-  if(input.bank) base = Math.max(base, Number(rates.bankService || 10));
-  if(input.bag) base += Number(rates.bag ?? 10);
-  return Math.round(base * 100) / 100;
-}
 function orderInput(input, quote) {
   fail(input && typeof input === "object", "Pedido inválido.", "invalid-argument");
   fail(["delivery", "collection", "roundtrip"].includes(input.serviceType), "Tipo de serviço inválido.");
@@ -200,16 +188,37 @@ function applyCommand(original, auth, command, context) {
       }
     }
     put(state, `fcmTokens/${uid}/${tokenId}`, { token: input.token, deviceId, platform: "android", updatedAt: now });
-  } else if (action === "saveRates") {
+  } else if (["saveRates", "scheduleRates", "cancelRates", "scheduleRain"].includes(action)) {
     fail(auth.token?.admin === true, "Acesso administrativo necessário.", "permission-denied");
-    fail(input.zones && Object.keys(input.zones).length > 0 && Object.keys(input.zones).length <= 100, "Tarifas inválidas.");
-    const rates = { zones: {} };
-    for (const [zone, value] of Object.entries(input.zones)) {
-      fail(!/[.#$\[\]/]/.test(zone) && zone.length <= 120 && Number.isFinite(value) && value >= 0 && value <= 10000, "Tarifa inválida.");
-      rates.zones[zone] = value;
+    if(action === "cancelRates") {
+      const planId=key(input.planId);const plan=state.config?.tariffPlans?.[planId];
+      fail(plan && plan.effectiveAt>now && !state.config?.tariffCancellations?.[planId], "Somente um agendamento futuro pode ser cancelado.");
+      put(state, `config/tariffCancellations/${planId}`, { at:now, actorUid:uid });
+      if(state.systemNotices?.['tariff_scheduled_'+planId])state.systemNotices['tariff_scheduled_'+planId].expiresAt=now;
+      Tariffs.notice(state,'tariff_cancel_'+planId,'Alteração de tarifas cancelada','O agendamento foi cancelado. Pedidos já registrados mantêm seus valores.',now,now+86400000);
+    } else {
+      fail(Number.isSafeInteger(input.effectiveAt)&&input.effectiveAt>=now+Tariffs.MIN_NOTICE,"Agende com pelo menos um minuto de antecedência.");
+      if(action === "scheduleRain") {
+        fail(typeof input.enabled==='boolean',"Informe a condição de chuva.");
+        fail(!input.enabled||Tariffs.resolve(state.config,input.effectiveAt,defaultRates).schemaVersion===1,'Agende primeiro a tabela com o adicional de chuva da sede.');
+        fail(!Object.values(state.config?.rainPlans||{}).some(p=>p.effectiveAt===input.effectiveAt),'Já existe mudança de chuva nesse horário.');
+        put(state,`config/rainPlans/${newId}`,{enabled:input.enabled,effectiveAt:input.effectiveAt,createdAt:now,createdBy:uid});
+        Tariffs.notice(state,'rain_scheduled_'+newId,'Mudança de chuva agendada',`A taxa de chuva será ${input.enabled?'ativada':'desativada'} na sede em ${new Date(input.effectiveAt).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}. Somente novos pedidos.`,now,input.effectiveAt);
+      } else {
+        fail(input.baseVersion===Tariffs.head(state.config?.tariffPlans),'A tabela foi atualizada por outro acesso. Reabra Tarifas antes de agendar.');
+        fail(!Object.entries(state.config?.tariffPlans||{}).some(([k,p])=>!state.config?.tariffCancellations?.[k]&&p.effectiveAt===input.effectiveAt),'Já existe alteração nesse horário.');
+        let rates;try { rates=Tariffs.validate(input.rates,{...defaultRates.zones,...state.config?.rates?.zones}); } catch(error){throw new DomainError('invalid-argument',error.message);}
+        put(state,`config/tariffPlans/${newId}`,{rates,effectiveAt:input.effectiveAt,createdAt:now,createdBy:uid});
+        Tariffs.notice(state,'tariff_scheduled_'+newId,'Novos valores de entrega agendados',`Consulte Tarifas: novos valores a partir de ${new Date(input.effectiveAt).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}. Pedidos registrados não serão alterados.`,now,input.effectiveAt);
+      }
     }
-    for (const field of ["night", "rain", "weekend", "bag", "bankService"]) { const value = Number(input[field] || 0); fail(Number.isFinite(value) && value >= 0 && value <= 10000, "Adicional inválido."); rates[field] = value; }
-    put(state, "config/rates", rates);
+    put(state,`adminEvents/${uid}_${requestId}`,{action,actorUid:uid,at:now});
+  } else if (action === "signalRain") {
+    fail(who?.role==='courier','Somente motoboys podem sinalizar chuva.','permission-denied');
+    fail(!state.rainSignals?.[uid]||now-state.rainSignals[uid].at>=300000,'Seu sinal já foi registrado. Aguarde cinco minutos.');
+    put(state,`rainSignals/${uid}`,{at:now,region:Tariffs.SEDE});
+    const count=Object.values(state.rainSignals||{}).filter(s=>now-s.at<1800000).length;
+    put(state,'config/rainSummary',{count,updatedAt:now});
   } else {
     fail(who || auth.token?.admin === true, "Perfil não encontrado.", "permission-denied");
     if (action === "saveOrder") {
@@ -219,11 +228,19 @@ function applyCommand(original, auth, command, context) {
       const quote = completing ? false : input.isQuote === true;
       if (order && !completing) fail(quote === (order.status === "cotacao"), "Não é possível trocar o modo do pedido.");
       const fields = orderInput(input, quote);
+      if(previous && !quote && !completing) {
+        for(const field of ['selectedZone','paymentMethod','bag','bank']) fail((previous[field]||(field==='selectedZone'?Tariffs.SEDE:false))===(fields[field]||(field==='selectedZone'?Tariffs.SEDE:false)),'Para alterar região ou adicionais, cancele e crie um novo pedido. O valor registrado é preservado.');
+      }
       fail(quote || who.address, "Cadastre o endereço da loja.");
       id ||= newId;
       order ||= { orderCode: `${quote ? "COT" : "EXP"}-${id.slice(-8).toUpperCase()}`, storeId: uid, created: now, createdBy: uid, paid: false, revision: 0, schemaVersion: 2, offerGeneration: 0 };
       Object.assign(order, fields, { storeName: who.name, storeAddress: who.address, status: quote ? "cotacao" : "open" });
-      order.fee = completing || order.agreedFee ? order.agreedFee : quote ? 0 : feeFor(fields, state.config?.rates, now);
+      if(completing || order.agreedFee) order.fee=order.agreedFee;
+      else if(quote) order.fee=0;
+      else if(!previous) {
+        let priced;try{priced=Tariffs.price(fields,Tariffs.resolve(state.config,now,defaultRates),Tariffs.rain(state.config,now),now);}catch(error){throw new DomainError('invalid-argument',error.message);}
+        order.fee=priced.fee;order.priceSnapshot=priced.snapshot;order.rain=priced.snapshot.rainFee>0;
+      }
       if (quote) { order.bids = {}; for (const courierUid of Object.keys(previous?.bids || {})) put(state, `courierBids/${courierUid}/${id}`, null); }
       if (!previous || previous.status !== order.status) order.offerGeneration += 1;
     } else {
@@ -242,8 +259,7 @@ function applyCommand(original, auth, command, context) {
       } else if (action === "accept") {
         available(); fail(order.status === "open" && (!order.assignedCourierId || order.assignedCourierId === uid), "Corrida já aceita ou reservada.");
         Object.assign(order, { status: "run", courierId: uid, courierName: who.name, accepted: now, tripStage: 0 });
-        // Preço contratado de cotação é imutável; adicionais comuns vêm da tarifa do servidor.
-        if (!order.agreedFee && input.rain === true && !order.rain) { order.fee = Math.max(order.fee, 10); order.rain = true; }
+        // Aceite nunca modifica o valor registrado, inclusive em APK antigo.
       } else if (action === "focus") {
         courier(); fail(order.status === "run", "Corrida não está em andamento.");
         put(state, `courierFocus/${uid}`, id);

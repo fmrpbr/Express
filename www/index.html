@@ -371,6 +371,7 @@
       <button type="submit" class="btn primary full" style="margin-top:10px;" id="auth-submit-btn">Acessar Painel Express →</button>
     </form>
     <div id="auth-feedback" role="status" aria-live="polite"></div>
+    <button type="button" class="btn secondary tiny full" data-action="reset-password">Definir ou recuperar senha</button>
     <button type="button" class="btn secondary tiny full" style="margin-top:15px; width:100%" data-admin-login>🔒 Entrar como Administrador</button>
   </div>
 </div>
@@ -551,11 +552,12 @@
 
 <script src="./firebase-config.js"></script>
 <script src="./payments.js"></script>
+<script src="./tariffs.js"></script>
 <script src="./vendor/native-push.bundle.js"></script>
 <script src="./vendor/firebase.bundle.js"></script>
 <script type="module">
   const { initializeApp, getDatabase, ref, set, update, push, get, onValue, query, orderByChild, startAt, onDisconnect, serverTimestamp,
-    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult,
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult, sendPasswordResetEmail,
     getFunctions, httpsCallable, connectDatabaseEmulator, connectAuthEmulator, connectFunctionsEmulator } = window.ExpressFirebase;
 
 
@@ -578,6 +580,7 @@
     connectFunctionsEmulator(functions, "127.0.0.1", 5001);
   }
   const callOrderCommand = httpsCallable(functions, "orderCommand");
+  let tariffConfig = {}, systemNotices = [], rainSignals = {};
   async function command(action, orderId, input = {}, requestId = crypto.randomUUID()) {
     if (!navigator.onLine) throw new Error("Sem conexão. Reconecte antes de confirmar esta ação.");
     const payload = { action, input, requestId };
@@ -713,10 +716,12 @@
         }),
         window.ExpressNativePush.LocalNotifications.addListener("localNotificationActionPerformed", action => {
           const extra = action.notification?.extra || {};
+          if(extra.type==='announcement'){view='tariffs';if(currentUser)render();return;}
           if(extra.orderId) { pendingPushOrderId = extra.orderId; view = extra.type === "quote" ? "quotes" : "available"; if(currentUser) mergeOrders(); }
         }),
         pushApi.addListener("pushNotificationActionPerformed", action => {
           const extra = action.notification?.data || {};
+          if(extra.type==='announcement'){view='tariffs';if(currentUser)render();return;}
           if(extra.orderId) {
             pendingPushOrderId = extra.orderId;
             view = role === "courier" ? (extra.type === "quote" ? "quotes" : "available") : "dashboard";
@@ -846,6 +851,7 @@
 
   document.addEventListener("input", e => {
     const target = e.target;
+    const rateForm=target?.closest('#tariff-form,#rain-form');if(rateForm)rateForm.dataset.dirty='true';
     // Campos de login e criação de conta preservam a digitação original, inclusive nomes e senhas.
     if (target && !target.hasAttribute("data-preserve-case") && !target.closest("#auth-form") && (target.matches('input:not([type="email"]):not([type="password"]):not([type="url"]):not([type="hidden"]):not([type="number"]):not([type="date"]):not([type="time"]), textarea'))) {
       const upper = target.value.toLocaleUpperCase("pt-BR");
@@ -949,6 +955,7 @@
   }
 
   function stopDataListeners() {
+    tariffConfig={};systemNotices=[];rainSignals={};
     unsubscribers.forEach(fn => { try { fn(); } catch (_) {} }); unsubscribers = [];
     if(presenceTimer) clearInterval(presenceTimer);
     presenceTimer = null; presenceSessionRef = null;
@@ -1037,6 +1044,9 @@
     startPresenceTracking();
     startAlertsListener();
     loadWeather();
+    for(const name of ['tariffPlans','tariffCancellations','rainPlans']) unsubscribers.push(onValue(ref(db,'config/'+name),snap=>{tariffConfig[name]=snap.val()||{};render();if(document.getElementById('order-sheet-overlay').classList.contains('active'))recalculateMobileFee();}));
+    unsubscribers.push(onValue(ref(db,'systemNotices'),snap=>{systemNotices=Object.values(snap.val()||{});render();}));
+    if(role==='admin')unsubscribers.push(onValue(ref(db,'rainSignals'),snap=>{rainSignals=snap.val()||{};render();}));
     if (role === "admin") {
       unsubscribers.push(onValue(ref(db, "profiles/stores"), snap => { let v=snap.val()||{}; data.stores=Object.entries(v).map(([id,x])=>({id,...x})); render(); }));
       unsubscribers.push(onValue(ref(db, "profiles/couriers"), snap => {
@@ -1057,6 +1067,7 @@
     }
     unsubscribers.push(onValue(ref(db,"config/rates"), snap => {
       let value = snap.val();
+      tariffConfig.rates=value||{};
       if (value) data.rates = { ...defaultRates, ...value, zones: { ...defaultRates.zones, ...(value.zones || {}) } };
       refreshZoneSelect(); render();
     }));
@@ -1316,6 +1327,8 @@
   window.__express.prepareSheet = prepareSheet;
 
   function configureOrderFormMode(isQuote, completing){
+    const frozen=!isQuote&&!completing&&!!document.getElementById('edit-order-id').value;
+    ['zone-select-mobile','payment-select-mobile','chk-bag-mob','chk-bank-mob'].forEach(id=>{document.getElementById(id).disabled=frozen;});
     ["field-street","field-number","field-reference","field-client","field-phone","field-payment","field-zone","field-notes","section-addons"].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isQuote?"none":"";});
     const city=document.getElementById("field-city");if(city)city.style.display="";
     ["inp-street","inp-number","inp-client"].forEach(id=>{const el=document.getElementById(id);if(el)el.required=!isQuote;});
@@ -1330,7 +1343,7 @@
     let select = document.getElementById("zone-select-mobile");
     if (select) {
       const selected = select.value;
-      let zones = data.rates.zones || defaultRates.zones;
+      let zones = window.ExpressTariffs.resolve(tariffConfig,Date.now(),defaultRates).zones;
       select.innerHTML = '<option value="">Standard — Sede e Bairros (Padrão)</option>' +
         Object.keys(zones).filter(z => z !== "Sede e Bairros (Padrão)").map(z => `<option value="${esc(z)}">${esc(z)} — ${cash(zones[z])}</option>`).join("");
       select.value = selected;
@@ -1355,7 +1368,7 @@
       let k = document.getElementById("chk-bank-mob").checked;
       let zoneVal = document.getElementById("zone-select-mobile").value;
       const prior = data.orders.find(o => o.id === editId);
-      let total = Number(document.getElementById("mobile-order-form").dataset.agreedFee || 0) || prior?.agreedFee || calculateFee(p, false, b, k, zoneVal);
+      let total = prior && prior.status!=='cotacao' ? prior.fee : Number(document.getElementById("mobile-order-form").dataset.agreedFee || 0) || calculateFee(p, false, b, k, zoneVal);
       document.getElementById("quote-price-mobile").textContent = cash(total);
     }
   }
@@ -1363,16 +1376,8 @@
   document.getElementById("mobile-order-form").addEventListener("change", recalculateMobileFee);
 
   function calculateFee(paymentMethod, isRain, isBag, isBank, selectedZone) {
-    let zones = data.rates.zones || defaultRates.zones;
-    let base = selectedZone && zones[selectedZone] ? Number(zones[selectedZone]) : Number(zones["Sede e Bairros (Padrão)"] || 7);
-    let hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "America/Sao_Paulo", hour: "2-digit", hourCycle: "h23" }).format(new Date()));
-    if (paymentMethod === "card") base = Math.max(base, 10);
-    if (hour >= 23) base = Math.max(base, 10);
-    else if (hour >= 18) base += Number(data.rates.night ?? 3);
-    if (isRain) base = Math.max(base, 10);
-    if (isBank) base = Math.max(base, Number(data.rates.bankService || 10));
-    if (isBag) base += Number(data.rates.bag ?? 10);
-    return Math.max(0, Math.round(base * 100) / 100);
+    const t=window.ExpressTariffs;
+    return t.price({paymentMethod,bag:isBag,bank:isBank,selectedZone},t.resolve(tariffConfig,Date.now(),defaultRates),t.rain(tariffConfig),Date.now()).fee;
   }
 
   function gpsDistanceMeters(a, b) {
@@ -1671,6 +1676,7 @@
   }
 
   function render(){
+    const drafts=Array.from(document.querySelectorAll('#tariff-form[data-dirty],#rain-form[data-dirty]')).map(form=>({id:form.id,version:form.dataset.baseVersion,fields:Array.from(form.querySelectorAll('input,select')).map((el,index)=>({index,value:el.value})),focus:form.contains(document.activeElement)?document.activeElement.id:null}));
     let label = role === "store" ? "Lojista" : role === "courier" ? "Motoboy" : "Administrador";
     let people = role === "store" ? data.stores : role === "courier" ? data.couriers : [{id:"admin",name:"Administrador"}];
     if(role === "admin") actor = "admin"; if(people.length && !people.some(p => p.id === actor)) actor = people[0].id;
@@ -1693,7 +1699,14 @@
     const review = window.ExpressPayments.summary(mine());
     const paymentNotice = role === "courier" && review.reportedCount ? '<div class="info" role="status"><b>'+review.reportedCount+' pagamento(s) para conferir · '+cash(review.reported)+'</b><p>A loja informou o pagamento. Confira sua conta e confirme o recebimento. Você pode continuar aceitando corridas.</p><button type="button" class="btn secondary tiny" data-nav="reports">Conferir pagamentos</button></div>' : '';
     const overdueNotice = role === "store" && review.overdueCount ? '<div class="info" role="status"><b>'+review.overdueCount+' pendência(s) de dias anteriores · '+cash(review.overdue)+'</b><p>Confira o que falta pagar e o que aguarda confirmação do motoboy.</p><button type="button" class="btn secondary tiny" data-nav="reports">Ver pendências</button></div>' : '';
-    document.getElementById("content").innerHTML = availabilityPanel + paymentNotice + overdueNotice + (role === "courier" ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button class="btn secondary tiny" type="button" data-action="push-settings">Notificações e som</button><button class="btn secondary tiny" type="button" data-nav="profile">Meu Pix</button></div>' : '') + show();
+    const t=window.ExpressTariffs;
+    const weather=t.rain(tariffConfig);
+    const notices=systemNotices.filter(n=>n.expiresAt>Date.now()).sort((a,b)=>b.createdAt-a.createdAt).slice(0,3);
+    const noticeHtml=notices.map(n=>'<div class="info" role="status"><b>'+esc(n.title)+'</b><p>'+esc(n.body)+'</p></div>').join('');
+    const rainCount=Object.values(rainSignals).filter(s=>Date.now()-s.at<1800000).length;
+    const rainNotice=role==='admin'&&rainCount?'<div class="info" role="status"><b>CHUVA SINALIZADA POR '+rainCount+' MOTOBOY(S)</b><p>Nos últimos 30 minutos. Confira a condição antes de agendar a taxa.</p><button type="button" class="btn secondary tiny" data-nav="rates">Gerenciar chuva</button></div>':'';
+    const tariffBanner=rainNotice+(weather.enabled?'<div class="info"><b>TAXA DIA DE CHUVA ATIVADA</b><p>Somente novos pedidos da sede. Consulte os valores em Tarifas.</p></div>':'')+noticeHtml+'<button type="button" class="btn secondary tiny" data-nav="tariffs" style="margin-bottom:12px">Tarifas e avisos</button>';
+    document.getElementById("content").innerHTML = availabilityPanel + tariffBanner + paymentNotice + overdueNotice + (role === "courier" ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button class="btn secondary tiny" type="button" data-action="push-settings">Notificações e som</button><button class="btn secondary tiny" type="button" data-nav="profile">Meu Pix</button><button class="btn secondary tiny" type="button" data-action="signal-rain">Sinalizar chuva na sede</button></div>' : '') + show();
     if(pendingPushOrderId) {
       const card = document.querySelector('[data-order-id="' + CSS.escape(pendingPushOrderId) + '"]');
       if(!card && data.orders.some(order => order.id === pendingPushOrderId && order.status === "cotacao")) { view = "quotes"; document.getElementById("content").innerHTML = availabilityPanel + show(); }
@@ -1701,6 +1714,7 @@
       if(target) { target.scrollIntoView({ block: "center" }); target.style.outline = "2px solid var(--primary)"; pendingPushOrderId = null; }
     }
     renderHero();
+    for(const draft of drafts){const form=document.getElementById(draft.id);if(!form||form.dataset.baseVersion!==draft.version)continue;const fields=form.querySelectorAll('input,select');for(const field of draft.fields)if(fields[field.index])fields[field.index].value=field.value;form.dataset.dirty='true';if(draft.focus)document.getElementById(draft.focus)?.focus();}
   }
 
   function show(){
@@ -1716,6 +1730,7 @@
     if(view==="run"||view==="done") return listView(view);
     if(view==="summary") return summaryView();
     if(view==="rates" && role==="admin") return ratesView();
+    if(view==="tariffs") return ratesView();
     if(view==="registry" && role==="admin") return registry();
     return dashboard();
   }
@@ -1805,6 +1820,27 @@
   }
 
   document.addEventListener("submit", async e => {
+    if(['tariff-form','rain-form'].includes(e.target.id)){
+      e.preventDefault();if(role!=='admin')return;
+      const form=e.target,button=form.querySelector('button[type=submit]'),feedback=form.querySelector('[data-form-feedback]');
+      if(button.disabled)return;
+      try{
+        const t=window.ExpressTariffs;
+        const effectiveAt=t.fromInput(form.querySelector('input[type=datetime-local]').value);
+        if(effectiveAt<Date.now()+t.MIN_NOTICE)throw Error('Escolha um horário com pelo menos um minuto de antecedência.');
+        let action='scheduleRain',payload={effectiveAt,enabled:form.querySelector('#rain-enabled')?.value==='true'};
+        if(form.id==='tariff-form'){
+          const rates={zones:{}};
+          form.querySelectorAll('[data-rate]').forEach(el=>rates[el.dataset.rate]=Number(el.value));
+          form.querySelectorAll('[data-zone]').forEach(el=>rates.zones[el.dataset.zone]=Number(el.value));
+          rates.zones[t.SEDE]=rates.sedeDay;
+          action='scheduleRates';payload={effectiveAt,rates:t.validate(rates,{...defaultRates.zones,...tariffConfig.rates?.zones}),baseVersion:form.dataset.baseVersion};
+        }
+        if(!confirm('Agendar para '+new Date(effectiveAt).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})+' em Aracruz? Lojistas e motoboys serão avisados. Pedidos registrados mantêm o preço.'))return;
+        button.disabled=true;await command(action,null,payload);toast('Alteração agendada. Aviso registrado para lojistas e motoboys.');render();
+      }catch(error){feedback.textContent=error.message;button.disabled=false;}
+      return;
+    }
     if (e.target.id === "pix-profile-form") {
       e.preventDefault();
       if (!currentUser || role !== "courier") return;
@@ -1895,6 +1931,12 @@
     if(currentUser && (view === "reports" || view === "done")) render();
   }, 60000);
 
+  setInterval(()=>{
+    if(!currentUser)return;
+    if(view==='rates'||view==='tariffs')render();
+    if(document.getElementById('order-sheet-overlay').classList.contains('active'))recalculateMobileFee();
+  },15000);
+
   function listView(status){
     let arr = role === "store" ? (status==="all"?mine():mine().filter(o => status==="open"?o.status==="open":o.status===status)) : role === "courier" ? (status==="open"?data.orders.filter(o => o.status==="open"):mine().filter(o => o.status===status)) : (status==="all"?data.orders:today().filter(o => o.status===status));
     if(role === "courier" && status === "open"){
@@ -1921,8 +1963,26 @@
   }
 
   function ratesView(){
-    let r = data.rates, z = Object.keys(r.zones);
-    return '<div class="head"><div><h1>Tabela de Taxas</h1></div><button type="button" class="btn primary" data-action="save-rates">Salvar Taxas</button></div><div class="panel"><div class="rate">'+z.map(n => '<div style="display:grid;grid-template-columns:1fr 120px;gap:8px;align-items:center;margin-bottom:8px;"><label>'+esc(n)+'</label><input type="number" data-zone="'+esc(n)+'" value="'+Number(r.zones[n])+'"></div>').join("")+'</div></div>';
+    const t=window.ExpressTariffs,now=Date.now(),active=t.resolve(tariffConfig,now,defaultRates);
+    const entries=Object.entries(tariffConfig.tariffPlans||{}).sort((a,b)=>b[1].effectiveAt-a[1].effectiveAt);
+    const history=entries.map(([id,p])=>'<article class="chip" style="display:block;margin:8px 0"><b>'+date(p.effectiveAt)+' · '+(tariffConfig.tariffCancellations?.[id]?'Cancelada':p.effectiveAt>now?'Agendada':active.id===id?'Em vigor':'Anterior')+'</b><div>Sede: '+cash(p.rates.sedeDay)+' / '+cash(p.rates.sedeNight)+' · Chuva: +'+cash(p.rates.rainSede)+'</div>'+(role==='admin'&&p.effectiveAt>now&&!tariffConfig.tariffCancellations?.[id]?'<button type="button" class="btn danger tiny" data-action="cancel-rates" data-id="'+esc(id)+'">Cancelar agendamento</button>':'')+'<details><summary>Ver todos os valores desta versão</summary>'+rateTable(p.rates)+'</details></article>').join('');
+    let html='<div class="head"><div><h1>Tarifas de entregas</h1><p>Horários de Aracruz. Alterações valem somente para pedidos criados após o início agendado.</p></div></div><section class="panel"><h2>Tabela em vigor</h2>'+rateTable(active)+'<p>Valores-base. Adicionais de serviço aparecem antes de registrar o pedido. Pedidos registrados conservam seu preço.</p></section><section class="panel" style="margin-top:12px"><h2>Agendamentos e histórico</h2>'+(history||'<p>Ainda não há alterações agendadas. A tabela anterior permanece em vigor.</p>')+'</section>';
+    const rainHistory=Object.entries(tariffConfig.rainPlans||{}).sort((a,b)=>b[1].effectiveAt-a[1].effectiveAt).map(([,p])=>'<p>'+date(p.effectiveAt)+' · '+(p.enabled?'Ativar':'Desativar')+' chuva · '+(p.effectiveAt>now?'Agendado':'Vigência iniciada')+'</p>').join('');
+    html+='<section class="panel" style="margin-top:12px"><h2>Chuva na sede</h2><p>'+(t.rain(tariffConfig).enabled?'TAXA DIA DE CHUVA ATIVADA':'Taxa de chuva desativada')+'</p>'+rainHistory+'</section>';
+    if(role!=='admin')return html;
+    const future=t.latest(tariffConfig.tariffPlans,tariffConfig.tariffCancellations,Infinity);
+    const draft=future?future[1].rates:{...active,sedeDay:5,sedeNight:7,rainSede:2,night:active.night??3,bag:active.bag??10,bankService:active.bankService??10,cardMinimum:10,lateMinimum:10};
+    const amount=(field,label,value)=>'<div class="field full" style="margin:10px 0"><label>'+esc(label)+'<input type="number" min="0" max="10000" step="0.01" required data-rate="'+field+'" value="'+Number(value)+'"></label></div>';
+    const signals=Object.values(rainSignals).filter(s=>now-s.at<1800000).length;
+    html+='<section class="panel" style="margin-top:12px"><h2>Agendar nova tabela</h2><p>A primeira proposta já traz a sede a R$ 5 de dia, R$ 7 à noite e chuva +R$ 2. Confira todos os valores antes de agendar. A antecedência mínima é de um minuto.</p><form id="tariff-form" data-base-version="'+esc(t.head(tariffConfig.tariffPlans))+'">'+amount('sedeDay','Sede · 06h00 às 18h59',draft.sedeDay)+amount('sedeNight','Sede · 19h00 às 05h59',draft.sedeNight)+amount('rainSede','Adicional de chuva · somente sede',draft.rainSede)+Object.entries(draft.zones).filter(([z])=>z!==t.SEDE).map(([z,v])=>'<div class="field full" style="margin:10px 0"><label>'+esc(z)+'<input type="number" required min="0" max="10000" step="0.01" data-zone="'+esc(z)+'" value="'+Number(v)+'"></label></div>').join('')+amount('night','Adicional regional · 18h às 22h59 (fora da sede)',draft.night)+amount('lateMinimum','Valor mínimo regional após 23h (fora da sede)',draft.lateMinimum)+amount('bag','Adicional de bag',draft.bag)+amount('bankService','Mínimo para serviço de banco',draft.bankService)+amount('cardMinimum','Mínimo para cartão',draft.cardMinimum)+'<div class="field full"><label for="tariff-effective">Início em Aracruz</label><input type="datetime-local" id="tariff-effective" required value="'+t.toInput(now+180000)+'"></div><button type="submit" class="btn primary full">Agendar valores e avisar todos</button><p data-form-feedback role="status"></p></form></section>';
+    html+='<section class="panel" style="margin-top:12px"><h2>Controle de chuva</h2><p><b>'+signals+' motoboy(s)</b> sinalizaram chuva nos últimos 30 minutos. O sinal não ativa a taxa automaticamente.</p><form id="rain-form"><label for="rain-enabled">Condição</label><select id="rain-enabled"><option value="true">Ativar taxa de chuva na sede</option><option value="false">Desativar taxa de chuva</option></select><label for="rain-effective">Início em Aracruz</label><input type="datetime-local" required id="rain-effective" value="'+t.toInput(now+180000)+'"><button type="submit" class="btn primary full">Agendar condição e avisar todos</button><p data-form-feedback role="status"></p></form></section>';
+    return html;
+  }
+
+  function rateTable(rates){
+    const t=window.ExpressTariffs;
+    const rows=Object.entries(rates.zones||{}).map(([zone,fee])=>'<tr><td style="padding:8px;overflow-wrap:anywhere">'+esc(zone)+'</td><td style="padding:8px">'+(zone===t.SEDE&&rates.schemaVersion===1?cash(rates.sedeDay)+' dia / '+cash(rates.sedeNight)+' noite':cash(fee))+'</td></tr>').join('');
+    return '<table style="width:100%;table-layout:fixed;text-align:left"><thead><tr><th>Região</th><th>Valor-base</th></tr></thead><tbody>'+rows+'</tbody></table><p>Chuva na sede: '+(rates.schemaVersion===1?'+'+cash(rates.rainSede):'Aguardando primeira tabela agendada')+'. Outras regiões sem adicional de chuva.</p><p>Bag: +'+cash(rates.bag??10)+' · Banco: mínimo '+cash(rates.bankService??10)+' · Cartão: mínimo '+cash(rates.cardMinimum??10)+'.</p><p>Fora da sede, regra preservada: adicional de '+cash(rates.night??3)+' das 18h às 22h59; após 23h, mínimo '+cash(rates.lateMinimum??10)+'.</p>';
   }
 
   function registry(){
@@ -1936,15 +1996,17 @@
     actionsInFlight.add(lock);
     try {
       const order = data.orders.find(o => o.id === id);
+      if(action==='reset-password'){
+        const email=document.getElementById('auth-email').value.trim();
+        if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('Informe seu e-mail no campo de login.');
+        try{await sendPasswordResetEmail(auth,email);}catch(_){toast('Não foi possível solicitar agora. Confira o e-mail e sua conexão.','warn');return;}
+        toast('Se a conta estiver cadastrada, você receberá um e-mail para definir a senha. Confira também o spam.');return;
+      }
       if(action === "share-whatsapp") return await shareTrackingWhatsApp(id);
       if(action === "copy-tracking") return await shareTrackingWhatsApp(id, true);
       if(action === "push-settings") return await openPushSettings();
-      if(action === "save-rates") {
-        const zones = {};
-        document.querySelectorAll("[data-zone]").forEach(x => { zones[x.dataset.zone] = Number(x.value); });
-        await command("saveRates", null, { ...data.rates, zones });
-        toast("Taxas salvas."); return;
-      }
+      if(action==='signal-rain'){await command('signalRain',null);toast('Chuva sinalizada ao admin. Isso não ativa a taxa automaticamente.');return;}
+      if(action==='cancel-rates'){if(confirm('Cancelar esta alteração futura? Todos serão avisados.'))await command('cancelRates',null,{planId:id});return;}
       if(!order) throw new Error("Pedido não encontrado.");
       if(action === "copy-pix") {
         if(!order.paymentPix?.key) throw new Error("Chave Pix ainda não cadastrada.");
@@ -1976,7 +2038,6 @@
         input = { courierId: button.dataset.courier, amount: Number(button.dataset.amount) };
       }
       if(["cancel", "cancel-quote", "cancel-free"].includes(action) && !confirm("Confirmar cancelamento desta solicitação?")) return;
-      if(action === "accept") input.rain = confirm("Está chovendo no trajeto? OK para aplicar a condição de chuva.");
       if(action === "report-payment" && !confirm("Você já realizou o pagamento de " + cash(order.fee) + "? O motoboy ainda precisará confirmar o recebimento.")) return;
       if(action === "confirm-payment" && !confirm("Você conferiu sua conta e recebeu " + cash(order.fee) + " desta corrida?")) return;
       const confirmed = await command(action, id, input);

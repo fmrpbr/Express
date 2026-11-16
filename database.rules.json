@@ -85,6 +85,22 @@
       "rates": {
         ".read": "auth != null && (auth.token.admin === true || root.child('profiles/stores').child(auth.uid).exists() || root.child('profiles/couriers').child(auth.uid).exists())",
         ".write": false
+      },
+      "tariffPlans": {
+        ".read": "auth != null && (auth.token.admin === true || root.child('profiles/stores').child(auth.uid).exists() || root.child('profiles/couriers').child(auth.uid).exists())",
+        ".write": false
+      },
+      "tariffCancellations": {
+        ".read": "auth != null && (auth.token.admin === true || root.child('profiles/stores').child(auth.uid).exists() || root.child('profiles/couriers').child(auth.uid).exists())",
+        ".write": false
+      },
+      "rainPlans": {
+        ".read": "auth != null && (auth.token.admin === true || root.child('profiles/stores').child(auth.uid).exists() || root.child('profiles/couriers').child(auth.uid).exists())",
+        ".write": false
+      },
+      "rainSummary": {
+        ".read": "auth != null && (auth.token.admin === true || root.child('profiles/stores').child(auth.uid).exists() || root.child('profiles/couriers').child(auth.uid).exists())",
+        ".write": false
       }
     },
     "pushJobs": {
@@ -197,6 +213,17 @@
           }
         }
       }
+    },
+    "systemNotices": {
+      ".read": "auth != null && (auth.token.admin === true || root.child('profiles/stores').child(auth.uid).exists() || root.child('profiles/couriers').child(auth.uid).exists())",
+      ".write": false,
+      ".indexOn": [
+        "createdAt"
+      ]
+    },
+    "rainSignals": {
+      ".read": "auth != null && auth.token.admin === true",
+      ".write": false
     }
   }
 }

@@ -234,6 +234,47 @@ test('página pública dedicada recebe posição da fila e GPS, expira e não pe
   await expect(page.locator('#map')).toBeHidden();
   await expect(page.locator('#code')).toHaveText('');
 });
+test('admin agenda tabela, perfis recebem aviso, preços antigos permanecem e chuva exige decisão',async({browser})=>{
+  await db.ref().set(null);
+  const contexts=await Promise.all([1,2,3].map(()=>browser.newContext({viewport:{width:393,height:852}})));
+  const [ad,store,courier]=await Promise.all(contexts.map(c=>c.newPage()));
+  const email='admin-'+Date.now()+'@example.test';
+  const user=await app.auth().createUser({email,password:'test-password-123'});
+  await app.auth().setCustomUserClaims(user.uid,{admin:true});
+  await register(store,'store','tariff-store-'+Date.now()+'@example.test');
+  await store.evaluate(()=>window.__express.setView('profile'));
+  await store.locator('#prof-address').fill('RUA DA LOJA, 1');
+  await store.locator('#store-profile-form button[type=submit]').click();
+  await expect(store.locator('#prof-address')).toHaveCount(0);
+  await register(courier,'courier','tariff-courier-'+Date.now()+'@example.test');
+  await ad.goto(base);await ad.locator('#auth-email').fill(email);await ad.locator('#auth-password').fill('test-password-123');await ad.locator('[data-admin-login]').click();
+  await expect(ad.locator('#login-screen')).toBeHidden();
+  await ad.evaluate(()=>window.__express.setView('rates'));
+  await expect(ad.locator('#tariff-form [data-rate=sedeDay]')).toHaveValue('5');
+  await expect(ad.locator('#tariff-form [data-zone]')).toHaveCount(23);
+  await ad.locator('#tariff-form [data-rate=sedeDay]').fill('6');
+  await courier.locator('[data-action=signal-rain]').click();
+  await expect(ad.locator('#content')).toContainText('1 motoboy(s)');
+  await expect(ad.locator('#tariff-form [data-rate=sedeDay]')).toHaveValue('6');
+  await ad.locator('#tariff-form [data-rate=sedeDay]').fill('5');
+  ad.on('dialog',d=>d.accept());
+  await ad.locator('#tariff-form button[type=submit]').click();
+  await expect(store.locator('#content')).toContainText('Novos valores de entrega agendados');
+  await expect(courier.locator('#content')).toContainText('Novos valores de entrega agendados');
+  const plans=(await db.ref('config/tariffPlans').get()).val();const planId=Object.keys(plans)[0];
+  await expect(ad.locator('[data-action=cancel-rates]')).toHaveCount(1);
+  await store.locator('[data-nav=tariffs]').click();
+  await expect(store.locator('#content')).toContainText('Ver todos os valores desta versão');
+  await expect(store.locator('#tariff-form')).toHaveCount(0);
+  await ad.locator('#rain-form button[type=submit]').click();
+  await expect(courier.locator('#content')).toContainText('Mudança de chuva agendada');
+  await ad.locator('[data-action=cancel-rates]').click();
+  await expect(store.locator('#content')).toContainText('Alteração de tarifas cancelada');
+  expect((await db.ref('config/tariffPlans/'+planId).get()).exists()).toBe(true);
+  for(const page of [ad,store,courier])expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  for(const c of contexts)await c.close();
+});
+
 test('rastreio mantém consulta segura por HTTPS quando WebSocket não está disponível',async({page})=>{
   const token='d'.repeat(64),root='publicTracking/'+token;
   await db.ref(root).set({orderCode:'EXP-FALLBACK',status:'open',expiresAt:Date.now()+600000,revoked:false});

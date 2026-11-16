@@ -19,6 +19,24 @@ beforeEach(async () => {
 }, { timeout: 15000 });
 async function create() { return (await execute(auth('storeA'), request('saveOrder', null, fields))).orderId; }
 
+test('tarifas: revisão evita perda entre dois admins, avisos chegam aos dois perfis e ativação é idempotente', {timeout:30000},async()=>{
+ const T=require('../../functions/tariffs');const defaults=require('../../functions/default-rates.json');
+ const rates={zones:defaults.zones,sedeDay:5,sedeNight:7,rainSede:2,night:3,bag:10,bankService:10,cardMinimum:10,lateMinimum:10};
+ const a={uid:'admin',token:{admin:true}};
+ const result=await Promise.allSettled([1,2].map(()=>execute(a,request('scheduleRates',null,{rates,effectiveAt:now+60000,baseVersion:'legacy'}))));
+ assert.equal(result.filter(r=>r.status==='fulfilled').length,1);
+ const root=(await db.ref().get()).val();
+ assert.equal(Object.keys(root.config.tariffPlans).length,1);
+ assert.equal(Object.keys(root.systemNotices).length,1);
+ await db.ref('fcmTokens').set({storeA:{d:{token:'store-token'}},courierA:{d:{token:'courier-token'}}});
+ const messages=[];const dispatch=require('../../functions/notifications').createUpdateDispatcher(db,{send:async p=>messages.push(p)},()=>now);
+ await dispatch(Object.keys(root.pushUpdates)[0]);
+ assert.equal(messages.length,2);assert.ok(messages.every(p=>p.data.type==='announcement'&&!('orderId' in p.data)));
+ const activate=()=>require('../../functions/tariff-scheduler').activateTariffs(db,now+60000);
+ await Promise.all([activate(),activate()]);
+ assert.equal(Object.keys((await db.ref('systemNotices').get()).val()).length,2);
+});
+
 test('transações reais: dois motoboys disputam uma corrida, exatamente um assume', { timeout:30000 }, async () => {
   const id = await create();
   const outcomes = await Promise.allSettled(['courierA','courierB'].map(uid => execute(auth(uid), request('accept', id))));
