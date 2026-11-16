@@ -29,7 +29,11 @@
 .map-hero{position:relative;height:190px;flex-shrink:0;overflow:hidden;padding:10px 12px;background:#FFF8F8;background-image:linear-gradient(rgba(234,29,44,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(234,29,44,.035) 1px,transparent 1px);background-size:24px 24px}
 .map-hero:before,.map-hero:after,.map-road-2,.map-float{display:none}
 .hero-dashboard{position:relative;z-index:1;display:grid;grid-template-rows:44px 66px 34px;gap:7px;height:100%}
-.hero-top{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:12px;min-width:0}
+.hero-top{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:clamp(4px,1.5vw,10px);min-width:0;max-width:100%;overflow:hidden}
+.hero-clock small{overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.hero-weather{gap:4px}
+.hero-weather-copy small{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.hero-total{padding-left:7px}
 .hero-clock{display:grid;gap:0;min-width:0}
 .hero-clock small{font-size:9px;font-weight:800;letter-spacing:.045em;color:#777;text-transform:uppercase;white-space:nowrap}
 .hero-clock b{font-size:22px;line-height:1.15;letter-spacing:-.04em;color:#222;font-variant-numeric:tabular-nums}
@@ -53,23 +57,26 @@
 .hero-alert-window{min-width:0;overflow:hidden;flex:1}
 .hero-alert-track{display:flex;align-items:center;width:max-content;gap:42px;white-space:nowrap;animation:express-alert-scroll 26s linear infinite}
 .hero-alert-track span{font-size:10px;font-weight:750;color:#fff}
-.hero-alerts:hover .hero-alert-track{animation-play-state:paused}
+.hero-alerts:hover .hero-alert-track,.hero-alerts:focus-within .hero-alert-track,.hero-alerts.is-paused .hero-alert-track{animation-play-state:paused}
 @keyframes express-alert-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media(prefers-reduced-motion:reduce){.hero-alert-track{animation:none;width:auto;white-space:normal}.hero-alert-track span:nth-child(n+2){display:none}}
 @media(max-width:360px){.map-hero{padding:9px 9px}.hero-dashboard{grid-template-rows:42px 64px 34px;gap:6px}.hero-top{gap:7px}.hero-clock b{font-size:20px}.hero-weather-copy small{font-size:7px}.hero-total{padding-left:7px}.hero-stat small{font-size:7px}.hero-stat b{font-size:17px}}
 
-.top{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #F0F1F2}
-.crumb{font-size:10px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;font-weight:700}.top h2{margin:2px 0 0;font-size:16px;line-height:1.2;font-weight:800;letter-spacing:-.02em}
-.selectors{display:flex;gap:6px;align-items:center}
-.selectbox{border:0;background:#F2F3F5;border-radius:12px;padding:7px 10px;display:grid;gap:1px}
-.selectbox small{display:block;color:var(--muted);font-size:8px;font-weight:800;letter-spacing:.06em}.selectbox select{border:0;outline:0;background:transparent;font-size:11px;font-weight:700;max-width:118px}
+.top{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);padding:12px 16px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #F0F1F2;min-width:0}
+.top>div:first-child{flex:1 1 100%;min-width:0}
+.crumb{font-size:10px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;font-weight:700;white-space:normal;overflow-wrap:anywhere}.top h2{margin:2px 0 0;font-size:18px;line-height:1.2;font-weight:800;letter-spacing:-.02em;overflow-wrap:anywhere}
+.selectors{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 40px 40px auto;gap:6px;align-items:center;width:100%;min-width:0}
+.selectbox{border:0;background:#F2F3F5;border-radius:12px;padding:7px 8px;display:grid;gap:1px;min-width:0;max-width:100%;overflow:hidden}
+.selectbox small{display:block;color:var(--muted);font-size:8px;font-weight:800;letter-spacing:.06em}.selectbox select{border:0;outline:0;background:transparent;font-size:11px;font-weight:700;max-width:100%;width:100%;min-width:0;text-overflow:ellipsis}
+.selectors>.avatar{width:40px;height:40px;min-width:0}
+.selectors>button{min-width:0;padding-left:8px;padding-right:8px;white-space:nowrap;font-size:10px}
 .avatar{width:40px;height:40px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px;flex-shrink:0;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 
 /* Menu inferior fixo sem conflito com modais */
 .side{background:#fff;border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom));display:block;order:10;position:sticky;bottom:0;z-index:50}
 .brand,.nav-title,.side-note{display:none}
-.nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}.nav::-webkit-scrollbar{display:none}
-.nav button{border:0;background:transparent;text-align:center;padding:8px 6px;border-radius:14px;color:#6B7280;font-weight:700;font-size:10px;flex:1;min-width:62px;display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;line-height:1.1}
+.nav{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px;overflow:hidden}.nav::-webkit-scrollbar{display:none}
+.nav button{border:0;background:transparent;text-align:center;padding:8px 6px;border-radius:14px;color:#6B7280;font-weight:700;font-size:clamp(8px,2.3vw,10px);flex:1;min-width:0;padding-left:2px;padding-right:2px;min-height:60px;display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;line-height:1.1}
 .nav button span{display:block;width:auto;font-size:20px;line-height:1}
 .nav button.active{background:var(--primary);color:#fff;box-shadow:0 6px 16px rgba(234,29,44,.28)}
 @keyframes availablePulse{0%,100%{transform:scale(1);filter:drop-shadow(0 0 0 rgba(234,29,44,0))}50%{transform:scale(1.22);filter:drop-shadow(0 0 7px rgba(234,29,44,.75))}}
@@ -143,9 +150,11 @@
 .sheet-body{padding:16px;overflow-y:auto;flex:1;display:grid;gap:14px;align-content:start}
 .sheet-footer{padding:12px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:#fff;box-shadow:0 -4px 20px rgba(0,0,0,.05)}
 
-.login-screen{position:fixed;inset:0;min-height:100dvh;background:var(--primary);color:#fff;z-index:300;display:flex;align-items:flex-end;justify-content:center;padding:0;overflow-y:auto}
+.login-screen{position:fixed;inset:0;min-height:100dvh;background:var(--primary);color:#fff;z-index:300;display:flex;align-items:flex-start;justify-content:center;padding:0;overflow-y:auto}
 .login-screen:before{content:"";position:absolute;inset:0;background:radial-gradient(600px 300px at 50% 0%,rgba(255,255,255,.25),transparent 60%),linear-gradient(180deg,rgba(0,0,0,.08) 0%,transparent 40%,#A80F1F 100%)}
-.login-card{position:relative;background:#fff;color:#111;border-radius:28px 28px 0 0;padding:26px 22px calc(22px + env(safe-area-inset-bottom));width:100%;max-width:480px;margin:0 auto;box-shadow:0 -20px 60px rgba(0,0,0,.4)}
+.login-card{position:relative;flex-shrink:0;background:#fff;color:#111;border-radius:28px 28px 0 0;padding:26px 22px calc(22px + env(safe-area-inset-bottom));width:100%;max-width:480px;margin:auto auto 0;box-shadow:0 -20px 60px rgba(0,0,0,.4)}
+.login-card [hidden]{display:none!important}
+.password-actions{display:grid;gap:10px;margin:14px 0}.password-actions button{min-height:44px;font-size:13px}
 .login-brand{display:flex;align-items:center;gap:12px;margin-bottom:20px;justify-content:flex-start}
 .login-brand .logo{width:48px;height:48px;font-size:20px;border-radius:14px;background:var(--primary);color:#fff;display:grid;place-items:center;font-weight:800}
 .login-brand h1{font-size:22px;margin:0;color:#111;letter-spacing:-.03em}.login-brand small{color:var(--muted)}
@@ -191,6 +200,10 @@
   .main{padding-bottom:0}
 }
   .dashboard-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.dashboard-section{margin-top:14px}.dashboard-section .panel-head{display:flex;align-items:center;justify-content:space-between}.section-count{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 8px;border-radius:20px;background:var(--paper);font-weight:800;font-size:12px}
+
+.quick-controls{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;margin:0 0 18px}
+.quick-heading{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}.quick-heading small{color:var(--muted)}
+.quick-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.quick-grid button{font:inherit;text-align:left;border:1px solid #e5e7eb;border-radius:14px;padding:14px;background:#f8fafc;color:#222;cursor:pointer;display:grid;gap:5px;min-width:0}.quick-grid button:hover{border-color:var(--green-dark);background:#f0fdf4}.quick-grid span{font-size:22px;color:var(--green-dark)}.quick-grid b{font-size:13px}.quick-grid small{color:var(--muted);font-size:11px}.express-dialog{width:min(92vw,440px);max-height:85dvh;overflow:auto;box-sizing:border-box;border:0;border-radius:20px;padding:24px;color:#222;box-shadow:0 20px 70px #0003}.express-dialog::backdrop{background:#0f172a99}.express-dialog p{line-height:1.6}.dialog-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}.dialog-actions .btn{flex:1;min-height:44px}.quick-grid button:focus-visible{outline:3px solid var(--green-dark);outline-offset:2px}@media(max-width:600px){.quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.quick-controls{padding:14px}.quick-grid button{padding:12px}}
 </style>
 </head>
 <body>
@@ -248,12 +261,14 @@
   }
 
   function openSheetLocal(editId, mode){
+    if(window.__expressModuleReady && window.__express?.openSheet) return window.__express.openSheet(editId, mode);
     var o = document.getElementById("order-sheet-overlay");
     if(o) o.classList.add("active");
     if(window.__express && window.__express.prepareSheet) window.__express.prepareSheet(editId, mode || "delivery");
   }
 
   function closeSheetLocal(){
+    if(window.__expressModuleReady && window.__express?.closeSheet) return window.__express.closeSheet();
     var o = document.getElementById("order-sheet-overlay");
     if(o) o.classList.remove("active");
   }
@@ -262,6 +277,11 @@
 
   document.addEventListener("click", function(e){
     if(e.target && e.target.id === "order-sheet-overlay"){ closeSheetLocal(); return; }
+    var availabilityToggle = e.target.closest ? e.target.closest("[data-toggle-availability]") : null;
+    if(availabilityToggle){
+      if(window.__expressModuleReady && window.__express && window.__express.toggleAvailability) window.__express.toggleAvailability();
+      return;
+    }
     var ui = e.target.closest ? e.target.closest("[data-login-role],[data-auth-tab],[data-toggle-password],[data-open-sheet],[data-close-sheet],[data-enable-push]") : null;
     if(ui){
       if(ui.hasAttribute("data-login-role")){
@@ -320,16 +340,21 @@
       </div>
     </div>
 
-    <div class="role-tabs">
+    <div class="role-tabs" id="login-role-tabs">
       <button type="button" class="role-btn active" id="btn-login-store" data-login-role="store">🏪 Lojista</button>
       <button type="button" class="role-btn" id="btn-login-courier" data-login-role="courier">🏍 Motoboy</button>
     </div>
 
-    <div class="auth-mode">
+    <div class="auth-mode" id="login-auth-tabs">
       <button type="button" class="auth-tab active" id="tab-login" data-auth-tab="login">Entrar</button>
       <button type="button" class="auth-tab" id="tab-register" data-auth-tab="register">Criar Conta</button>
     </div>
 
+    <section id="admin-login-panel" class="info" hidden>
+      <h2 style="margin-top:0">Acesso do administrador</h2>
+      <p>Entre com o e-mail autorizado e sua senha. No primeiro acesso, use Definir minha primeira senha abaixo. Você receberá um link por e-mail.</p>
+      <button type="button" class="btn secondary tiny" data-action="back-to-profiles">Voltar para lojista ou motoboy</button>
+    </section>
     <form id="auth-form" class="login-form">
       <div class="field full" id="field-name" style="display:none">
         <label id="label-name">Nome do Estabelecimento</label>
@@ -338,26 +363,41 @@
 
       <div class="field full">
         <label>E-mail</label>
-        <input type="email" id="auth-email" required placeholder="seuemail@exemplo.com">
+        <input type="email" id="auth-email" required autocomplete="username" placeholder="seuemail@exemplo.com">
       </div>
 
       <div class="field full">
         <label>Senha</label>
         <div class="pwd-box">
-          <input type="password" id="auth-password" required placeholder="••••••••">
+          <input type="password" id="auth-password" required autocomplete="current-password" placeholder="••••••••">
           <button type="button" class="pwd-toggle" data-toggle-password aria-label="Mostrar ou ocultar senha">👁</button>
         </div>
       </div>
 
-      <div class="field full" id="field-extra">
+      <div class="field full" id="field-extra" style="display:none">
         <label id="label-extra">Telefone / WhatsApp</label>
-        <input type="text" id="auth-extra" placeholder="(27) 99999-9999">
+        <input type="tel" id="auth-extra" placeholder="(27) 99999-9999">
       </div>
 
       <button type="submit" class="btn primary full" style="margin-top:10px;" id="auth-submit-btn">Acessar Painel Express →</button>
     </form>
     <div id="auth-feedback" role="status" aria-live="polite"></div>
-    <button type="button" class="btn secondary tiny full" style="margin-top:15px; width:100%" data-admin-login>🔒 Entrar como Administrador</button>
+    <div class="password-actions" id="login-password-actions">
+      <button type="button" class="btn secondary full" data-action="open-password-recovery">Esqueci minha senha</button>
+      <button type="button" class="btn secondary full" data-action="open-first-password">Definir minha primeira senha</button>
+    </div>
+    <section id="password-recovery-panel" hidden>
+      <h2 id="recovery-title">Recuperar senha</h2>
+      <p id="recovery-description">Informe seu e-mail para receber um link seguro e escolher uma nova senha.</p>
+      <form id="password-recovery-form" class="login-form">
+        <div class="field full"><label for="recovery-email">E-mail da conta</label><input type="email" required id="recovery-email" autocomplete="email" placeholder="seuemail@exemplo.com"></div>
+        <button type="submit" class="btn primary full" id="recovery-submit">Enviar link de recuperação</button>
+      </form>
+      <p id="recovery-feedback" role="status" aria-live="polite" style="font-size:13px;overflow-wrap:anywhere"></p>
+      <p style="font-size:12px">A senha será definida no link enviado pelo Firebase. Este processo não cria uma conta nem concede acesso de administrador.</p>
+      <button type="button" class="btn secondary full" data-action="recovery-back">Voltar para entrar</button>
+    </section>
+    <button type="button" id="admin-entry-button" class="btn secondary full" style="margin-top:15px; width:100%" data-admin-login>🔒 Entrar como Administrador</button>
   </div>
 </div>
 
@@ -418,8 +458,8 @@
         <div class="field full" id="field-service-type" style="margin-top:5px; background:var(--mint); padding:10px; border-radius:12px;">
           <label style="color:var(--green-dark); font-weight:800;">⚠️ 2. Tipo de Serviço</label>
           <select name="serviceType" id="service-type-select" style="font-weight:bold; background:#fff; color:var(--green-dark); margin-top:4px;">
+            <option value="delivery" selected>🚚 Entrega (Loja → Cliente)</option>
             <option value="collection">🔄 Recolha (Cliente → Loja)</option>
-            <option value="delivery">🚚 Entrega (Loja → Cliente)</option>
             <option value="roundtrip">🔁 Recolha e entrega (2 viagens)</option>
           </select>
         </div>
@@ -524,7 +564,7 @@
       <div class="selectors">
         <label class="selectbox"><small>PERFIL</small><select id="role" disabled></select></label>
         <label class="selectbox"><small id="actor-label">USUÁRIO</small><select id="actor"></select></label>
-        <div id="avatar" class="avatar">EE</div>
+        <button type="button" id="avatar" class="avatar" data-nav="profile" aria-label="Meu perfil">EE</button>
         <button type="button" class="btn secondary tiny" data-enable-push title="Ativar notificações">🔔</button>
         <button type="button" class="btn danger tiny" data-logout style="margin-left:6px">Sair</button>
       </div>
@@ -536,15 +576,22 @@
 <div id="toasts" class="toastbox"></div>
 
 <script src="./firebase-config.js"></script>
+<script src="./payments.js"></script>
+<script src="./tariffs.js"></script>
+<script src="./admin-dashboard.js"></script>
+<script src="./vendor/native-push.bundle.js"></script>
+<script src="./vendor/firebase.bundle.js"></script>
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
-  import { getDatabase, ref, set, update, push, get, onValue, runTransaction, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-database.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+  const { initializeApp, getDatabase, ref, set, update, push, get, onValue, query, orderByChild, startAt, onDisconnect, serverTimestamp,
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult, sendPasswordResetEmail,
+    getFunctions, httpsCallable, connectDatabaseEmulator, connectAuthEmulator, connectFunctionsEmulator } = window.ExpressFirebase;
+
 
   if (window.Capacitor?.isNativePlatform?.()) document.documentElement.classList.add("native-app");
 
   const firebaseConfig = window.EXPRESS_FIREBASE_CONFIG || {};
-  if (!firebaseConfig.apiKey || !firebaseConfig.projectId || firebaseConfig.projectId === "express-entregas-86e3e") {
+  const localEmulator = firebaseConfig.useEmulators === true && ["localhost", "127.0.0.1"].includes(location.hostname) && firebaseConfig.projectId?.startsWith("demo-express-entregas");
+  if (!firebaseConfig.apiKey || (firebaseConfig.projectId !== "express-entregas-2-testes" && !localEmulator)) {
     document.body.innerHTML = '<main style="max-width:560px;margin:12vh auto;padding:24px;font:16px Arial,sans-serif;line-height:1.5"><h2>Express Entregas 2.0 • Ambiente de teste</h2><p>O aplicativo está isolado e ainda não foi conectado ao Firebase de testes.</p><p>Configure o arquivo <b>www/firebase-config.js</b> com os dados de um projeto Firebase exclusivo para testes. O projeto de produção é bloqueado nesta versão.</p></main>';
     throw new Error("Firebase de teste não configurado. A conexão com produção foi bloqueada.");
   }
@@ -552,6 +599,42 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   const auth = getAuth(app);
+  const functions = getFunctions(app, "southamerica-east1");
+  if(firebaseConfig.useEmulators === true && ["localhost", "127.0.0.1"].includes(location.hostname)) {
+    connectDatabaseEmulator(db, "127.0.0.1", 9000);
+    connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+    connectFunctionsEmulator(functions, "127.0.0.1", 5001);
+  }
+  const callOrderCommand = httpsCallable(functions, "orderCommand");
+  let tariffConfig = {}, systemNotices = [], rainSignals = {};
+  let adminFilters=window.ExpressAdmin.defaults(),adminPage=0,adminSelectedOrderId=null;
+  let adminHealth={},adminLastDataAt=0,adminConnected=false,adminServerOffset=0;
+  function adminReceived(name){if(role==='admin'){adminHealth[name]='ready';adminLastDataAt=Date.now();}}
+  function adminLoadError(name){if(role==='admin'){adminHealth[name]='error';render();}}
+  async function command(action, orderId, input = {}, requestId = crypto.randomUUID()) {
+    if (!navigator.onLine) throw new Error("Sem conexão. Reconecte antes de confirmar esta ação.");
+    const payload = { action, input, requestId };
+    if (orderId) payload.orderId = orderId;
+    // Uma repetição de transporte usa o mesmo recibo de idempotência.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try { return (await callOrderCommand(payload)).data; }
+      catch (error) {
+        if (attempt === 0 && ["functions/unavailable", "functions/deadline-exceeded"].includes(error.code)) continue;
+        throw error;
+      }
+    }
+  }
+  let presenceTimer = null;
+  let presenceSessionRef = null;
+  let trackingUnsubscribe = null;
+  let connections = {};
+  let ownBids = {};
+  let pushPreferences = {};
+  let tokenKeyForDevice = null;
+  let gpsErrorShown = false;
+  let pendingPushOrderId = null;
+  const digestKey = async value => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))), b => b.toString(16).padStart(2, "0")).join("");
+
 
   const defaultRates = {
     zones: {
@@ -587,18 +670,135 @@
   let role = "store";
   let actor = "";
   let currentUser = null;
+  let pendingFcmToken = null;
+  let nativePushListenersReady = false;
+
+  async function saveNativeFcmToken(tokenValue){
+    if(!tokenValue || !currentUser || (role !== "courier" && role !== "store") || !window.Capacitor?.isNativePlatform?.()) return;
+    const tokenKey = await digestKey(tokenValue);
+    if (tokenKeyForDevice && tokenKeyForDevice !== tokenKey) await set(ref(db, "fcmTokens/" + currentUser.uid + "/" + tokenKeyForDevice), null);
+    let deviceId = localStorage.getItem("express_device_id");
+    if(!deviceId) { deviceId = crypto.randomUUID(); localStorage.setItem("express_device_id", deviceId); }
+    await command("registerDevice", null, { token: tokenValue, deviceId });
+    tokenKeyForDevice = tokenKey;
+  }
+
+  const EXPRESS_PUSH_CHANNELS = [
+    { id: "express_orders_v2", name: "Novos pedidos", description: "Novas corridas disponíveis para aceitar" },
+    { id: "express_quotes_v2", name: "Novas cotações", description: "Novas solicitações de cotação" },
+    { id: "express_reminders_v2", name: "Lembretes", description: "Lembretes de pedidos aguardando resposta" },
+    { id: "express_updates_v2", name: "Atualizações de entregas", description: "Retirada, conclusão e pagamento das suas entregas" }
+  ];
+
+  async function prepareNativePushChannels(pushApi){
+    if(!window.Capacitor?.isNativePlatform?.() || !pushApi?.createChannel) return;
+    const existing = await pushApi.listChannels().catch(() => ({ channels: [] }));
+    const existingIds = new Set((existing.channels || []).map(channel => channel.id));
+    for(const channel of EXPRESS_PUSH_CHANNELS){
+      if(existingIds.has(channel.id)) continue;
+      await pushApi.createChannel({
+        ...channel,
+        importance: 5,
+        visibility: 1,
+        vibration: true,
+        lights: true,
+        lightColor: "#EA1D2C"
+      });
+    }
+  }
+
+  let nativeRegistrationWaiter = null;
+  let nativePushSetupPromise = null;
+  async function setupNativePushListeners(){
+    const pushApi = window.ExpressNativePush?.PushNotifications;
+    if(!window.Capacitor?.isNativePlatform?.() || !pushApi) return false;
+    if(nativePushListenersReady) return true;
+    if(nativePushSetupPromise) return nativePushSetupPromise;
+    nativePushSetupPromise = (async () => {
+      await prepareNativePushChannels(pushApi);
+      await Promise.all([
+        pushApi.addListener("registration", async token => {
+          pendingFcmToken = token.value;
+          try {
+            await saveNativeFcmToken(token.value);
+            nativeRegistrationWaiter?.resolve();
+            if(currentUser) toast("Notificações ativadas neste aparelho.", "success");
+          } catch(error) {
+            nativeRegistrationWaiter?.reject(error);
+            console.warn("Não foi possível salvar o token FCM:", error.code);
+            toast("O token FCM chegou, mas não foi salvo. Verifique a conexão e as regras do Firebase.", "warn");
+          }
+        }),
+        pushApi.addListener("registrationError", error => {
+          nativeRegistrationWaiter?.reject(new Error("Falha no registro FCM. Confira Google Play Services e conexão."));
+          console.error("Falha no registro FCM:", error?.code);
+          const detail = error?.message || error?.error || "Erro não identificado";
+          toast("Falha ao obter token FCM: " + String(detail).slice(0,100), "warn");
+        }),
+        pushApi.addListener("pushNotificationReceived", async notification => {
+          const title = notification.title || "Express Entregas";
+          const body = notification.body || "Você recebeu uma nova notificação.";
+          toast(title + ": " + body);
+          const permission=await window.ExpressNativePush.LocalNotifications.checkPermissions();
+          if(permission.display !== 'granted') {toast('Permita as notificações locais do Express nas configurações do Android.','warn');return;}
+          const category = notification.data?.category || "order";
+          const channels = { order:"express_orders_v2", quote:"express_quotes_v2", reminder:"express_reminders_v2", update:"express_updates_v2" };
+          try {
+            await window.ExpressNativePush.LocalNotifications.schedule({ notifications: [{
+              id: crypto.getRandomValues(new Uint32Array(1))[0] % 2147483647,
+              title, body, channelId: channels[category] || channels.order, extra: notification.data || {}
+            }] });
+          } catch(error) { toast("Confira a permissão de notificações e o volume do Android.", "warn"); }
+        }),
+        window.ExpressNativePush.LocalNotifications.addListener("localNotificationActionPerformed", action => {
+          const extra = action.notification?.extra || {};
+          if(extra.type==='announcement'){view='tariffs';if(currentUser)render();return;}
+          if(extra.orderId) { pendingPushOrderId = extra.orderId; view = extra.type === "quote" ? "quotes" : "available"; if(currentUser) mergeOrders(); }
+        }),
+        pushApi.addListener("pushNotificationActionPerformed", action => {
+          const extra = action.notification?.data || {};
+          if(extra.type==='announcement'){view='tariffs';if(currentUser)render();return;}
+          if(extra.orderId) {
+            pendingPushOrderId = extra.orderId;
+            view = role === "courier" ? (extra.type === "quote" ? "quotes" : "available") : "dashboard";
+            if(currentUser) mergeOrders();
+          }
+        })
+      ]);
+      nativePushListenersReady = true;
+      return true;
+    })();
+    try { return await nativePushSetupPromise; }
+    catch(error) {
+      nativePushSetupPromise = null;
+      console.error("Falha ao preparar listeners de notificações:", error);
+      toast("Não foi possível preparar as notificações deste aparelho.", "warn");
+      return false;
+    }
+  }
+
+  setupNativePushListeners();
   let unsubscribers = [];
   let orderSources = new Map();
   let pendingProfileWrite = null;
   let sessionInitPromise = null;
   let activeSessionUid = null;
   let adminLoginRequested = false;
+  let adminLoginMode=false,recoveryIntent='reset',recoveryBusy=false;
   let busy = false;
   let currentAuthMode = window.__expressAuthMode || "login";
   let currentLoginRole = window.__expressLoginRole || "store";
   let view = "dashboard";
   let watchId = null;
+  let nativeGpsWatcher = null;
   let trackingOrderId = null;
+  let gpsGeneration = 0;
+  let gpsBlockedOrderId = null;
+  let gpsStartInterrupted = localStorage.getItem("express_gps_start_pending") === "1";
+  localStorage.removeItem("express_gps_start_pending");
+  let lastGpsWriteAt = 0;
+  let lastGpsCoords = null;
+  let gpsWriteInFlight = false;
   let lastOrderCount = 0;
   let currentPresenceBusy = null;
   let heroClockTimer = null;
@@ -608,6 +808,7 @@
   window.addEventListener("hashchange", checkUrlTracking);
   function checkUrlTracking(){
     let hash = window.location.hash;
+    if(hash.startsWith("#order=")) { pendingPushOrderId = hash.slice(7); if(currentUser) mergeOrders(); }
     if(hash.startsWith("#track=")) {
       openPublicTracker(hash.replace("#track=", ""));
     }
@@ -619,10 +820,13 @@
     screen.style.display = "flex";
     box.innerHTML = '<p>Carregando informações da entrega...</p>';
     
-    get(ref(db, "publicTracking/" + orderId)).then(snap => {
+    if(trackingUnsubscribe) trackingUnsubscribe();
+    if(!/^[a-f0-9]{64}$/.test(orderId)) { box.textContent = "Link inválido."; return; }
+    trackingUnsubscribe = onValue(ref(db, "publicTracking/" + orderId), snap => {
       if(!snap.exists()) { box.innerHTML = '<p style="color:var(--red);">Link inválido ou rastreamento indisponível.</p>'; return; }
       const o = snap.val();
-      const st = o.status === "open" ? "Aguardando motoboy" : o.status === "run" ? "Em trânsito" : o.status === "done" ? "Entrega concluída" : o.status === "cancelado_cotacao" ? "Solicitação cancelada" : "Em cotação";
+      if(o.revoked || Number(o.expiresAt || 0) <= Date.now()) { box.textContent = "Rastreamento encerrado ou expirado."; return; }
+      const st = o.status === "open" ? "Aguardando motoboy" : o.status === "run" ? (Number(o.queuePosition) === 2 ? "Próxima entrega do motoboy" : "Em atendimento") : o.status === "done" ? "Entrega concluída" : o.status === "cancelado_cotacao" ? "Solicitação cancelada" : "Em cotação";
       const gpsInfo = (o.location && o.status === "run") ? `<a href="https://www.openstreetmap.org/?mlat=${Number(o.location.lat)}&mlon=${Number(o.location.lng)}#map=16/${Number(o.location.lat)}/${Number(o.location.lng)}" target="_blank" rel="noopener noreferrer" class="btn primary full" style="margin-top:10px;">🗺️ Acompanhar localização</a>` : '<p style="color:var(--muted);text-align:center;">A localização será exibida quando o motoboy iniciar o trajeto.</p>';
       box.innerHTML = `
         <div style="background:#F2F3F5;padding:12px;border-radius:12px;">
@@ -638,10 +842,12 @@
         ${gpsInfo}
         <p style="font-size:10px;color:#98A2B3;text-align:center;margin:0;">Este link não exibe nome, telefone, endereço residencial ou valores do pedido.</p>
       `;
-    }).catch(() => { box.innerHTML = '<p style="color:var(--red);">Não foi possível carregar o rastreamento.</p>'; });
+    }, () => { box.textContent = "Rastreamento encerrado, expirado ou indisponível."; });
   }
 
   document.getElementById("btn-close-track").addEventListener("click", () => {
+    if(trackingUnsubscribe) trackingUnsubscribe();
+    trackingUnsubscribe = null;
     document.getElementById("public-track-screen").style.display = "none";
     window.location.hash = "";
   });
@@ -664,9 +870,9 @@
   function saveClientFavorite(clientName, clientPhone, clientStreet, clientNumber, clientNeighborhood) {
     if(!clientName) return;
     try {
-      let favs = JSON.parse(localStorage.getItem("express_clients_favs") || "{}");
+      let favs = JSON.parse(localStorage.getItem("express_clients_favs_" + currentUser?.uid) || "{}");
       favs[clientName.toLowerCase()] = { name: clientName, phone: clientPhone || "", street: clientStreet || "", number: clientNumber || "", neighborhood: clientNeighborhood || "" };
-      localStorage.setItem("express_clients_favs", JSON.stringify(favs));
+      localStorage.setItem("express_clients_favs_" + currentUser?.uid, JSON.stringify(favs));
       refreshSavedClientsDatalist();
     } catch(e){}
   }
@@ -675,14 +881,16 @@
     let datalist = document.getElementById("saved-clients-list");
     if(!datalist) return;
     try {
-      let favs = JSON.parse(localStorage.getItem("express_clients_favs") || "{}");
+      let favs = JSON.parse(localStorage.getItem("express_clients_favs_" + currentUser?.uid) || "{}");
       datalist.innerHTML = Object.values(favs).map(f => `<option value="${esc(f.name)}">Tel: ${esc(f.phone || "N/A")} | ${esc(f.neighborhood)}</option>`).join("");
     } catch(e){}
   }
 
   document.addEventListener("input", e => {
     const target = e.target;
-    if (target && (target.matches('input:not([type="email"]):not([type="password"]):not([type="url"]):not([type="hidden"]):not([type="number"]):not([type="date"]):not([type="time"]), textarea'))) {
+    const rateForm=target?.closest('#tariff-form,#rain-form,#admin-filter-form');if(rateForm)rateForm.dataset.dirty='true';
+    // Campos de login e criação de conta preservam a digitação original, inclusive nomes e senhas.
+    if (target && !target.hasAttribute("data-preserve-case") && !target.closest("#auth-form") && (target.matches('input:not([type="email"]):not([type="password"]):not([type="url"]):not([type="hidden"]):not([type="number"]):not([type="date"]):not([type="time"]), textarea'))) {
       const upper = target.value.toLocaleUpperCase("pt-BR");
       if (upper !== target.value) {
         const start = target.selectionStart, end = target.selectionEnd;
@@ -693,7 +901,7 @@
     if(e.target && e.target.id === "inp-client") {
       let val = e.target.value.trim().toLowerCase();
       try {
-        let favs = JSON.parse(localStorage.getItem("express_clients_favs") || "{}");
+        let favs = JSON.parse(localStorage.getItem("express_clients_favs_" + currentUser?.uid) || "{}");
         if(favs[val]) {
           let f = favs[val];
           if(document.getElementById("inp-phone")) document.getElementById("inp-phone").value = f.phone || "";
@@ -722,6 +930,7 @@
     document.getElementById("tab-login").className = "auth-tab " + (mode === "login" ? "active" : "");
     document.getElementById("tab-register").className = "auth-tab " + (mode === "register" ? "active" : "");
     document.getElementById("field-name").style.display = mode === "register" ? "grid" : "none";
+    document.getElementById("field-extra").style.display = mode === "register" ? "grid" : "none";
     document.getElementById("auth-submit-btn").textContent = mode === "register" ? "Criar Conta Express →" : "Acessar Painel Express →";
   };
 
@@ -730,10 +939,48 @@
     input.type = input.type === "password" ? "text" : "password";
   };
 
+  function showLoginLayout(){
+    document.getElementById('password-recovery-panel').hidden=true;
+    document.getElementById('auth-form').hidden=false;
+    document.getElementById('login-password-actions').hidden=false;
+    document.getElementById('auth-feedback').hidden=false;
+    document.getElementById('admin-login-panel').hidden=!adminLoginMode;
+    document.getElementById('login-role-tabs').hidden=adminLoginMode;
+    document.getElementById('login-auth-tabs').hidden=adminLoginMode;
+    document.getElementById('admin-entry-button').hidden=adminLoginMode;
+    document.getElementById('auth-submit-btn').textContent=adminLoginMode?'Entrar como Administrador':currentAuthMode==='register'?'Criar Conta Express →':'Acessar Painel Express →';
+  }
+
+  function openPasswordRecovery(first=false){
+    if(busy||recoveryBusy)return;
+    recoveryIntent=first?'first':'reset';
+    document.getElementById('auth-password').value='';
+    document.getElementById('recovery-email').value=document.getElementById('auth-email').value.trim();
+    document.getElementById('auth-form').hidden=true;
+    document.getElementById('login-password-actions').hidden=true;
+    document.getElementById('auth-feedback').hidden=true;
+    document.getElementById('login-role-tabs').hidden=true;
+    document.getElementById('login-auth-tabs').hidden=true;
+    document.getElementById('admin-login-panel').hidden=true;
+    document.getElementById('admin-entry-button').hidden=true;
+    document.getElementById('password-recovery-panel').hidden=false;
+    document.getElementById('recovery-title').textContent=first?'Definir primeira senha':'Recuperar e redefinir senha';
+    document.getElementById('recovery-description').textContent=first?'Sua conta precisa estar cadastrada. Informe o e-mail autorizado para receber um link e definir sua primeira senha.':'Informe o e-mail da sua conta. Você receberá um link seguro para escolher uma nova senha.';
+    document.getElementById('recovery-submit').textContent=first?'Enviar link para definir senha':'Enviar link de recuperação';
+    document.getElementById('recovery-feedback').textContent='';
+    document.getElementById('recovery-feedback').removeAttribute('data-state');
+    document.getElementById('recovery-email').focus();
+  }
+
   window.loginAsAdmin = async function() {
+    if(busy||recoveryBusy)return;
+    adminLoginMode=true;
+    window.setAuthTab('login');
+    showLoginLayout();
     let email = document.getElementById("auth-email").value.trim();
     let password = document.getElementById("auth-password").value;
-    if (!email || !password) return toast("Informe o e-mail e a senha de administrador.", "warn");
+    if (!email || !password) {setAuthFeedback('Informe o e-mail autorizado e sua senha. Se ainda não definiu a senha, toque em Definir minha primeira senha.','info');return;}
+    busy=true;const button=document.getElementById('auth-submit-btn');button.disabled=true;
     try {
       setAuthFeedback("Verificando acesso...", "info");
       adminLoginRequested = true;
@@ -742,13 +989,23 @@
       adminLoginRequested = false;
       setAuthFeedback(authError(err), "error");
       toast(authError(err), "warn");
-    }
+    }finally{busy=false;button.disabled=false;button.textContent='Entrar como Administrador';}
   };
 
   window.logout = async function() {
     stopGpsTracking();
+    if(currentUser && role !== "admin") {
+      if(role === "courier") await set(ref(db, "courierPresence/" + currentUser.uid + "/availableForWork"), false);
+      if(tokenKeyForDevice) await set(ref(db, "fcmTokens/" + currentUser.uid + "/" + tokenKeyForDevice), null);
+      if("serviceWorker" in navigator && !window.Capacitor?.isNativePlatform?.()) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        const subscription = await registration?.pushManager?.getSubscription();
+        if(subscription) { await set(ref(db, "pushSubscriptions/" + currentUser.uid + "/" + await digestKey(subscription.endpoint)), null); await subscription.unsubscribe(); }
+      }
+      if(presenceSessionRef) await set(presenceSessionRef, null);
+    }
     stopDataListeners();
-    try { await signOut(auth); } catch (err) {}
+    await signOut(auth);
     currentUser = null; actor = ""; role = "store"; data.orders = []; data.stores = []; data.couriers = [];
     document.getElementById("login-screen").style.display = "flex";
   };
@@ -772,34 +1029,52 @@
     box.style.display = message ? "block" : "none";
   }
 
-  function stopDataListeners() { unsubscribers.forEach(fn => { try { fn(); } catch (_) {} }); unsubscribers = []; orderSources.clear(); data.orders = []; currentPresenceBusy = null; }
-  
-  function listenOrders(sourceKey) {
-    unsubscribers.push(onValue(ref(db, "orders"), snap => {
-      let raw = snap.val() || {};
-      let orders = Object.entries(raw).map(([id, value]) => ({ id, ...value }));
-      if (role === "store") orders = orders.filter(o => o.storeId === actor);
-      if (role === "courier") orders = orders.filter(o => (o.status === "open" && (!o.assignedCourierId || o.assignedCourierId === actor)) || o.status === "cotacao" || o.courierId === actor || o.status === "cancelado_cotacao");
-      orderSources.set(sourceKey, new Map(orders.map(o => [o.id, o])));
-      let merged = new Map();
-      orderSources.forEach(source => source.forEach((value,key) => merged.set(key,value)));
-      let newOrdersList = Array.from(merged.values());
-      
-      if (lastOrderCount > 0 && newOrdersList.length > lastOrderCount) {
-        playBeep();
-        toast("🔔 Novo pedido ou cotação recebida!", "warn");
+  function stopDataListeners() {
+    adminHealth={};adminLastDataAt=0;adminConnected=false;adminServerOffset=0;adminFilters=window.ExpressAdmin.defaults();adminPage=0;adminSelectedOrderId=null;
+    tariffConfig={};systemNotices=[];rainSignals={};
+    unsubscribers.forEach(fn => { try { fn(); } catch (_) {} }); unsubscribers = [];
+    if(presenceTimer) clearInterval(presenceTimer);
+    presenceTimer = null; presenceSessionRef = null;
+    stopGpsTracking(); orderSources.clear(); data.orders = []; data.presence = [];
+    data.stores = []; data.couriers = []; data.alerts = []; connections = {}; ownBids = {}; pushPreferences = {}; lastOrderCount = 0;
+    document.getElementById("content").innerHTML = "";
+  }
+  function mergeOrders() {
+    const merged = new Map();
+    orderSources.forEach(source => source.forEach((value, id) => merged.set(id, { id, ...value })));
+    data.orders = Array.from(merged.values()).map(order => ownBids[order.id] && order.status === "cotacao" ? { ...order, bids: { [actor]: ownBids[order.id] } } : order);
+    if(role === "courier") {
+      const running = courierRunningOrders();
+      // One physical GPS session serves both accepted orders. Changing their
+      // priority must not restart Android's foreground service in the background.
+      const active = running.find(o => o.id === trackingOrderId) || running[0];
+      if(active && gpsStartInterrupted) {
+        gpsStartInterrupted = false; gpsBlockedOrderId = active.id;
+        toast("O início do GPS foi interrompido. Confira a permissão e toque em Tentar GPS na corrida.", "warn");
       }
-      lastOrderCount = newOrdersList.length;
-      data.orders = newOrdersList;
-
-      if (role === "courier") {
-        syncCourierPresenceBusy();
-        let activeOrder = data.orders.find(o => o.status === "run" && o.courierId === actor);
-        if (activeOrder && trackingOrderId !== activeOrder.id) startGpsTracking(activeOrder.id);
-        else if (!activeOrder && trackingOrderId) stopGpsTracking();
+      if(active && trackingOrderId !== active.id && gpsBlockedOrderId !== active.id) startGpsTracking(active.id);
+      else if(!active && trackingOrderId) stopGpsTracking();
+      if(!active) gpsBlockedOrderId = null;
+    }
+    if(pendingPushOrderId) {
+      const selected = data.orders.find(o => o.id === pendingPushOrderId);
+      if(selected) view = selected.status === "cotacao" ? "quotes" : selected.status === "run" ? "run" : selected.status === "done" ? "done" : "available";
+    }
+    render();
+  }
+  function listenOrders(sourceKey, path) {
+    unsubscribers.push(onValue(ref(db, path), snap => {
+      const entries = Object.entries(snap.val() || {});
+      const incoming = new Map(entries);
+      const prior = orderSources.get(sourceKey);
+      for(const [id, value] of incoming) {
+        const existing = prior?.get(id);
+        if(existing && Number(existing.revision || 0) > Number(value.revision || 0)) incoming.set(id, existing);
       }
-      render();
-    }));
+      orderSources.set(sourceKey, incoming);
+      if(sourceKey==='admin')adminReceived('orders');
+      mergeOrders();
+    }, error => {if(sourceKey==='admin')adminLoadError('orders');toast("Não foi possível carregar seus pedidos: " + error.message, "warn");}));
   }
 
   async function initializeSession(user) {
@@ -808,17 +1083,18 @@
     if (activeSessionUid === user.uid && currentUser) return;
     sessionInitPromise = (async () => {
       if (pendingProfileWrite) await pendingProfileWrite;
+      if(auth.currentUser?.uid !== user.uid) return;
       currentUser = user;
       let token = await getIdTokenResult(user, true);
       let isAdmin = token.claims && token.claims.admin === true;
       if (adminLoginRequested && !isAdmin) { await signOut(auth); throw new Error("Esta conta não possui permissão de administrador."); }
       if (isAdmin) { role = "admin"; actor = "admin"; }
       else {
-        let storeSnap = await get(ref(db, "stores/" + user.uid));
-        let courierSnap = await get(ref(db, "couriers/" + user.uid));
+        let storeSnap = await get(ref(db, "profiles/stores/" + user.uid));
+        let courierSnap = await get(ref(db, "profiles/couriers/" + user.uid));
         if (storeSnap.exists()) { role = "store"; actor = user.uid; }
         else if (courierSnap.exists()) { role = "courier"; actor = user.uid; }
-        else { await signOut(auth); throw new Error("Cadastro não encontrado para esta conta."); }
+        else { await signOut(auth); throw new Error("Cadastro incompleto. Abra Criar Conta e informe os mesmos dados para concluir."); }
       }
       activeSessionUid = user.uid;
       adminLoginRequested = false;
@@ -826,6 +1102,14 @@
       setAuthFeedback("", "info");
       view = role === "courier" ? "available" : "dashboard";
       startDataListeners(); render();
+      if(role !== "admin" && window.Capacitor?.isNativePlatform?.()) {
+        await setupNativePushListeners();
+        const pushApi = window.ExpressNativePush?.PushNotifications;
+        try {
+          if(pushApi && (await pushApi.checkPermissions()).receive === "granted") await pushApi.register();
+          if(pendingFcmToken) await saveNativeFcmToken(pendingFcmToken);
+        }catch(error){toast('Login realizado. Abra Notificações e som para revisar o registro deste aparelho.','warn');}
+      }
       refreshSavedClientsDatalist();
       checkUrlTracking();
     })();
@@ -839,23 +1123,33 @@
     startPresenceTracking();
     startAlertsListener();
     loadWeather();
+    for(const name of ['tariffPlans','tariffCancellations','rainPlans']) unsubscribers.push(onValue(ref(db,'config/'+name),snap=>{tariffConfig[name]=snap.val()||{};render();if(document.getElementById('order-sheet-overlay').classList.contains('active'))recalculateMobileFee();}));
+    unsubscribers.push(onValue(ref(db,'systemNotices'),snap=>{systemNotices=Object.values(snap.val()||{});render();}));
+    if(role==='admin')unsubscribers.push(onValue(ref(db,'rainSignals'),snap=>{rainSignals=snap.val()||{};render();}));
     if (role === "admin") {
-      unsubscribers.push(onValue(ref(db, "stores"), snap => { let v=snap.val()||{}; data.stores=Object.entries(v).map(([id,x])=>({id,...x})); render(); }));
-      unsubscribers.push(onValue(ref(db, "couriers"), snap => {
+      unsubscribers.push(onValue(ref(db,'.info/connected'),snap=>{adminConnected=snap.val()===true;render();}));
+      unsubscribers.push(onValue(ref(db,'.info/serverTimeOffset'),snap=>{adminServerOffset=Number(snap.val())||0;render();}));
+      unsubscribers.push(onValue(ref(db, "profiles/stores"), snap => { let v=snap.val()||{}; data.stores=Object.entries(v).map(([id,x])=>({id,...x}));adminReceived('stores');render(); },()=>adminLoadError('stores')));
+      unsubscribers.push(onValue(ref(db, "profiles/couriers"), snap => {
         let v=snap.val()||{}; data.couriers=Object.entries(v).map(([id,x])=>({id,...x}));
-        data.couriers.forEach(c => ensurePresenceRecord(c.id));
+        adminReceived('couriers');
         render();
-      }));
-      listenOrders("admin");
+      },()=>adminLoadError('couriers')));
+      listenOrders("admin", "orders");
     } else if (role === "store") {
-      unsubscribers.push(onValue(ref(db,"stores/"+actor), snap => { let v=snap.val(); data.stores = v ? [{id:actor,...v}] : []; render(); }));
-      listenOrders("store");
+      unsubscribers.push(onValue(ref(db,"profiles/stores/"+actor), snap => { let v=snap.val(); data.stores = v ? [{id:actor,...v}] : []; render(); }));
+      listenOrders("store", "storeOrders/" + actor);
     } else {
-      unsubscribers.push(onValue(ref(db,"couriers/"+actor), snap => { let v=snap.val(); data.couriers = v ? [{id:actor,...v}] : []; render(); }));
-      listenOrders("courier");
+      unsubscribers.push(onValue(ref(db,"profiles/couriers/"+actor), snap => { let v=snap.val(); data.couriers = v ? [{id:actor,...v}] : []; render(); }));
+      listenOrders("available", "availableOrders");
+      listenOrders("quotes", "quoteBoard");
+      listenOrders("courier", "courierOrders/" + actor);
+      unsubscribers.push(onValue(ref(db, "courierBids/" + actor), snap => { ownBids = snap.val() || {}; mergeOrders(); }));
+      unsubscribers.push(onValue(ref(db, "pushPreferences/" + actor), snap => { pushPreferences = snap.val() || {}; }));
     }
     unsubscribers.push(onValue(ref(db,"config/rates"), snap => {
       let value = snap.val();
+      tariffConfig.rates=value||{};
       if (value) data.rates = { ...defaultRates, ...value, zones: { ...defaultRates.zones, ...(value.zones || {}) } };
       refreshZoneSelect(); render();
     }));
@@ -908,49 +1202,45 @@
     renderHero();
   }
 
-  function ensurePresenceRecord(uid) {
-    if (!uid) return;
-    runTransaction(ref(db, "courierPresence/" + uid), current => current || {
-      registered:true, online:false, busy:false, lastSeen:Date.now()
-    }).catch(() => {});
-  }
-
   function startPresenceTracking() {
-    unsubscribers.push(onValue(ref(db, "courierPresence"), snap => {
-      const raw = snap.val() || {};
-      data.presence = Object.entries(raw).map(([id,value]) => ({ id, ...(value || {}) })).filter(p => p.registered === true);
+    const recalculate = () => {
+      data.presence = (data.presence || []).map(p => ({ ...p, online: Object.values(connections[p.id] || {}).some(c => Date.now() - Number(c.lastSeen || 0) < 90000) }));
       renderHero();
-    }, error => {
-      toast("Não foi possível carregar a presença dos motoboys. Verifique as regras do Firebase.", "warn");
-    }));
-    if (role !== "courier" || !currentUser) return;
-    const connectionRef = ref(db, ".info/connected");
-    unsubscribers.push(onValue(connectionRef, async snap => {
-      if (snap.val() !== true || !currentUser || role !== "courier") return;
-      const presenceRef = ref(db, "courierPresence/" + currentUser.uid);
+      if(role==='admin'&&['dashboard','all','reports'].includes(view))render();
+    };
+    unsubscribers.push(onValue(ref(db, "courierPresence"), snap => {
+      data.presence = Object.entries(snap.val() || {}).map(([id, value]) => ({ id, ...value }));
+      adminReceived('presence');
+      recalculate(); render();
+    }, () => {adminLoadError('presence');toast("Não foi possível carregar a disponibilidade.", "warn");}));
+    unsubscribers.push(onValue(ref(db, "courierConnections"), snap => { connections = snap.val() || {};adminReceived('connections');recalculate(); },()=>adminLoadError('connections')));
+    presenceTimer = setInterval(() => {
+      recalculate();
+      if(presenceSessionRef && currentUser && navigator.onLine) update(presenceSessionRef, { lastSeen: serverTimestamp() }).catch(() => {});
+    }, 30000);
+    if(role !== "courier") return;
+    const uid = currentUser.uid;
+    presenceSessionRef = ref(db, "courierConnections/" + uid + "/" + crypto.randomUUID());
+    unsubscribers.push(onValue(ref(db, ".info/connected"), async snap => {
+      if(snap.val() !== true || currentUser?.uid !== uid) return;
+      const session = presenceSessionRef;
       try {
-        await onDisconnect(presenceRef).set({
-          registered:true, online:false, busy:false, lastSeen:serverTimestamp()
-        });
-        await set(presenceRef, {
-          registered:true, online:true, busy:currentPresenceBusy === true, lastSeen:serverTimestamp()
-        });
-      } catch (_) {
-        toast("Não foi possível atualizar seu status online. Verifique as regras do Firebase.", "warn");
-      }
+        await onDisconnect(session).remove();
+        if(currentUser?.uid === uid) await set(session, { lastSeen: serverTimestamp() });
+      } catch(error) { toast("Não foi possível atualizar sua conexão.", "warn"); }
     }));
   }
-
-  function syncCourierPresenceBusy() {
-    if (role !== "courier" || !currentUser) return;
-    const isBusy = data.orders.some(o => o.status === "run" && o.courierId === currentUser.uid);
-    if (currentPresenceBusy === isBusy) return;
-    currentPresenceBusy = isBusy;
-    update(ref(db, "courierPresence/" + currentUser.uid), { registered:true, busy:isBusy }).catch(() => {});
+  async function toggleCourierAvailability() {
+    if(role !== "courier" || !currentUser) return;
+    const presence = data.presence.find(p => p.id === currentUser.uid) || {};
+    await set(ref(db, "courierPresence/" + currentUser.uid + "/availableForWork"), presence.availableForWork !== true);
+    toast(presence.availableForWork === true ? "Recebimento de novas ofertas pausado." : "Você pode receber novas ofertas, inclusive em segundo plano.");
   }
 
   function startAlertsListener() {
-    unsubscribers.push(onValue(ref(db, "alerts"), snap => {
+    // Consulta indexada: o cliente recebe apenas alertas ainda válidos, sem baixar o histórico expirado.
+    const activeAlertsQuery = query(ref(db, "alerts"), orderByChild("expiresAt"), startAt(Date.now()));
+    unsubscribers.push(onValue(activeAlertsQuery, snap => {
       const raw = snap.val() || {};
       data.alerts = Object.entries(raw).map(([id,value]) => ({ id, ...(value || {}) }))
         .filter(a => Number(a.expiresAt || 0) > Date.now())
@@ -972,8 +1262,8 @@
     const total = presence.length;
     const onlineList = presence.filter(p => p.online === true);
     const online = onlineList.length;
-    const occupied = onlineList.filter(p => p.busy === true).length;
-    const available = Math.max(0, online - occupied);
+    const occupied = onlineList.filter(p => Number(p.occupiedSlots ?? (p.busy ? 1 : 0)) >= 2).length;
+    const available = onlineList.filter(p => p.availableForWork === true && Number(p.occupiedSlots ?? (p.busy ? 1 : 0)) < 2).length;
     const offline = Math.max(0, total - online);
     const values = {
       "hero-total":total, "hero-online":online, "hero-available":available,
@@ -1004,32 +1294,41 @@
   document.getElementById("auth-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     if (busy) return;
+    if(adminLoginMode){await window.loginAsAdmin();return;}
     let email = document.getElementById("auth-email").value.trim().toLowerCase();
     let password = document.getElementById("auth-password").value;
     let name = document.getElementById("auth-name").value.trim() || email.split("@")[0];
     let phone = document.getElementById("auth-extra").value.trim();
     let submit = document.getElementById("auth-submit-btn");
-    
-    if (currentAuthMode === "register" && (!name || !phone)) return toast("Informe nome e telefone para criar a conta.", "warn");
+    if (currentAuthMode === "register" && !phone) return toast("Informe o telefone para criar a conta.", "warn");
     busy = true; submit.disabled = true; submit.textContent = "Aguarde...";
     setAuthFeedback(currentAuthMode === "register" ? "Criando sua conta..." : "Verificando dados...", "info");
 
+    const registrationRole = currentLoginRole;
+    let releaseProfileWait;
     try {
       if (currentAuthMode === "register") {
-        let releaseProfileWait;
         pendingProfileWrite = new Promise(resolve => { releaseProfileWait = resolve; });
-        let credential = await createUserWithEmailAndPassword(auth, email, password);
-        let profile = { name, phone, email, address: "", created: Date.now() };
-        let path = currentLoginRole === "store" ? "stores" : "couriers";
-        if (path === "couriers") profile.vehicle = "Moto";
-        try { await set(ref(db, path + "/" + credential.user.uid), profile); }
+        let credential;
+        try { credential = await createUserWithEmailAndPassword(auth, email, password); }
+        catch(error) {
+          if(error.code !== "auth/email-already-in-use") throw error;
+          credential = await signInWithEmailAndPassword(auth, email, password);
+        }
+        try {
+          const ownStore = await get(ref(db, "profiles/stores/" + credential.user.uid));
+          const ownCourier = await get(ref(db, "profiles/couriers/" + credential.user.uid));
+          if(!ownStore.exists() && !ownCourier.exists()) await command("createProfile", null, { name, phone, role: registrationRole });
+        } catch(error) { await signOut(auth); throw error; }
         finally { releaseProfileWait(); pendingProfileWrite = null; }
         await initializeSession(credential.user);
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
     } catch (err) {
-      if (pendingProfileWrite) pendingProfileWrite = null;
+      console.warn("Falha no cadastro/login:", err.code, err.message);
+      if (releaseProfileWait) releaseProfileWait();
+      pendingProfileWrite = null;
       setAuthFeedback(authError(err), "error");
     } finally {
       busy = false; submit.disabled = false;
@@ -1039,11 +1338,6 @@
 
   onAuthStateChanged(auth, async user => {
     if (!user) {
-      if (role === "courier" && activeSessionUid) {
-        set(ref(db, "courierPresence/" + activeSessionUid), {
-          registered:true, online:false, busy:false, lastSeen:serverTimestamp()
-        }).catch(() => {});
-      }
       currentUser = null; activeSessionUid = null;
       stopDataListeners();
       if (!adminLoginRequested) document.getElementById("login-screen").style.display = "flex";
@@ -1053,14 +1347,17 @@
     catch (err) { setAuthFeedback(authError(err), "error"); document.getElementById("login-screen").style.display = "flex"; }
   });
 
-  window.openOrderSheet = function(editId, mode) {
+  window.openOrderSheet = function(editId, mode, confirmedOrder) {
     let store = person();
     if (role === "store" && mode !== "quote" && store && !store.address) {
       if(!confirm("⚠️ Você ainda não cadastrou o endereço da sua loja no seu perfil.\nDeseja cadastrar agora?")) return;
       view = "profile"; render(); return;
     }
     document.getElementById("order-sheet-overlay").classList.add("active");
-    prepareSheet(editId, mode || "delivery");
+    const form = document.getElementById("mobile-order-form");
+    if(!editId) form.reset();
+    delete form.dataset.requestId; delete form.dataset.payloadFingerprint;
+    prepareSheet(editId, mode || "delivery", confirmedOrder);
   };
 
   window.closeOrderSheet = function() {
@@ -1070,7 +1367,8 @@
     document.getElementById("sheet-title-text").textContent = "🚀 Solicitar Motoboy";
   };
 
-  function prepareSheet(editId, mode) {
+  function prepareSheet(editId, mode, confirmedOrder) {
+    document.getElementById("mobile-order-form").dataset.agreedFee = "";
     const quoteMode = !editId && mode === "quote";
     document.getElementById("mobile-order-form").dataset.mode = quoteMode ? "quote" : "delivery";
     document.getElementById("mobile-order-form").dataset.completingQuote = "false";
@@ -1079,11 +1377,13 @@
       document.getElementById("sheet-title-text").textContent = "🚀 Solicitar Motoboy";
       document.getElementById("btn-submit-order").textContent = "Confirmar e Enviar Pedido →";
       document.getElementById("service-date").value = localDateInputValue();
+      document.getElementById("service-type-select").value = "delivery";
       configureOrderFormMode(quoteMode);
       return;
     }
-    let o = data.orders.find(x => x.id === editId);
+    let o = confirmedOrder || data.orders.find(x => x.id === editId);
     if (!o) return;
+    document.getElementById("mobile-order-form").dataset.agreedFee = String(o.agreedFee || "");
     document.getElementById("edit-order-id").value = o.id;
     document.getElementById("sheet-title-text").textContent = o.status === "cotacao_aceita" ? "📋 Completar pedido contratado" : "✏️ Editar Solicitação";
     document.getElementById("mobile-order-form").dataset.mode = o.status === "cotacao" ? "quote" : "delivery";
@@ -1112,10 +1412,12 @@
   window.__express.prepareSheet = prepareSheet;
 
   function configureOrderFormMode(isQuote, completing){
+    const frozen=!isQuote&&!completing&&!!document.getElementById('edit-order-id').value;
+    ['zone-select-mobile','payment-select-mobile','chk-bag-mob','chk-bank-mob'].forEach(id=>{document.getElementById(id).disabled=frozen;});
     ["field-street","field-number","field-reference","field-client","field-phone","field-payment","field-zone","field-notes","section-addons"].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isQuote?"none":"";});
-    const city=document.getElementById("field-city");if(city)city.style.display=isQuote?"":"none";
+    const city=document.getElementById("field-city");if(city)city.style.display="";
     ["inp-street","inp-number","inp-client"].forEach(id=>{const el=document.getElementById(id);if(el)el.required=!isQuote;});
-    const ci=document.getElementById("quote-city");if(ci)ci.required=isQuote;
+    const ci=document.getElementById("quote-city");if(ci){ci.required=true;if(!ci.value)ci.value="ARACRUZ";}
     const nb=document.getElementById("input-neighborhood");if(nb)nb.required=true;
     const t=document.getElementById("section-quote-toggle");if(t)t.style.display="none";
     const p=document.getElementById("box-price-display");if(p)p.style.display=isQuote?"none":"flex";
@@ -1125,9 +1427,11 @@
   function refreshZoneSelect() {
     let select = document.getElementById("zone-select-mobile");
     if (select) {
-      let zones = data.rates.zones || defaultRates.zones;
+      const selected = select.value;
+      let zones = window.ExpressTariffs.resolve(tariffConfig,Date.now(),defaultRates).zones;
       select.innerHTML = '<option value="">Standard — Sede e Bairros (Padrão)</option>' +
         Object.keys(zones).filter(z => z !== "Sede e Bairros (Padrão)").map(z => `<option value="${esc(z)}">${esc(z)} — ${cash(zones[z])}</option>`).join("");
+      select.value = selected;
     }
   }
 
@@ -1148,7 +1452,8 @@
       let b = document.getElementById("chk-bag-mob").checked;
       let k = document.getElementById("chk-bank-mob").checked;
       let zoneVal = document.getElementById("zone-select-mobile").value;
-      let total = calculateFee(p, false, b, k, zoneVal);
+      const prior = data.orders.find(o => o.id === editId);
+      let total = prior && prior.status!=='cotacao' ? prior.fee : Number(document.getElementById("mobile-order-form").dataset.agreedFee || 0) || calculateFee(p, false, b, k, zoneVal);
       document.getElementById("quote-price-mobile").textContent = cash(total);
     }
   }
@@ -1156,40 +1461,101 @@
   document.getElementById("mobile-order-form").addEventListener("change", recalculateMobileFee);
 
   function calculateFee(paymentMethod, isRain, isBag, isBank, selectedZone) {
-    let zones = data.rates.zones || defaultRates.zones;
-    let base = selectedZone && zones[selectedZone] ? Number(zones[selectedZone]) : Number(zones["Sede e Bairros (Padrão)"] || 7);
-    let hour = new Date().getHours();
-    if (paymentMethod === "card") base = Math.max(base, 10);
-    if (hour >= 23) base = Math.max(base, 10);
-    else if (hour >= 18) base += Number(data.rates.night ?? 3);
-    if (isRain) base = Math.max(base, 10);
-    if ([0,6].includes(new Date().getDay())) base = Math.max(base, paymentMethod === "card" ? 10 : 7);
-    if (isBank) base = Math.max(base, Number(data.rates.bankService || 10));
-    if (isBag) base += Number(data.rates.bag ?? 10);
-    return Math.max(0, Math.round(base * 100) / 100);
+    const t=window.ExpressTariffs;
+    return t.price({paymentMethod,bag:isBag,bank:isBank,selectedZone},t.resolve(tariffConfig,Date.now(),defaultRates),t.rain(tariffConfig),Date.now()).fee;
   }
 
-  function startGpsTracking(orderId) {
-    if (!navigator.geolocation) return;
-    if (trackingOrderId === orderId && watchId !== null) return;
+  function gpsDistanceMeters(a, b) {
+    if (!a || !b) return Infinity;
+    const toRad = value => value * Math.PI / 180;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const lat1 = toRad(a.lat), lat2 = toRad(b.lat);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  }
+
+  async function startGpsTracking(orderId) {
+    const background = window.Capacitor?.isNativePlatform?.() ? window.ExpressNativePush?.BackgroundGeolocation : null;
+    if (!background && !navigator.geolocation) { toast("GPS indisponível neste aparelho.", "warn"); return; }
+    if (trackingOrderId === orderId || gpsBlockedOrderId === orderId) return;
     stopGpsTracking();
+    const generation = gpsGeneration;
+    const trackingUser = currentUser?.uid;
+    const stillCurrent = () => gpsGeneration === generation && trackingOrderId === orderId && currentUser?.uid === trackingUser;
     trackingOrderId = orderId;
-    watchId = navigator.geolocation.watchPosition(async (position) => {
+    lastGpsWriteAt = 0;
+    lastGpsCoords = null;
+    gpsWriteInFlight = false;
+    const onPosition = async (position) => {
+      if (trackingOrderId !== orderId || gpsWriteInFlight) return;
+      const now = Date.now();
+      const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
+      const elapsed = now - lastGpsWriteAt;
+      const distance = gpsDistanceMeters(lastGpsCoords, coords);
+
+      // Limita gravações a no máximo uma a cada 20s. Em movimento, exige 30m;
+      // parado, envia um heartbeat de localização a cada 60s.
+      if (lastGpsWriteAt && (elapsed < 20000 || (distance < 30 && elapsed < 60000))) return;
+
+      const location = { ...coords, updatedAt: now };
+      const currentOrder = data.orders.find(item => item.id === orderId);
+      if (!currentOrder || currentOrder.status !== "run" || currentOrder.courierId !== currentUser?.uid) { stopGpsTracking(); return; }
+
+      gpsWriteInFlight = true;
       try {
-        const location = { lat: position.coords.latitude, lng: position.coords.longitude, updatedAt: Date.now() };
-        await update(ref(db, "orders/" + orderId), { location });
-        const currentOrder = data.orders.find(item => item.id === orderId);
-        if (currentOrder) await syncPublicTracking(orderId, { ...currentOrder, location, status: "run" });
-      } catch (err) {}
-    }, () => {}, { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 });
+        await command("location", orderId, coords);
+        gpsErrorShown = false;
+        lastGpsWriteAt = now;
+        lastGpsCoords = coords;
+      } catch (err) {
+        if(!gpsErrorShown) { toast("Localização não enviada. Verifique conexão e autorização.", "warn"); gpsErrorShown = true; }
+        if(["functions/permission-denied", "functions/failed-precondition"].includes(err.code)) stopGpsTracking();
+      } finally {
+        gpsWriteInFlight = false;
+      }
+    };
+    const onGpsError = error => {
+      if(!stillCurrent()) return;
+      if(!gpsErrorShown) { toast((error.code === 1 || error.code === "NOT_AUTHORIZED") ? "Permita o acesso à localização para acompanhar a corrida." : "GPS sem posição recente. Verifique o sinal.", "warn"); gpsErrorShown = true; }
+      if(error.code === 1 || error.code === "NOT_AUTHORIZED") { gpsBlockedOrderId = orderId; stopGpsTracking(); }
+    };
+    if(background) {
+      try {
+        const pushApi = window.ExpressNativePush.PushNotifications;
+        let permission = await pushApi.checkPermissions();
+        if(!stillCurrent()) return;
+        if(permission.receive !== "granted") permission = await pushApi.requestPermissions();
+        if(!stillCurrent()) return;
+        if(permission.receive !== "granted") { toast("Permita as notificações para mostrar o aviso de localização durante a corrida.", "warn"); gpsBlockedOrderId = orderId; stopGpsTracking(); return; }
+        if(document.visibilityState !== "visible") { gpsBlockedOrderId = orderId; stopGpsTracking(); return; }
+        localStorage.setItem("express_gps_start_pending", "1");
+        const watcher = await background.addWatcher({ backgroundTitle: "Corrida em andamento", backgroundMessage: "Localização ativa durante esta entrega.", requestPermissions: true, stale: false, distanceFilter: 30 }, (location, error) => {
+          if(error) return onGpsError(error);
+          if(location && trackingOrderId === orderId) onPosition({ coords: { latitude: location.latitude, longitude: location.longitude } });
+        });
+        if(stillCurrent()) nativeGpsWatcher = watcher;
+        else await background.removeWatcher({ id: watcher });
+      } catch(error) { if(stillCurrent()) { gpsBlockedOrderId = orderId; onGpsError(error); stopGpsTracking(); } }
+      finally { if(gpsGeneration === generation || !trackingOrderId) localStorage.removeItem("express_gps_start_pending"); }
+    } else watchId = navigator.geolocation.watchPosition(onPosition, onGpsError, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 });
   }
 
   function stopGpsTracking() {
+    gpsGeneration++;
+    localStorage.removeItem("express_gps_start_pending");
+    if(nativeGpsWatcher) {
+      window.ExpressNativePush?.BackgroundGeolocation?.removeWatcher({ id: nativeGpsWatcher }).catch(() => {});
+      nativeGpsWatcher = null;
+    }
     if (watchId !== null && navigator.geolocation) {
       navigator.geolocation.clearWatch(watchId);
       watchId = null;
     }
     trackingOrderId = null;
+    lastGpsWriteAt = 0;
+    lastGpsCoords = null;
+    gpsWriteInFlight = false;
   }
 
   function createTrackingToken(){
@@ -1198,40 +1564,23 @@
     return Array.from(bytes, b => b.toString(16).padStart(2,"0")).join("");
   }
 
-  function publicTrackingPayload(order){
-    return {
-      orderCode: String(order.orderCode || "Express"),
-      status: String(order.status || "open"),
-      serviceTypeLabel: serviceTypeLabel(order.serviceType),
-      location: order.status === "run" && order.location ? {
-        lat: Number(order.location.lat),
-        lng: Number(order.location.lng),
-        updatedAt: Number(order.location.updatedAt || Date.now())
-      } : null,
-      updatedAt: Date.now()
-    };
-  }
-
-  async function syncPublicTracking(orderId, order){
-    if(!order || !order.trackingToken) return;
-    await set(ref(db, "publicTracking/" + order.trackingToken), publicTrackingPayload(order));
-  }
-
-  async function shareTrackingWhatsApp(orderId){
-    const orderRef = ref(db, "orders/" + orderId);
-    const result = await runTransaction(orderRef, current => {
-      if(!current) return;
-      if(!current.trackingToken) current.trackingToken = createTrackingToken();
-      return current;
-    });
-    if(!result.committed) throw new Error("Não foi possível preparar o link de rastreamento.");
-    const order = result.snapshot.val();
-    await syncPublicTracking(orderId, order);
-    const link = `${window.location.origin}${window.location.pathname}#track=${order.trackingToken}`;
-    const message = `Olá! Você pode acompanhar sua entrega pelo link: ${link}`;
-    const whatsappUrl = "https://wa.me/?text=" + encodeURIComponent(message);
-    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-    toast("Link de rastreamento preparado para compartilhar.");
+  async function shareTrackingWhatsApp(orderId, copyOnly = false){
+    const base = firebaseConfig.publicTrackingBaseUrl;
+    if(!base || !base.startsWith("https://")) throw new Error("Endereço público de rastreamento ainda não configurado para os testes.");
+    const nativeShare = window.Capacitor?.isNativePlatform?.() && window.ExpressNativePush?.Share;
+    // Open synchronously on the click, before awaiting Firebase, so browsers do
+    // not block the WhatsApp window as an unsolicited popup.
+    const popup = !copyOnly && !nativeShare ? window.open("about:blank", "_blank") : null;
+    if(popup) popup.opener = null;
+    try {
+      const result = await command("tracking", orderId);
+      const link = base.split("#")[0] + "#track=" + result.token;
+      const text = "Olá! Você pode acompanhar sua entrega pelo link:";
+      if(copyOnly) { await navigator.clipboard.writeText(link); toast("Link copiado. Cole na conversa com o cliente.", "success"); }
+      else if(nativeShare) await nativeShare.share({ title: "Acompanhe sua entrega", text, url: link, dialogTitle: "Enviar rastreio pelo WhatsApp" });
+      else if(popup) popup.location.replace("https://wa.me/?text=" + encodeURIComponent(text + " " + link));
+      else { await navigator.clipboard.writeText(link); toast("Link copiado. Cole no WhatsApp do cliente.", "success"); }
+    } catch(error) { if(popup) popup.close(); throw error; }
   }
 
   function urlBase64ToUint8Array(value){
@@ -1241,30 +1590,84 @@
     return Uint8Array.from(raw, c => c.charCodeAt(0));
   }
 
+  function withTimeout(promise,ms,message){
+    let timer;return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(message)),ms);})]).finally(()=>clearTimeout(timer));
+  }
+  const callNotificationTools=httpsCallable(functions,'notificationTools');
+  async function notificationTool(action){return (await callNotificationTools({action})).data;}
+  function pushError(error){
+    if(error?.code==='functions/not-found')return 'O servidor de notificações precisa ser atualizado. A ativação ainda não foi concluída.';
+    if(error?.name==='NotAllowedError')return 'Notificações bloqueadas. Abra as permissões deste site no navegador e permita notificações.';
+    return error?.message||'Não foi possível concluir. Confira a conexão e tente novamente.';
+  }
+  function samePushKey(a,b){const x=new Uint8Array(a);return x.length===b.length&&x.every((v,i)=>v===b[i]);}
+  async function pushDeviceStatus(){
+    if(window.Capacitor?.isNativePlatform?.()){
+      const api=window.ExpressNativePush?.PushNotifications;
+      if(!api)return 'Módulo Android indisponível. Atualize o APK.';
+      const permission=await api.checkPermissions();
+      return permission.receive==='granted' ? (pendingFcmToken&&tokenKeyForDevice?'Permissão concedida. Dispositivo registrado nesta sessão. Teste o recebimento.':'Permissão concedida. Ative para confirmar o registro no servidor.'):'Notificações não permitidas no Android. Toque em Ativar neste dispositivo.';
+    }
+    if(!('Notification' in window)||!('PushManager' in window))return 'Este navegador não oferece suporte a push. Use Chrome ou Edge atualizado.';
+    if(Notification.permission==='denied')return 'Bloqueado no navegador. Permita notificações nas configurações deste site.';
+    const registration=await navigator.serviceWorker.getRegistration();
+    const subscription=await registration?.pushManager?.getSubscription();
+    return Notification.permission==='granted'&&subscription?'Este navegador tem uma inscrição push. Ative para sincronizar e teste o recebimento.':'Push ainda não ativado neste navegador. Toque em Ativar neste dispositivo.';
+  }
+
   async function enablePushNotifications(){
+    if(window.Capacitor?.isNativePlatform?.()){
+      const pushApi = window.ExpressNativePush?.PushNotifications;
+      if(!pushApi){ toast("Módulo nativo de notificações não foi carregado. Gere novamente o APK.", "warn"); return; }
+      if(role === "admin"){ toast("Entre com uma conta de loja ou motoboy para ativar notificações.", "warn"); return; }
+      if(!currentUser){ toast("Entre na sua conta antes de ativar as notificações.", "warn"); return; }
+      const listenersReady = await setupNativePushListeners();
+      if(!listenersReady){ toast("Não foi possível preparar o registro FCM. Gere novamente o APK após corrigir a integração Android.", "warn"); return; }
+      let permission = await pushApi.checkPermissions();
+      if(permission.receive !== "granted") permission = await pushApi.requestPermissions();
+      if(permission.receive !== "granted"){ toast("Permissão de notificações não concedida.", "warn"); return; }
+      const localApi=window.ExpressNativePush.LocalNotifications;
+      let localPermission=await localApi.checkPermissions();
+      if(localPermission.display!=='granted')localPermission=await localApi.requestPermissions();
+      if(localPermission.display!=='granted')throw new Error('Permita as notificações do Express no Android.');
+      await prepareNativePushChannels(pushApi);
+      await withTimeout(new Promise((resolve,reject)=>{
+        nativeRegistrationWaiter={resolve,reject};
+        pushApi.register().catch(reject);
+      }),20000,'O Android não entregou o registro FCM. Confira internet, Google Play Services e permissões. Tente novamente.').finally(()=>{nativeRegistrationWaiter=null;});
+      toast("Dispositivo registrado no servidor. Use Testar recebimento para conferir.");
+      return;
+    }
     if(!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)){
       toast("Este aparelho ou navegador não oferece suporte a notificações push.", "warn"); return;
     }
-    const vapidKey = firebaseConfig.vapidPublicKey;
+    if(role === "admin" || !currentUser) throw new Error("Entre com uma conta de loja ou motoboy para ativar notificações.");
+    const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+    if(permission !== 'granted') throw new Error('Notificações não permitidas. Confira as permissões deste site no navegador.');
+    const config = await notificationTool('config').catch(error => {
+      if(firebaseConfig.vapidPublicKey) return {vapidPublicKey:firebaseConfig.vapidPublicKey};
+      throw new Error(pushError(error));
+    });
+    const vapidKey = config.vapidPublicKey || firebaseConfig.vapidPublicKey;
     if(!vapidKey){
       toast("Falta configurar a chave pública VAPID no Firebase de testes. A inscrição ainda não pode ser concluída.", "warn"); return;
     }
-    const permission = await Notification.requestPermission();
-    if(permission !== "granted"){ toast("Permissão de notificações não concedida.", "warn"); return; }
-    const registration = await navigator.serviceWorker.ready;
+    if(!window.isSecureContext) throw new Error('Notificações exigem uma página HTTPS.');
+    const registration = await withTimeout(navigator.serviceWorker.register('./service-worker.js').then(()=>navigator.serviceWorker.ready), 15000, 'O serviço de notificações não iniciou. Abra o site diretamente no Chrome ou Edge e tente novamente.');
     let subscription = await registration.pushManager.getSubscription();
+    if(subscription && subscription.options.applicationServerKey && !samePushKey(subscription.options.applicationServerKey,urlBase64ToUint8Array(vapidKey))) {
+      await subscription.unsubscribe();subscription=null;
+    }
     if(!subscription){
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey)
       });
     }
-    const subscriptionId = btoa(subscription.endpoint).replace(/[^a-zA-Z0-9_-]/g,"").slice(-48) || createTrackingToken().slice(0,48);
+    const subscriptionId = await digestKey(subscription.endpoint);
     await set(ref(db, "pushSubscriptions/" + currentUser.uid + "/" + subscriptionId), {
       endpoint: subscription.endpoint,
-      expirationTime: subscription.expirationTime || null,
       keys: subscription.toJSON().keys || {},
-      platform: /Android/i.test(navigator.userAgent) ? "Android" : "Web",
       updatedAt: Date.now()
     });
     toast("Este aparelho foi inscrito para receber notificações.");
@@ -1284,16 +1687,23 @@
   function mine(){ return data.orders.filter(o => role === "store" ? o.storeId === actor : role === "courier" ? o.courierId === actor : true); }
 
   function items(){
-    if (role === "store") return [["dashboard","⌂","Visão geral"],["new","＋","Pedir motoboy"],["quotes","💬","Cotações"],["alerts","🔔","Alertas"],["reports","📊","Relatórios"],["profile","⚙️","Perfil"],["open","◷","Em aberto"],["done","✓","Concluídos"]];
-    else if (role === "courier") return [["available","＋","Disponíveis"],["quotes","💬","Cotações"],["alerts","🔔","Alertas"],["reports","📊","Relatórios"],["run","◷","Em execução"],["done","✓","Concluídos"]];
+    if (role === "store") return [["dashboard","⌂","Visão geral"],["new","＋","Pedir motoboy"],["quotes","💬","Cotações"],["done","✓","Concluídos"],["reports","📊","Relatório"],["alerts","🔔","Alertas"]];
+    else if (role === "courier") return [["available","＋","Disponíveis"],["quotes","💬","Cotações"],["run","◷","Em execução"],["done","✓","Concluídos"],["reports","📊","Relatório"],["alerts","🔔","Alertas"]];
     else return [["dashboard","⌂","Visão geral"],["all","▣","Todos"],["quotes","💬","Cotações"],["alerts","🔔","Alertas"],["reports","📊","Relatórios"],["rates","R$","Taxas"],["registry","♙","Cadastros"]];
   }
 
-  function title(){ return ({dashboard:"Visão geral",new:"Solicitar motoboy",quotes:"Mural de Cotações",alerts:"Central de Alertas",reports:"Relatórios de Caixa",profile:"Perfil da Loja",open:"Pedidos em aberto",available:"Pedidos disponíveis",run:"Em execução",done:"Concluídos",rates:"Tabela de Taxas",registry:"Cadastros Globais"})[view]||"Visão geral"; }
-  function toast(s,t){ let e=document.createElement("div"); e.className="toast "+(t||""); e.textContent=s; document.getElementById("toasts").appendChild(e); setTimeout(()=>e.remove(),4000); }
+  function title(){ return ({dashboard:"Visão geral",new:"Solicitar motoboy",quotes:"Mural de Cotações",alerts:"Central de Alertas",reports:"Relatórios de Caixa",profile:role === "courier" ? "Meu Pix" : "Perfil da Loja",open:"Pedidos em aberto",available:"Pedidos disponíveis",run:"Em execução",done:"Concluídos",rates:"Tabela de Taxas",registry:"Cadastros Globais"})[view]||"Visão geral"; }
+  function toast(s,t){ let e=document.createElement("div"); e.className="toast "+(t||""); e.textContent=s; document.getElementById("toasts").replaceChildren(e); setTimeout(()=>e.remove(),4000); }
   function empty(a,b){ return '<div class="empty"><b>'+a+'</b>'+b+'</div>'; }
   function stat(a,b,c,d){ return '<div class="stat"><div class="stat-top">'+a+'</div><div class="stat-value">'+b+'</div><div class="stat-sub">'+c+'</div></div>'; }
   function canLoc(o){ return role === "admin" || o.storeId === actor || (role === "courier" && o.courierId === actor); }
+  function courierRunningOrders(){
+    return data.orders.filter(o => o.status === "run" && o.courierId === actor).sort((a,b) =>
+      Number(a.queuePosition || 99) - Number(b.queuePosition || 99) || Number(a.accepted || 0) - Number(b.accepted || 0) || a.id.localeCompare(b.id));
+  }
+  function courierOccupiedSlots(){
+    return data.orders.filter(o => o.courierId === actor && (o.status === "run" || o.status === "cotacao_aceita" || (o.status === "open" && o.assignedCourierId === actor))).length;
+  }
 
   function queuePriority(o){
     let waitingMinutes = Math.max(0, Math.floor((Date.now() - Number(o.created || Date.now())) / 60000));
@@ -1331,7 +1741,7 @@
       action += `<button type="button" class="btn danger tiny" data-action="cancel-quote" data-id="${o.id}">🗑️ Cancelar</button>`;
     }
 
-    if(role === "courier" && o.status === "open") action += (o.assignedCourierId && o.assignedCourierId !== actor) ? '<span class="tag gray">Cotação reservada para outro motoboy</span>' : (data.orders.some(x => x.status === "run" && x.courierId === actor) ? '<span class="tag gray">Finalize a corrida atual</span>' : '<button type="button" class="btn primary tiny" data-action="accept" data-id="'+o.id+'">Aceitar corrida</button>');
+    if(role === "courier" && o.status === "open") action += (o.assignedCourierId && o.assignedCourierId !== actor) ? '<span class="tag gray">Cotação reservada para outro motoboy</span>' : (courierOccupiedSlots() - (o.courierId === actor && o.assignedCourierId === actor ? 1 : 0) >= 2 ? '<span class="tag gray">2/2 vagas ocupadas</span>' : '<button type="button" class="btn primary tiny" data-action="accept" data-id="'+o.id+'">Aceitar corrida</button>');
     
     let bidsHtml = "";
     if (o.status === "cotacao") {
@@ -1368,25 +1778,31 @@
         action = (o.picked ? '<button type="button" class="btn primary tiny" data-action="finish" data-id="'+o.id+'">Confirmar Entrega</button>' : '<button type="button" class="btn soft tiny" data-action="picked" data-id="'+o.id+'">Confirmei Retirada</button><button type="button" class="btn danger tiny" data-action="cancel" data-id="'+o.id+'">Cancelar</button>') +
                  ` <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny gps-start-pulse" style="background:var(--mint);">${gpsBtnText}</a>`;
       }
+      const first = courierRunningOrders()[0]?.id === o.id;
+      queueBadge = '<div style="margin:8px 0"><span class="tag '+(first ? 'green' : 'orange')+'">'+(first ? '1 · EM ATENDIMENTO' : '2 · PRÓXIMA ENTREGA')+'</span></div>';
+      if(!first) action = '<button type="button" class="btn purple tiny" data-action="focus" data-id="'+esc(o.id)+'">Atender agora</button>' + action;
     }
 
     if (o.status === "done") {
-      action = o.paid ? '<span class="tag green">✓ Pago Confirmado</span>' : (role === "courier" || role === "admin" ? '<button type="button" class="btn primary tiny" data-action="toggle-pay" data-id="'+o.id+'">💵 Confirmar Recebimento</button>' : '<span class="tag gray">Aguardando acerto do motoboy</span>');
+      action = paymentActions(o);
     }
     
     if (role === "store" && o.status === "run" && !o.picked && canCancelFree) action += ` <button type="button" class="btn danger tiny" data-action="cancel-free" data-id="${o.id}">⚠️ Cancelar sem custo</button>`;
 
-    let trackingShareHtml = (role === "store" || role === "admin") ? `<div style="margin-top:8px;background:#F2F3F5;padding:8px 10px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;"><span style="font-size:11px;">🔗 <b>Rastreio do cliente</b></span><button type="button" class="btn secondary tiny" data-action="share-whatsapp" data-id="${o.id}" style="background:#fff;">Compartilhar WhatsApp</button></div>` : "";
-    let gpsTrackingInfo = (canLoc(o) && o.location && o.status === "run") ? `<div class="gps" style="margin-top:6px; background:var(--mint); padding:8px; border-radius:10px;">📍 <b>Motoboy em trânsito:</b> <a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" style="color:var(--green-dark); font-weight:bold;">Acompanhar Mapa</a></div>` : "";
+    let trackingShareHtml = role === "store" && ["open", "run"].includes(o.status) ? `<div style="margin-top:8px;background:#F2F3F5;padding:8px 10px;border-radius:10px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;"><span style="font-size:11px;">🔗 <b>Rastreio do cliente</b></span><button type="button" class="btn secondary tiny" data-action="share-whatsapp" data-id="${o.id}" style="background:#fff;">Compartilhar WhatsApp</button><button type="button" class="btn secondary tiny" data-action="copy-tracking" data-id="${o.id}">Copiar link</button></div>` : "";
+    if(role === "store" && o.status === "run" && Number(o.queuePosition) === 2) trackingShareHtml = '<div class="info">Motoboy com duas corridas. Sua entrega está na próxima posição.</div>' + trackingShareHtml;
+    let gpsTrackingInfo = (canLoc(o) && o.location && o.status === "run") ? `<div class="gps" style="margin-top:6px; background:var(--mint); padding:8px; border-radius:10px;">📍 <b>Motoboy em trânsito:</b> <a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" style="color:var(--green-dark); font-weight:bold;">Acompanhar Mapa</a> · Última posição: ${date(o.location.updatedAt)}</div>` : "";
     let isSpecialQuote = o.status === "cotacao" || o.status === "cotacao_aceita";
     let locationLine = isSpecialQuote ? [o.city, o.clientNeighborhood].filter(Boolean).map(esc).join(" · ") : [o.clientStreet, o.clientNumber ? "nº "+o.clientNumber : "", o.clientNeighborhood].filter(Boolean).map(esc).join(", ");
-    let clientLine = isSpecialQuote ? "Cotação especial · sem dados do cliente nesta etapa" : "Cliente: <b>"+esc(o.client)+"</b> "+(o.phone ? "("+esc(o.phone)+")" : "");
+    let clientLine = (isSpecialQuote || (role === "courier" && !o.courierId)) ? "Cotação especial · sem dados do cliente nesta etapa" : "Cliente: <b>"+esc(o.client)+"</b> "+(o.phone ? "("+esc(o.phone)+")" : "");
     let serviceBadge = o.serviceType === "collection" ? '<span class="tag orange">🔄 RECOLHA</span>' : o.serviceType === "roundtrip" ? '<span class="tag purpletag">🔁 2 VIAGENS</span>' : '<span class="tag bluetag">🚚 ENTREGA</span>';
 
-    return '<article class="order '+queueClass+'"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+locationLine+'</h3><div class="order-store">'+clientLine+'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>'+queueBadge+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+pickupTimerHtml+' '+runDurationHtml+'</div>'+trackingShareHtml+bidsHtml+gpsTrackingInfo+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
+    return '<article data-order-id="'+esc(o.id)+'" class="order '+queueClass+'"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+locationLine+'</h3><div class="order-store">'+clientLine+'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>'+queueBadge+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+pickupTimerHtml+' '+runDurationHtml+'</div>'+trackingShareHtml+bidsHtml+gpsTrackingInfo+(o.status === "done" ? paymentDetails(o) : '')+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
   }
 
   function render(){
+    const adminTeamOpen=document.getElementById('admin-team')?.open===true;
+    const drafts=Array.from(document.querySelectorAll('#tariff-form[data-dirty],#rain-form[data-dirty],#admin-filter-form[data-dirty]')).map(form=>({id:form.id,version:form.dataset.baseVersion,fields:Array.from(form.querySelectorAll('input,select')).map((el,index)=>({index,value:el.value})),focus:form.contains(document.activeElement)?document.activeElement.id:null}));
     let label = role === "store" ? "Lojista" : role === "courier" ? "Motoboy" : "Administrador";
     let people = role === "store" ? data.stores : role === "courier" ? data.couriers : [{id:"admin",name:"Administrador"}];
     if(role === "admin") actor = "admin"; if(people.length && !people.some(p => p.id === actor)) actor = people[0].id;
@@ -1399,24 +1815,51 @@
     document.getElementById("role").innerHTML = [["store","Lojista"],["courier","Motoboy"],["admin","Administrador"]].map(x => '<option value="'+x[0]+'" '+(role===x[0]?"selected":"")+'>'+x[1]+'</option>').join("");
     document.getElementById("actor").innerHTML = people.map(p => '<option value="'+esc(p.id)+'" '+(p.id===actor?"selected":"")+'>'+esc(p.name)+'</option>').join("");
     document.getElementById("actor").disabled = role === "admin" || !people.length;
+    document.getElementById("avatar").dataset.nav = role === "store" ? "profile" : "dashboard";
     document.getElementById("avatar").textContent = initials(role === "admin" ? "Admin" : (person()||{}).name);
     document.getElementById("crumb").textContent = label + " / " + title(); document.getElementById("page-title").textContent = title();
-    document.getElementById("content").innerHTML = show();
+    const presence = role === "courier" ? (data.presence || []).find(p => p.id === currentUser?.uid) || {} : {};
+    const availabilityPanel = role === "courier"
+      ? '<section class="panel" style="margin:0 0 14px;border:1px solid '+(presence.availableForWork === true ? '#A7F3D0' : '#E5E7EB')+';background:'+(presence.availableForWork === true ? '#F0FDF4' : '#F8FAFC')+'"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b style="display:block">STATUS DE DISPONIBILIDADE</b><small style="color:var(--muted)">'+(courierOccupiedSlots() >= 2 ? '2/2 VAGAS OCUPADAS · CONCLUA OU DEVOLVA UMA CORRIDA PARA ACEITAR OUTRA' : presence.availableForWork === true ? courierOccupiedSlots() + '/2 VAGAS OCUPADAS · VOCÊ PODE ACEITAR MAIS ' + (2-courierOccupiedSlots()) : courierOccupiedSlots() + '/2 VAGAS OCUPADAS · NOVAS OFERTAS PAUSADAS')+'</small></div><button type="button" class="btn '+(presence.availableForWork === true ? 'danger' : 'primary')+' tiny" data-toggle-availability>'+(presence.availableForWork === true ? 'PAUSAR' : 'FICAR DISPONÍVEL')+'</button></div></section>'
+      : '';
+    const review = window.ExpressPayments.summary(mine());
+    const paymentNotice = role === "courier" && review.reportedCount ? '<div class="info" role="status"><b>'+review.reportedCount+' pagamento(s) para conferir · '+cash(review.reported)+'</b><p>A loja informou o pagamento. Confira sua conta e confirme o recebimento. Você pode continuar aceitando corridas.</p><button type="button" class="btn secondary tiny" data-nav="reports">Conferir pagamentos</button></div>' : '';
+    const overdueNotice = role === "store" && review.overdueCount ? '<div class="info" role="status"><b>'+review.overdueCount+' pendência(s) de dias anteriores · '+cash(review.overdue)+'</b><p>Confira o que falta pagar e o que aguarda confirmação do motoboy.</p><button type="button" class="btn secondary tiny" data-nav="reports">Ver pendências</button></div>' : '';
+    const t=window.ExpressTariffs;
+    const weather=t.rain(tariffConfig);
+    const notices=systemNotices.filter(n=>n.expiresAt>Date.now()).sort((a,b)=>b.createdAt-a.createdAt).slice(0,3);
+    const noticeHtml=notices.map(n=>'<div class="info" role="status"><b>'+esc(n.title)+'</b><p>'+esc(n.body)+'</p></div>').join('');
+    const rainCount=Object.values(rainSignals).filter(s=>Date.now()-s.at<1800000).length;
+    const rainNotice=role==='admin'&&rainCount?'<div class="info" role="status"><b>CHUVA SINALIZADA POR '+rainCount+' MOTOBOY(S)</b><p>Nos últimos 30 minutos. Confira a condição antes de agendar a taxa.</p><button type="button" class="btn secondary tiny" data-nav="rates">Gerenciar chuva</button></div>':'';
+    const tariffBanner=rainNotice+(weather.enabled?'<div class="info"><b>TAXA DIA DE CHUVA ATIVADA</b><p>Somente novos pedidos da sede. Consulte os valores em Tarifas.</p></div>':'')+noticeHtml;
+    const quickActions = role !== 'admin' ? '<section class="quick-controls" aria-label="Minha operação"><div class="quick-heading"><b>Minha operação</b><small>Preferências e informações</small></div><div class="quick-grid"><button type="button" data-nav="tariffs"><span>R$</span><b>Tarifas e avisos</b><small>Valores em vigor</small></button><button type="button" data-action="push-settings"><span>♬</span><b>Notificações e som</b><small>Ativar e testar</small></button>'+(role==='courier'?'<button type="button" data-nav="profile"><span>◇</span><b>Meu Pix</b><small>Dados para recebimento</small></button><button type="button" data-action="signal-rain"><span>☂</span><b>Sinalizar chuva</b><small>Avisar o administrador</small></button>':'')+'</div></section>' : '';
+    document.getElementById("content").innerHTML = availabilityPanel + quickActions + tariffBanner + paymentNotice + overdueNotice + show();
+    if(pendingPushOrderId) {
+      const card = document.querySelector('[data-order-id="' + CSS.escape(pendingPushOrderId) + '"]');
+      if(!card && data.orders.some(order => order.id === pendingPushOrderId && order.status === "cotacao")) { view = "quotes"; document.getElementById("content").innerHTML = availabilityPanel + show(); }
+      const target = document.querySelector('[data-order-id="' + CSS.escape(pendingPushOrderId) + '"]');
+      if(target) { target.scrollIntoView({ block: "center" }); target.style.outline = "2px solid var(--primary)"; pendingPushOrderId = null; }
+    }
     renderHero();
+    if(adminTeamOpen&&document.getElementById('admin-team'))document.getElementById('admin-team').open=true;
+    for(const draft of drafts){const form=document.getElementById(draft.id);if(!form||form.dataset.baseVersion!==draft.version)continue;const fields=form.querySelectorAll('input,select');for(const field of draft.fields)if(fields[field.index])fields[field.index].value=field.value;form.dataset.dirty='true';if(draft.focus)document.getElementById(draft.focus)?.focus();}
   }
 
   function show(){
+    if(role==='admin'&&['dashboard','all','reports'].includes(view))return adminDashboard(view);
     if(view==="dashboard") return dashboard();
     if(view==="alerts") return alertsView();
     if(view==="new" && role==="store") { openOrderSheet(); return dashboard(); }
     if(view==="reports") return reportsView();
     if(view==="profile" && role==="store") return profileView();
+    if(view==="profile" && role==="courier") return pixProfileView();
     if(view==="all" && role === "admin") return listView("all");
     if(view==="open"||view==="available") return listView("open");
     if(view==="quotes") return quotesView();
     if(view==="run"||view==="done") return listView(view);
     if(view==="summary") return summaryView();
     if(view==="rates" && role==="admin") return ratesView();
+    if(view==="tariffs") return ratesView();
     if(view==="registry" && role==="admin") return registry();
     return dashboard();
   }
@@ -1432,32 +1875,57 @@
   }
 
   function reportsView(){
-    let os = mine();
-    let doneOrders = os.filter(o => o.status === "done");
-    let totalValue = doneOrders.reduce((acc, o) => acc + o.fee, 0);
-    let paidValue = doneOrders.filter(o => o.paid).reduce((acc, o) => acc + o.fee, 0);
-    let pendingValue = doneOrders.filter(o => !o.paid).reduce((acc, o) => acc + o.fee, 0);
+    const payments = window.ExpressPayments;
+    const done = mine().filter(o => o.status === "done").sort((a,b) => Number(b.completed || b.created) - Number(a.completed || a.created));
+    const totals = payments.summary(done);
+    const groups = new Map();
+    for (const order of done.filter(o => payments.paymentState(o) !== "confirmed").reverse()) {
+      const day = payments.completedDay(order) || "SEM DATA";
+      const counterpart = role === "courier" ? order.storeId : role === "store" ? order.courierId : order.storeId + ":" + order.courierId;
+      const groupId = day + ":" + counterpart;
+      if (!groups.has(groupId)) groups.set(groupId, { day, name: role === "courier" ? order.storeName : role === "store" ? order.courierName : order.storeName + " / " + order.courierName, orders: [] });
+      groups.get(groupId).orders.push(order);
+    }
+    return '<div class="head"><div><h1>Relatórios e Caixa</h1><p>Entregas concluídas e pagamentos. Valores acumulados, sem apagar pendências na virada do dia.</p></div></div>' +
+      '<div class="grid stats">' + stat("Total de entregas", totals.count, "Finalizadas", "▣") + stat("Valor das entregas", cash(totals.total), "Concluídas", "R$") +
+      stat(role === "store" ? "Pagamento confirmado" : "Recebido", cash(totals.received), "Inclui registros antigos já pagos", "✓") + stat(role === "store" ? "A acertar" : "A receber", cash(totals.pending), "Inclui valores informados pela loja", "R$") +
+      stat("Para confirmar", cash(totals.reported), totals.reportedCount + " pagamento(s) informado(s)", "◷") + stat("Dias anteriores", cash(totals.overdue), totals.overdueCount + " pendência(s) anterior(es)", "!") + '</div>' +
+      '<p class="info">Informar pagamento não confirma recebimento. Somente o motoboy confirma depois de conferir a conta. Pendências financeiras não bloqueiam novas corridas.</p>' +
+      (role === "courier" ? '<button type="button" class="btn secondary" data-nav="profile">Cadastrar ou alterar meu Pix</button>' : '') +
+      '<section class="panel" style="margin-top:14px"><div class="panel-head"><h2>Pendências por dia e '+(role === "courier" ? 'lojista' : 'motoboy')+'</h2></div>' +
+      (groups.size ? Array.from(groups.values()).map(group => '<div style="margin:12px 0"><h3>'+esc(group.name || "Cadastro anterior")+' · '+esc(formatServiceDate(group.day))+' · '+cash(payments.summary(group.orders).pending)+'</h3><div class="list">'+group.orders.map(financialCard).join('')+'</div></div>').join('') : empty("Tudo conferido", "Nenhum pagamento pendente.")) + '</section>' +
+      '<section class="panel" style="margin-top:14px"><div class="panel-head"><h2>Histórico de pagamentos confirmados</h2></div><div class="list">'+(done.filter(o => payments.paymentState(o) === "confirmed").map(financialCard).join('') || empty("Sem recebimentos confirmados", "As confirmações aparecerão aqui."))+'</div></section>';
+  }
 
-    return `
-      <div class="head"><div><h1>Relatórios e Caixa</h1><p>Fechamento financeiro e histórico de entregas.</p></div></div>
-      <div class="grid stats">
-        ${stat("Total Entregas", doneOrders.length, "Finalizadas", "▣")}
-        ${stat("Faturamento", cash(totalValue), "Acumulado", "✓")}
-        ${stat("Valores Pagos", cash(paidValue), "Confirmados", "$")}
-        ${stat("Pendentes", cash(pendingValue), "Aguardando", "◷")}
-      </div>
-      <section class="panel">
-        <div class="panel-head"><h2>Auditoria de Entregas</h2></div>
-        <div class="list">
-          ${doneOrders.length ? doneOrders.map(o => `
-            <div class="chip">
-              <span><b>${esc(o.orderCode || o.id)}</b> — ${esc(o.client)} (${esc(o.clientNeighborhood)})</span>
-              <span><b>${cash(o.fee)}</b> ${o.paid ? '<span class="tag green" style="margin-left:6px;">Pago</span>' : '<span class="tag orange" style="margin-left:6px;">Pendente</span>'}</span>
-            </div>
-          `).join("") : '<div class="empty"><b>Nenhuma entrega concluída</b></div>'}
-        </div>
-      </section>
-    `;
+  function paymentActions(order) {
+    const state = window.ExpressPayments.paymentState(order);
+    if (state === "confirmed") return '<span class="tag green">✓ Pagamento confirmado</span>';
+    if (role === "store" && state === "pending") return '<button type="button" class="btn primary tiny" data-action="report-payment" data-id="'+esc(order.id)+'">Informar pagamento</button>';
+    if (role === "courier" && state === "reported") return '<button type="button" class="btn primary tiny" data-action="confirm-payment" data-id="'+esc(order.id)+'">Confirmar recebimento</button>';
+    return '<span class="tag orange">'+(state === "reported" ? 'Aguardando confirmação do motoboy' : 'Aguardando lojista informar pagamento')+'</span>';
+  }
+
+  function paymentDetails(order) {
+    const p = window.ExpressPayments;
+    const state = p.paymentState(order);
+    const pix = order.paymentPix;
+    const old = p.isOverdue(order);
+    const status = state === "confirmed" ? 'Recebimento confirmado' : state === "reported" ? 'Pagamento informado · aguardando conferência' : 'Pagamento pendente';
+    const times = (order.paymentReportedAt ? '<small style="display:block">Informado pela loja em '+date(order.paymentReportedAt)+'</small>' : '') + (order.paymentConfirmedAt ? '<small style="display:block">Confirmado em '+date(order.paymentConfirmedAt)+'</small>' : '');
+    const pixHtml = pix ? '<div style="margin-top:8px"><b>Pix do motoboy</b><div>Titular: '+esc(pix.holder)+'</div><div style="overflow-wrap:anywhere">Chave: '+esc(pix.key)+'</div><button type="button" class="btn secondary tiny" data-action="copy-pix" data-id="'+esc(order.id)+'">Copiar chave Pix</button></div>' : '<p>'+(role === "courier" ? 'Cadastre seu Pix em Meu Pix para a loja visualizar a chave.' : 'Motoboy ainda não cadastrou a chave Pix para esta corrida.')+'</p>';
+    return '<section style="margin-top:10px;padding:12px;background:#F2F3F5;border-radius:12px"><b>'+status+'</b>'+times+(old ? '<p style="color:#9A3412">Pendência de dia anterior'+(state === "reported" ? ': confira o recebimento. A loja já informou o pagamento.' : ': a loja ainda não informou o pagamento.')+'</p>' : '')+(state !== "confirmed" ? '<p>Valor da corrida: <b>'+cash(order.fee)+'</b>. Confira o titular no seu banco antes de transferir.</p>'+pixHtml : '')+'</section>';
+  }
+
+  function financialCard(order) {
+    return '<article class="order" data-order-id="'+esc(order.id)+'"><b>'+esc(order.orderCode || order.id)+'</b><div>'+esc(order.storeName || '')+' · '+esc(order.courierName || '')+' · '+cash(order.fee)+'</div>'+paymentDetails(order)+'<div class="buttons" style="margin-top:10px">'+paymentActions(order)+'</div></article>';
+  }
+
+  function pixProfileView() {
+    const pix = person()?.pix || {};
+    return '<div class="head"><div><h1>Meu Pix</h1><p>A loja vê a chave nas corridas concluídas. Confira se ela está cadastrada no seu banco.</p></div></div><form id="pix-profile-form" class="panel">' +
+      '<div class="field full"><label for="pix-type">Tipo da chave</label><select id="pix-type" required>'+[['cpf','CPF'],['cnpj','CNPJ'],['email','E-mail'],['phone','Telefone'],['random','Aleatória']].map(([value,label]) => '<option value="'+value+'" '+(pix.type === value ? 'selected' : '')+'>'+label+'</option>').join('')+'</select></div>' +
+      '<div class="field full" style="margin-top:12px"><label for="pix-key">Chave Pix</label><input id="pix-key" data-preserve-case autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="254" required value="'+esc(pix.key || '')+'"></div>' +
+      '<div class="field full" style="margin-top:12px"><label for="pix-holder">Nome do titular</label><input id="pix-holder" maxlength="120" required value="'+esc(pix.holder || '')+'"></div><p>Alterações atualizam corridas pendentes. Pagamentos já informados mantêm a chave registrada naquele momento. O app não movimenta dinheiro.</p><button type="submit" class="btn primary full">Salvar chave Pix</button><div id="pix-feedback" role="status" aria-live="polite"></div></form>';
   }
 
   function profileView(){
@@ -1481,6 +1949,65 @@
   }
 
   document.addEventListener("submit", async e => {
+    if(e.target.id==='password-recovery-form'){
+      e.preventDefault();if(recoveryBusy||busy)return;
+      const email=document.getElementById('recovery-email').value.trim();
+      const feedback=document.getElementById('recovery-feedback'),button=document.getElementById('recovery-submit');
+      if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){feedback.textContent='Confira o e-mail informado.';return;}
+      recoveryBusy=true;button.disabled=true;button.textContent='Enviando link...';feedback.textContent='Solicitando o link. Aguarde...';
+      try{
+        try{await sendPasswordResetEmail(auth,email);}catch(error){if(error.code!=='auth/user-not-found')throw error;}
+        feedback.textContent='Se essa conta estiver cadastrada, você receberá um e-mail com o link para definir uma nova senha. Confira também o spam. Abra o link e depois volte ao app para entrar.';
+        feedback.dataset.state='success';document.getElementById('auth-email').value=email;
+      }catch(error){
+        feedback.dataset.state='error';
+        feedback.textContent=error.code==='auth/too-many-requests'?'Muitas solicitações. Aguarde um pouco antes de tentar novamente.':error.code==='auth/invalid-email'?'Confira o formato do e-mail.':'Não foi possível enviar agora. Confira sua conexão e tente novamente.';
+      }finally{recoveryBusy=false;button.disabled=false;button.textContent=feedback.dataset.state==='success'?'Reenviar link':recoveryIntent==='first'?'Enviar link para definir senha':'Enviar link de recuperação';}
+      return;
+    }
+    if(e.target.id==='admin-filter-form'){
+      e.preventDefault();if(role!=='admin')return;
+      const form=e.target,values=Object.fromEntries(new FormData(form));
+      if(values.period==='custom'&&(!values.from||!values.to||values.from>values.to)){form.querySelector('#admin-filter-feedback').textContent='Informe o início e o fim do intervalo, com a data final igual ou posterior à inicial.';return;}
+      adminFilters={...window.ExpressAdmin.defaults(),...values};adminPage=0;adminSelectedOrderId=null;delete form.dataset.dirty;render();return;
+    }
+    if(['tariff-form','rain-form'].includes(e.target.id)){
+      e.preventDefault();if(role!=='admin')return;
+      const form=e.target,button=form.querySelector('button[type=submit]'),feedback=form.querySelector('[data-form-feedback]');
+      if(button.disabled)return;
+      try{
+        const t=window.ExpressTariffs;
+        const effectiveAt=t.fromInput(form.querySelector('input[type=datetime-local]').value);
+        if(effectiveAt<Date.now()+t.MIN_NOTICE)throw Error('Escolha um horário com pelo menos um minuto de antecedência.');
+        let action='scheduleRain',payload={effectiveAt,enabled:form.querySelector('#rain-enabled')?.value==='true'};
+        if(form.id==='tariff-form'){
+          const rates={zones:{}};
+          form.querySelectorAll('[data-rate]').forEach(el=>rates[el.dataset.rate]=Number(el.value));
+          form.querySelectorAll('[data-zone]').forEach(el=>rates.zones[el.dataset.zone]=Number(el.value));
+          rates.zones[t.SEDE]=rates.sedeDay;
+          action='scheduleRates';payload={effectiveAt,rates:t.validate(rates,{...defaultRates.zones,...tariffConfig.rates?.zones}),baseVersion:form.dataset.baseVersion};
+        }
+        if(!confirm('Agendar para '+new Date(effectiveAt).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})+' em Aracruz? Lojistas e motoboys serão avisados. Pedidos registrados mantêm o preço.'))return;
+        button.disabled=true;await command(action,null,payload);toast('Alteração agendada. Aviso registrado para lojistas e motoboys.');render();
+      }catch(error){feedback.textContent=error.message;button.disabled=false;}
+      return;
+    }
+    if (e.target.id === "pix-profile-form") {
+      e.preventDefault();
+      if (!currentUser || role !== "courier") return;
+      const form = e.target;
+      const button = form.querySelector('button[type="submit"]');
+      const feedback = form.querySelector('#pix-feedback');
+      if (button.disabled) return;
+      try {
+        const input = window.ExpressPayments.normalizePix({ type: form.querySelector('#pix-type').value, key: form.querySelector('#pix-key').value, holder: form.querySelector('#pix-holder').value });
+        button.disabled = true;
+        await command("savePix", null, input);
+        toast("Chave Pix salva. As lojas poderão copiar a chave nas corridas concluídas.");
+        view = "reports"; render();
+      } catch (error) { feedback.textContent = error.message; button.disabled = false; }
+      return;
+    }
     if (e.target.id === "alert-form") {
       e.preventDefault();
       if (!currentUser || (role !== "store" && role !== "courier")) return;
@@ -1492,7 +2019,7 @@
         await set(alertRef, {
           senderId: currentUser.uid,
           senderRole: role,
-          senderName: String((person() || {}).name || (role === "courier" ? "MOTOBOY" : "LOJISTA")).toLocaleUpperCase("pt-BR").slice(0,60),
+          senderName: String((person() || {}).name || ""),
           message,
           createdAt: Date.now(),
           expiresAt: Date.now() + 2 * 60 * 60 * 1000
@@ -1511,12 +2038,64 @@
       let phone = document.getElementById("prof-phone").value.trim();
       let address = document.getElementById("prof-address").value.trim();
       try {
-        await update(ref(db, "stores/" + actor), { name, phone, address });
+        await command("saveProfile", null, { name, phone, address });
         toast("Perfil atualizado com sucesso!");
         view = "dashboard"; render();
       } catch(err) { toast("Erro ao salvar: " + err.message, "warn"); }
     }
   });
+
+  function adminTime(value){return value?new Date(Number(value)).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}):'Não registrado';}
+  function adminStatus(order){return ({open:'Aberto',run:'Em execução',done:'Concluído',cancelled:'Cancelado',cancelado_cotacao:'Cotação cancelada',cotacao:'Aguardando cotação',cotacao_aceita:'Cotação contratada'})[order.status]||'Estado não identificado';}
+
+  function adminFiltersHtml(){
+    const f=adminFilters;
+    const select=(name,label,entries)=>'<div class="field"><label for="admin-'+name+'">'+label+'</label><select id="admin-'+name+'" name="'+name+'">'+entries.map(([value,text])=>'<option value="'+esc(value)+'" '+(f[name]===value?'selected':'')+'>'+esc(text)+'</option>').join('')+'</select></div>';
+    return '<form id="admin-filter-form" class="panel" style="margin-bottom:14px"><h2>Filtros da seleção</h2><div class="grid cols">'+
+      select('store','Loja',[['','Todas as lojas'],...data.stores.map(s=>[s.id,s.name])])+select('courier','Motoboy',[['','Todos os motoboys'],...data.couriers.map(c=>[c.id,c.name])])+
+      select('period','Período de criação',[['all','Todo o histórico'],['today','Hoje em Aracruz'],['7','Últimos 7 dias'],['30','Últimos 30 dias'],['custom','Intervalo de datas']])+
+      select('status','Situação do pedido',[['all','Todas'],['open','Aberto'],['run','Em execução'],['done','Concluído'],['cancelled','Cancelado'],['quotes','Cotações']])+
+      select('payment','Pagamento de concluídos',[['all','Todos'],['pending','Ainda não informado'],['reported','Informado, aguardando confirmação'],['confirmed','Confirmado']])+
+      select('alert','Atenção necessária',[['all','Todos os pedidos'],['any','Qualquer alerta'],['waiting','Aberto há 15 minutos'],['pickup','Retirada após 25 minutos'],['gps','GPS sem atualização'],['payment','Pendência de dia anterior']])+
+      '<div class="field"><label for="admin-from">De (intervalo)</label><input type="date" name="from" id="admin-from" value="'+esc(f.from)+'"></div><div class="field"><label for="admin-to">Até (intervalo)</label><input type="date" name="to" id="admin-to" value="'+esc(f.to)+'"></div></div><div class="field full"><label for="admin-search">Buscar código, nome ou bairro</label><input id="admin-search" name="search" maxlength="120" value="'+esc(f.search)+'"></div><p>Datas pela criação do pedido, no horário de Aracruz. Os indicadores, alertas e valores abaixo seguem os filtros aplicados.</p><div class="buttons"><button class="btn primary" type="submit">Aplicar filtros</button><button class="btn secondary" type="button" data-action="admin-reset">Limpar filtros</button></div><p id="admin-filter-feedback" role="status"></p></form>';
+  }
+
+  function adminDashboard(mode){
+    if(role!=='admin')return '';
+    const required=['orders','stores','couriers','presence','connections'];
+    const ready=required.every(key=>adminHealth[key]==='ready');
+    const errors=required.some(key=>adminHealth[key]==='error');
+    const sync='<div class="info" role="status" data-admin-sync><b>'+(errors?'Falha ao carregar dados':!ready?'Carregando dados da operação':adminConnected?'Conectado ao Firebase':'Sem conexão com o Firebase')+'</b><p>'+(errors?'Algumas leituras falharam. Reabra o painel para tentar novamente.':!ready?'Os indicadores serão exibidos quando todas as leituras necessárias chegarem.':!adminConnected?'Exibindo os últimos dados recebidos. Eles podem estar desatualizados.':'Atualizações recebidas em tempo real. Alertas de tempo são recalculados a cada 15 segundos.')+'</p>'+(adminLastDataAt?'<small>Último recebimento: '+esc(adminTime(adminLastDataAt))+'</small>':'')+'</div>';
+    if(!ready)return '<h1>Painel da operação</h1>'+sync+(errors?'<button class="btn secondary" type="button" data-action="admin-reload">Reabrir painel</button>':'');
+    const model=window.ExpressAdmin,now=Date.now()+adminServerOffset;
+    const selected=model.filterOrders(data.orders,adminFilters,now),summary=model.overview(selected,now),staff=model.team(data.couriers,data.orders,data.presence,connections,now);
+    const metric=(id,label,value,help,filter)=>'<div data-admin-stat="'+id+'">'+stat(label,value,help,'')+(filter?'<button type="button" class="btn secondary tiny" data-action="admin-filter" data-id="'+filter+'">Ver pedidos</button>':'')+'</div>';
+    let html='<div class="head"><div><h1>'+(mode==='reports'?'Financeiro da operação':mode==='all'?'Pedidos da operação':'Painel da operação')+'</h1><p>Dados de todas as lojas e motoboys. Valores e horários registrados no servidor.</p></div></div>'+sync+adminFiltersHtml();
+    if(mode!=='reports')html+='<section class="panel"><h2>Pedidos na seleção</h2><div class="grid stats">'+metric('orders-total','Selecionados',summary.total,'Todos os estados')+metric('orders-open','Abertos',summary.open,'Aguardando aceite','status:open')+metric('orders-run','Em execução',summary.run,'Corridas ativas','status:run')+metric('orders-done','Concluídos',summary.done,'Entregas finalizadas','status:done')+metric('orders-cancelled','Cancelados',summary.cancelled,'Inclui cotações canceladas','status:cancelled')+metric('orders-quotes','Cotações',summary.quotes,'Pendentes ou contratadas','status:quotes')+'</div></section>';
+    if(mode!=='all')html+='<section class="panel" style="margin-top:14px"><h2>Financeiro da seleção</h2><p>Apenas entregas concluídas. Informar pagamento não confirma recebimento.</p><div class="grid stats">'+metric('finance-total','Valor das entregas',cash(summary.finance.total),summary.done+' concluída(s)')+metric('finance-pending','Não informado',cash(summary.unreportedValue),summary.pending+' pagamento(s)','payment:pending')+metric('finance-reported','Para conferir',cash(summary.finance.reported),summary.reported+' informado(s)','payment:reported')+metric('finance-confirmed','Confirmados',cash(summary.finance.received),summary.confirmed+' recebido(s)','payment:confirmed')+metric('finance-receivable','A acertar',cash(summary.finance.pending),'Inclui os informados')+metric('finance-overdue','Dias anteriores',cash(summary.finance.overdue),summary.finance.overdueCount+' pendência(s)')+'</div></section>';
+    if(mode==='dashboard'){
+      html+='<section class="panel" style="margin-top:14px"><h2>Atenção necessária · '+summary.issues.length+'</h2><p>Alertas para conferência. Eles não cancelam corridas nem bloqueiam usuários.</p><div class="list">'+(summary.issues.slice(0,10).map(issue=>'<article class="chip" style="display:block;overflow-wrap:anywhere"><b>'+esc(issue.order.orderCode||issue.order.id)+'</b><p>'+esc(issue.label)+'</p><small>'+esc(issue.order.storeName||'Loja')+' · '+esc(issue.order.courierName||'Sem motoboy')+'</small><div><button type="button" class="btn secondary tiny" data-action="admin-detail" data-id="'+esc(issue.order.id)+'">Conferir pedido</button></div></article>').join('')||empty('Nenhum alerta na seleção','Os critérios são 15 minutos em aberto, 25 sem retirada, mais de 2 sem GPS e pagamentos de dias anteriores.'))+'</div>'+(summary.issues.length>10?'<button class="btn secondary tiny" type="button" data-action="admin-filter" data-id="alert:any">Ver todos os pedidos com alerta</button>':'')+'</section>';
+      html+='<section class="panel" style="margin-top:14px"><h2>Equipe agora</h2><p>Situação atual de todos os motoboys, independente dos filtros dos pedidos. Conexão e ON/OFF são informações diferentes. Vagas contam corridas aceitas e reservas.</p><div class="grid stats">'+metric('team-total','Cadastrados',staff.total,'Equipe completa')+metric('team-online','Online',staff.online,'Sessão vista em menos de 90s')+metric('team-offline','Offline',staff.offline,'Sem sessão recente')+metric('team-zero','Sem vagas ocupadas',staff.zero,'Inclui offline e pausados')+metric('team-one','Uma vaga ocupada',staff.one,'Corrida ou reserva')+metric('team-two','Duas ou mais vagas',staff.two,'Corridas ou reservas')+'</div><details id="admin-team"><summary>Ver equipe e ocupação</summary><div class="list">'+(staff.roster.map(member=>'<article class="chip" style="display:block;overflow-wrap:anywhere"><b>'+esc(member.name)+'</b><p>'+(member.online?'ONLINE':'OFFLINE')+' · '+member.slots+'/2 VAGAS · '+(member.available?'OFERTAS ATIVADAS':'OFERTAS PAUSADAS')+'</p><small>'+member.running+' corrida(s) em execução</small>'+(member.location?'<p>Último GPS: '+esc(adminTime(member.location.updatedAt))+'</p>':'')+'<div><button class="btn secondary tiny" type="button" data-action="admin-courier" data-id="'+esc(member.id)+'">Filtrar pedidos deste motoboy</button></div></article>').join('')||empty('Nenhum motoboy cadastrado','Os cadastros aparecerão aqui.'))+'</div></details></section>';
+    }
+    const pages=Math.max(1,Math.ceil(selected.length/20));adminPage=Math.max(0,Math.min(adminPage,pages-1));
+    const rows=selected.slice(adminPage*20,adminPage*20+20);
+    const selectedOrder=data.orders.find(o=>o.id===adminSelectedOrderId);
+    if(selectedOrder)html+=adminOrderDetail(selectedOrder,!selected.some(o=>o.id===selectedOrder.id));
+    html+='<section class="panel" style="margin-top:14px"><h2>Pedidos encontrados · '+selected.length+'</h2><p>Página '+(adminPage+1)+' de '+pages+' · até 20 por página</p><div class="list">'+(rows.map(order=>{
+      const issues=model.alerts(order,now);
+      const payment=order.status==='done'?({pending:'Pagamento não informado',reported:'Pagamento informado, aguardando confirmação',confirmed:'Pagamento confirmado'})[window.ExpressPayments.paymentState(order)]:'';
+      return '<article class="order" data-admin-order="'+esc(order.id)+'"><b>'+esc(order.orderCode||order.id)+'</b><p>'+esc(adminStatus(order))+' · '+(order.status==='cotacao'?'A definir':cash(order.fee))+'</p><p>'+esc(order.storeName||'Loja sem nome')+' · '+esc(order.courierName||'Sem motoboy')+'</p><small>Criado em '+esc(adminTime(order.created))+'</small>'+(payment?'<p>'+payment+'</p>':'')+issues.map(issue=>'<p style="color:#9A3412">'+esc(issue.label)+'</p>').join('')+'<button type="button" class="btn secondary tiny" data-action="admin-detail" data-id="'+esc(order.id)+'">Ver detalhes</button></article>';
+    }).join('')||empty('Nenhum pedido corresponde aos filtros','Ajuste ou limpe a seleção.'))+'</div><div class="buttons" style="margin-top:12px"><button type="button" class="btn secondary tiny" data-action="admin-page" data-id="previous" '+(adminPage===0?'disabled':'')+'>Anterior</button><button type="button" class="btn secondary tiny" data-action="admin-page" data-id="next" '+(adminPage>=pages-1?'disabled':'')+'>Próxima</button></div></section>';
+    return html;
+  }
+
+  function adminOrderDetail(order,outside){
+    const t=window.ExpressAdmin,p=window.ExpressPayments;
+    const details=[['Loja',order.storeName],['Motoboy',order.courierName||'Não atribuído'],['Cliente',order.client],['Telefone do cliente',order.phone],['Endereço da loja',order.storeAddress],['Destino / coleta',order.address],['Observações',order.notes]];
+    const receiptLabel=order.paymentSchemaVersion===2&&order.paymentConfirmedBy===order.courierId?'Recebimento confirmado pelo motoboy':'Pagamento marcado no histórico anterior';
+    const milestones=[['Criado',order.created],['Aceito',order.accepted],['Retirada registrada',order.picked],['Concluído',order.completed],['Cancelado',order.cancelledAt],['Pagamento informado pela loja',order.paymentReportedAt],[receiptLabel,order.paymentConfirmedAt]];
+    return '<section class="panel" id="admin-order-detail" style="margin-top:14px;border:2px solid #CBD5E1;overflow-wrap:anywhere"><h2>Detalhes · '+esc(order.orderCode||order.id)+'</h2><p>'+esc(adminStatus(order))+' · '+(order.status==='cotacao'?'A definir':cash(order.fee))+'</p>'+(outside?'<p>Este pedido está fora dos filtros atuais. Os detalhes continuam acompanhando as atualizações.</p>':'')+details.filter(([,v])=>v).map(([label,value])=>'<p><b>'+label+':</b> '+esc(value)+'</p>').join('')+milestones.filter(([,v])=>v).map(([label,value])=>'<p><b>'+label+':</b> '+esc(adminTime(value))+'</p>').join('')+(order.cancellationReason?'<p><b>Motivo:</b> '+esc(order.cancellationReason)+'</p>':'')+(order.priceSnapshot?'<p>Tarifa registrada em '+esc(adminTime(order.priceSnapshot.calculatedAt))+'. Adicional de chuva registrado: '+cash(order.priceSnapshot.rainFee||0)+'.</p>':'<p>Registro anterior: valor já gravado preservado.</p>')+(order.status==='done'&&p.paymentState(order)==='confirmed'&&!order.paymentConfirmedAt?'<p>Pagamento já marcado no histórico anterior, sem horário adicional de confirmação registrado.</p>':'')+(order.status==='run'&&t.validLocation(order.location,Date.now())?'<p>GPS recebido em '+esc(adminTime(order.location.updatedAt))+'</p><a class="btn secondary tiny" target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/?mlat='+order.location.lat+'&mlon='+order.location.lng+'#map=16/'+order.location.lat+'/'+order.location.lng+'">Abrir última posição no mapa</a>':'')+'<p>Consulta administrativa. Pagamento continua sendo informado pela loja e confirmado pelo motoboy.</p><button type="button" class="btn secondary tiny" data-action="admin-close-detail">Fechar detalhes</button></section>';
+  }
 
   function dashboard(){
     const os=mine();
@@ -1550,14 +2129,29 @@
     if(currentUser && role === "courier" && view === "run") render();
   }, 1000);
 
+  // Recalcula dias anteriores mesmo sem novas escritas no banco, na virada do dia.
+  setInterval(() => {
+    if(currentUser && (view === "reports" || view === "done")) render();
+  }, 60000);
+
+  setInterval(()=>{
+    if(!currentUser)return;
+    if(role==='admin'&&['dashboard','all','reports'].includes(view))render();
+    if(view==='rates'||view==='tariffs')render();
+    if(document.getElementById('order-sheet-overlay').classList.contains('active'))recalculateMobileFee();
+  },15000);
+
   function listView(status){
     let arr = role === "store" ? (status==="all"?mine():mine().filter(o => status==="open"?o.status==="open":o.status===status)) : role === "courier" ? (status==="open"?data.orders.filter(o => o.status==="open"):mine().filter(o => o.status===status)) : (status==="all"?data.orders:today().filter(o => o.status===status));
     if(role === "courier" && status === "open"){
       arr.sort((a,b) => queuePriority(b).rank - queuePriority(a).rank || Number(a.created||0) - Number(b.created||0));
-    } else arr.sort((a,b) => Number(b.created||0)-Number(a.created||0));
+    } else if(role === "courier" && status === "run") arr = courierRunningOrders();
+    else arr.sort((a,b) => Number(b.created||0)-Number(a.created||0));
     let t = status === "open" ? (role==="store"?"Pedidos em Aberto":"Disponíveis") : status === "run" ? "Em Execução" : "Concluídos";
     let legend = role === "courier" && status === "open" ? '<div class="queue-legend"><span><i class="queue-dot green"></i> Verde: até 5 min</span><span><i class="queue-dot yellow"></i> Amarelo: 5 a 14 min</span><span><i class="queue-dot red"></i> Vermelho: 15 min ou mais</span><b>Ordem automática: maior espera primeiro</b></div>' : "";
-    return '<div class="head"><div><h1>'+t+'</h1></div>'+(role === "store" && status === "open" ? '<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>' : "")+'</div>'+legend+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhum pedido","Nenhuma corrida nesta etapa"));
+    const gpsNotice = role === "courier" && status === "run" && arr.some(o => o.id === gpsBlockedOrderId) ? '<div class="info">GPS pausado. Confira as permissões de localização e notificações no Android. <button type="button" class="btn secondary tiny" data-action="retry-gps" data-id="'+esc(gpsBlockedOrderId)+'">Tentar GPS</button></div>' : "";
+    const itinerary = role === "courier" && status === "run" && arr.length ? '<section class="panel" style="padding:16px;margin-bottom:16px"><b>SUAS ENTREGAS · '+arr.length+'/2</b><ol style="padding:0;list-style:none;margin:12px 0 0;display:grid;gap:12px">'+arr.map((o,i)=>'<li style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:10px"><div style="min-width:0"><b style="font-size:12px;color:'+(i===0?'var(--green-dark)':'#A45B00')+'">'+(i===0?'1 · EM ATENDIMENTO':'2 · PRÓXIMA ENTREGA')+'</b><small style="display:block;font-weight:700;margin-top:3px">'+esc(o.orderCode||o.id)+'</small><small style="display:block;color:var(--muted)">'+esc(o.clientNeighborhood||o.city||'Entrega local')+'</small></div><button type="button" class="btn secondary tiny" data-action="show-order" data-id="'+esc(o.id)+'">Ver detalhes</button></li>').join('')+'</ol></section>' : '';
+    return '<div class="head"><div><h1>'+t+'</h1></div>'+(role === "store" && status === "open" ? '<button type="button" class="btn primary" data-open-sheet>＋ Solicitar motoboy</button>' : "")+'</div>'+legend+itinerary+gpsNotice+(arr.length?'<div class="list">'+arr.map(card).join("")+'</div>':empty("Nenhum pedido","Nenhuma corrida nesta etapa"));
   }
 
   function quotesView(){
@@ -1573,136 +2167,190 @@
   }
 
   function ratesView(){
-    let r = data.rates, z = Object.keys(r.zones);
-    return '<div class="head"><div><h1>Tabela de Taxas</h1></div><button type="button" class="btn primary" data-action="save-rates">Salvar Taxas</button></div><div class="panel"><div class="rate">'+z.map(n => '<div style="display:grid;grid-template-columns:1fr 120px;gap:8px;align-items:center;margin-bottom:8px;"><label>'+esc(n)+'</label><input type="number" data-zone="'+esc(n)+'" value="'+Number(r.zones[n])+'"></div>').join("")+'</div></div>';
+    const t=window.ExpressTariffs,now=Date.now(),active=t.resolve(tariffConfig,now,defaultRates);
+    const entries=Object.entries(tariffConfig.tariffPlans||{}).sort((a,b)=>b[1].effectiveAt-a[1].effectiveAt);
+    const history=entries.map(([id,p])=>'<article class="chip" style="display:block;margin:8px 0"><b>'+date(p.effectiveAt)+' · '+(tariffConfig.tariffCancellations?.[id]?'Cancelada':p.effectiveAt>now?'Agendada':active.id===id?'Em vigor':'Anterior')+'</b><div>Sede: '+cash(p.rates.sedeDay)+' / '+cash(p.rates.sedeNight)+' · Chuva: +'+cash(p.rates.rainSede)+'</div>'+(role==='admin'&&p.effectiveAt>now&&!tariffConfig.tariffCancellations?.[id]?'<button type="button" class="btn danger tiny" data-action="cancel-rates" data-id="'+esc(id)+'">Cancelar agendamento</button>':'')+'<details><summary>Ver todos os valores desta versão</summary>'+rateTable(p.rates)+'</details></article>').join('');
+    let html='<div class="head"><div><h1>Tarifas de entregas</h1><p>Horários de Aracruz. Alterações valem somente para pedidos criados após o início agendado.</p></div></div><section class="panel"><h2>Tabela em vigor</h2>'+rateTable(active)+'<p>Valores-base. Adicionais de serviço aparecem antes de registrar o pedido. Pedidos registrados conservam seu preço.</p></section><section class="panel" style="margin-top:12px"><h2>Agendamentos e histórico</h2>'+(history||'<p>Ainda não há alterações agendadas. A tabela anterior permanece em vigor.</p>')+'</section>';
+    const rainHistory=Object.entries(tariffConfig.rainPlans||{}).sort((a,b)=>b[1].effectiveAt-a[1].effectiveAt).map(([,p])=>'<p>'+date(p.effectiveAt)+' · '+(p.enabled?'Ativar':'Desativar')+' chuva · '+(p.effectiveAt>now?'Agendado':'Vigência iniciada')+'</p>').join('');
+    html+='<section class="panel" style="margin-top:12px"><h2>Chuva na sede</h2><p>'+(t.rain(tariffConfig).enabled?'TAXA DIA DE CHUVA ATIVADA':'Taxa de chuva desativada')+'</p>'+rainHistory+'</section>';
+    if(role!=='admin')return html;
+    const future=t.latest(tariffConfig.tariffPlans,tariffConfig.tariffCancellations,Infinity);
+    const draft=future?future[1].rates:{...active,sedeDay:5,sedeNight:7,rainSede:2,night:active.night??3,bag:active.bag??10,bankService:active.bankService??10,cardMinimum:10,lateMinimum:10};
+    const amount=(field,label,value)=>'<div class="field full" style="margin:10px 0"><label>'+esc(label)+'<input type="number" min="0" max="10000" step="0.01" required data-rate="'+field+'" value="'+Number(value)+'"></label></div>';
+    const signals=Object.values(rainSignals).filter(s=>now-s.at<1800000).length;
+    html+='<section class="panel" style="margin-top:12px"><h2>Agendar nova tabela</h2><p>A primeira proposta já traz a sede a R$ 5 de dia, R$ 7 à noite e chuva +R$ 2. Confira todos os valores antes de agendar. A antecedência mínima é de um minuto.</p><form id="tariff-form" data-base-version="'+esc(t.head(tariffConfig.tariffPlans))+'">'+amount('sedeDay','Sede · 06h00 às 18h59',draft.sedeDay)+amount('sedeNight','Sede · 19h00 às 05h59',draft.sedeNight)+amount('rainSede','Adicional de chuva · somente sede',draft.rainSede)+Object.entries(draft.zones).filter(([z])=>z!==t.SEDE).map(([z,v])=>'<div class="field full" style="margin:10px 0"><label>'+esc(z)+'<input type="number" required min="0" max="10000" step="0.01" data-zone="'+esc(z)+'" value="'+Number(v)+'"></label></div>').join('')+amount('night','Adicional regional · 18h às 22h59 (fora da sede)',draft.night)+amount('lateMinimum','Valor mínimo regional após 23h (fora da sede)',draft.lateMinimum)+amount('bag','Adicional de bag',draft.bag)+amount('bankService','Mínimo para serviço de banco',draft.bankService)+amount('cardMinimum','Mínimo para cartão',draft.cardMinimum)+'<div class="field full"><label for="tariff-effective">Início em Aracruz</label><input type="datetime-local" id="tariff-effective" required value="'+t.toInput(now+180000)+'"></div><button type="submit" class="btn primary full">Agendar valores e avisar todos</button><p data-form-feedback role="status"></p></form></section>';
+    html+='<section class="panel" style="margin-top:12px"><h2>Controle de chuva</h2><p><b>'+signals+' motoboy(s)</b> sinalizaram chuva nos últimos 30 minutos. O sinal não ativa a taxa automaticamente.</p><form id="rain-form"><label for="rain-enabled">Condição</label><select id="rain-enabled"><option value="true">Ativar taxa de chuva na sede</option><option value="false">Desativar taxa de chuva</option></select><label for="rain-effective">Início em Aracruz</label><input type="datetime-local" required id="rain-effective" value="'+t.toInput(now+180000)+'"><button type="submit" class="btn primary full">Agendar condição e avisar todos</button><p data-form-feedback role="status"></p></form></section>';
+    return html;
+  }
+
+  function rateTable(rates){
+    const t=window.ExpressTariffs;
+    const rows=Object.entries(rates.zones||{}).map(([zone,fee])=>'<tr><td style="padding:8px;overflow-wrap:anywhere">'+esc(zone)+'</td><td style="padding:8px">'+(zone===t.SEDE&&rates.schemaVersion===1?cash(rates.sedeDay)+' dia / '+cash(rates.sedeNight)+' noite':cash(fee))+'</td></tr>').join('');
+    return '<table style="width:100%;table-layout:fixed;text-align:left"><thead><tr><th>Região</th><th>Valor-base</th></tr></thead><tbody>'+rows+'</tbody></table><p>Chuva na sede: '+(rates.schemaVersion===1?'+'+cash(rates.rainSede):'Aguardando primeira tabela agendada')+'. Outras regiões sem adicional de chuva.</p><p>Bag: +'+cash(rates.bag??10)+' · Banco: mínimo '+cash(rates.bankService??10)+' · Cartão: mínimo '+cash(rates.cardMinimum??10)+'.</p><p>Fora da sede, regra preservada: adicional de '+cash(rates.night??3)+' das 18h às 22h59; após 23h, mínimo '+cash(rates.lateMinimum??10)+'.</p>';
   }
 
   function registry(){
     return '<div class="head"><div><h1>Cadastros Globais</h1></div></div><div class="grid cols"><section class="panel"><h2>Lojistas ('+data.stores.length+')</h2><div class="list">'+data.stores.map(s => '<div class="chip"><b>'+esc(s.name)+'</b></div>').join("")+'</div></section><section class="panel"><h2>Motoboys ('+data.couriers.length+')</h2><div class="list">'+data.couriers.map(c => '<div class="chip"><b>'+esc(c.name)+'</b></div>').join("")+'</div></section></div>';
   }
 
+  const actionsInFlight = new Set();
   async function act(action, id) {
-    let o = data.orders.find(x => x.id === id);
-    if (action !== "save-rates" && !o) return toast("Pedido não encontrado.", "warn");
-    
-    if (action === "share-whatsapp") { await shareTrackingWhatsApp(id); return; }
-
-    if (action === "send-bid") {
-      let input = document.getElementById("bid-input-" + id);
-      let amount = Number(input ? input.value : 0);
-      if (!amount || amount <= 0) return toast("Informe um valor válido.", "warn");
-      await update(ref(db, `orders/${id}/bids/${actor}`), { amount: amount, courierName: (person()||{}).name || "Motoboy", timestamp: Date.now() });
-      toast("Proposta enviada!"); render();
-    }
-    
-    if (action === "roundtrip-step") {
-      let nextStep = Number(document.querySelector(`[data-action="roundtrip-step"][data-id="${id}"]`)?.dataset.step || 0);
-      if (nextStep < 1 || nextStep > 3 || nextStep !== Number(o.tripStage || 0) + 1) return toast("Etapa da viagem inválida.", "warn");
-      let changes = { tripStage: nextStep };
-      if (nextStep === 1) changes.picked = Date.now();
-      await update(ref(db, "orders/" + id), changes);
-      toast(nextStep === 1 ? "Recolha no cliente confirmada." : nextStep === 2 ? "Entrega na loja confirmada." : "Segunda viagem iniciada.");
+    const lock = action + ":" + id;
+    if(actionsInFlight.has(lock)) return;
+    actionsInFlight.add(lock);
+    try {
+      const order = data.orders.find(o => o.id === id);
+      if(['open-password-recovery','open-first-password','reset-password','recovery-back','back-to-profiles'].includes(action)){
+        if(busy||recoveryBusy)return;
+        if(action==='open-first-password')openPasswordRecovery(true);
+        else if(action==='open-password-recovery'||action==='reset-password')openPasswordRecovery(false);
+        else {
+          document.getElementById('auth-email').value=document.getElementById('recovery-email').value.trim()||document.getElementById('auth-email').value;
+          if(action==='back-to-profiles'){adminLoginMode=false;adminLoginRequested=false;}
+          window.setAuthTab('login');
+          showLoginLayout();setAuthFeedback('','info');
+        }
+        return;
+      }
+      if(action.startsWith('admin-')){
+        if(role!=='admin')throw Error('Acesso administrativo necessário.');
+        if(action==='admin-reload'){location.reload();return;}
+        if(action==='admin-reset'){adminFilters=window.ExpressAdmin.defaults();adminPage=0;adminSelectedOrderId=null;document.getElementById('admin-filter-form')?.removeAttribute('data-dirty');}
+        else if(action==='admin-detail'){if(!order)throw Error('Pedido não encontrado.');adminSelectedOrderId=id;}
+        else if(action==='admin-close-detail')adminSelectedOrderId=null;
+        else if(action==='admin-page')adminPage+=id==='next'?1:-1;
+        else if(action==='admin-courier'){adminFilters={...window.ExpressAdmin.defaults(),courier:id};adminPage=0;adminSelectedOrderId=null;view='all';document.getElementById('admin-filter-form')?.removeAttribute('data-dirty');}
+        else if(action==='admin-filter'){
+          const [field,value]=id.split(':');
+          if(!['status','payment','alert'].includes(field))throw Error('Filtro inválido.');
+          adminFilters={...adminFilters,[field]:value};
+          if(field==='status'){adminFilters.payment='all';adminFilters.alert='all';}
+          if(field==='payment'){adminFilters.status='done';adminFilters.alert='all';}
+          if(field==='alert'){adminFilters.status='all';adminFilters.payment='all';}
+          adminPage=0;adminSelectedOrderId=null;view='all';document.getElementById('admin-filter-form')?.removeAttribute('data-dirty');
+        }else throw Error('Ação administrativa não reconhecida.');
+        render();
+        if(action==='admin-detail')document.getElementById('admin-order-detail')?.scrollIntoView({block:'start'});
+        return;
+      }
+      if(action === "share-whatsapp") return await shareTrackingWhatsApp(id);
+      if(action === "copy-tracking") return await shareTrackingWhatsApp(id, true);
+      if(action === "push-settings") return await openPushSettings();
+      if(action==='signal-rain'){if(!await confirmInApp('Sinalizar chuva na sede','Está chovendo na sede? Este aviso será enviado ao administrador e não ativa a taxa.'))return;await command('signalRain',null);toast('Chuva sinalizada ao admin. Isso não ativa a taxa automaticamente.');return;}
+      if(action==='cancel-rates'){if(confirm('Cancelar esta alteração futura? Todos serão avisados.'))await command('cancelRates',null,{planId:id});return;}
+      if(!order) throw new Error("Pedido não encontrado.");
+      if(action === "copy-pix") {
+        if(!order.paymentPix?.key) throw new Error("Chave Pix ainda não cadastrada.");
+        try { await navigator.clipboard.writeText(order.paymentPix.key); }
+        catch (_) {
+          const field = document.createElement("textarea");
+          field.value = order.paymentPix.key; field.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+          document.body.appendChild(field); field.select();
+          const copied = document.execCommand("copy"); field.remove();
+          if(!copied) throw new Error("Não foi possível copiar. Selecione a chave exibida para copiar.");
+        }
+        toast("Chave Pix copiada. Confira o titular no banco antes de pagar."); return;
+      }
+      if(action === "show-order") {
+        document.querySelector('article[data-order-id="'+CSS.escape(id)+'"]')?.scrollIntoView({block:"start",behavior:"smooth"});
+        return;
+      }
+      if(action === "retry-gps") {
+        if(role !== "courier" || order.courierId !== actor || order.status !== "run") return;
+        gpsBlockedOrderId = null; gpsErrorShown = false;
+        await startGpsTracking(id); render(); return;
+      }
+      let input = {};
+      if(action === "send-bid") input.amount = Number(document.getElementById("bid-input-" + id)?.value);
+      if(action === "roundtrip-step") input.step = Number(document.querySelector(`[data-action="roundtrip-step"][data-id="${id}"]`)?.dataset.step);
+      if(action === "accept-bid") {
+        const button = document.querySelector(`[data-action="accept-bid"][data-id="${id}"]`);
+        if(!button || !confirm("Confirmar contratação por " + cash(button.dataset.amount) + "?")) return;
+        input = { courierId: button.dataset.courier, amount: Number(button.dataset.amount) };
+      }
+      if(["cancel", "cancel-quote", "cancel-free"].includes(action) && !confirm("Confirmar cancelamento desta solicitação?")) return;
+      if(action === "report-payment" && !await confirmInApp("Informar pagamento", "Você já realizou o pagamento de " + cash(order.fee) + "? O motoboy ainda precisará confirmar o recebimento.")) return;
+      if(action === "confirm-payment" && !await confirmInApp("Confirmar recebimento", "Você conferiu sua conta e recebeu " + cash(order.fee) + " desta corrida?")) return;
+      const confirmed = await command(action, id, input);
+      if(["finish", "cancel", "cancel-free"].includes(action) && trackingOrderId === id) stopGpsTracking();
+      if(action === "accept") view = "run";
+      if(action === "finish") view = role === "courier" && courierRunningOrders().some(o => o.id !== id) ? "run" : "done";
+      toast(action === "finish" ? "Entrega concluída. Aguardando o lojista informar o pagamento." : action === "report-payment" ? "Pagamento informado. Aguardando confirmação do motoboy." : action === "confirm-payment" ? "Recebimento confirmado e sincronizado." : "Atualização confirmada.");
+      if(action === "accept" && confirmed.paymentReviewCount > 0) toast("Corrida aceita. Você tem " + confirmed.paymentReviewCount + " pagamento(s) para conferir no Relatório.", "warn");
+      if(action === "accept-bid") {
+        const order = { id, ...confirmed.order };
+        orderSources.get("store")?.set(id, order);
+        mergeOrders(); window.openOrderSheet(id, "complete-quote", order);
+      }
       render();
-    }
+    } finally { actionsInFlight.delete(lock); }
+  }
+  function confirmInApp(title, message) {
+    return new Promise(resolve => {
+      const dialog = document.createElement('dialog');
+      dialog.className = 'express-dialog';
+      dialog.setAttribute('aria-label', title);
+      dialog.innerHTML = '<h2>'+esc(title)+'</h2><p>'+esc(message)+'</p><div class="dialog-actions"><button type="button" class="btn secondary" data-decision="cancel">Voltar</button><button type="button" class="btn primary" data-decision="confirm">Confirmar</button></div>';
+      let accepted=false;
+      dialog.querySelector('[data-decision="cancel"]').onclick=()=>dialog.close();
+      dialog.querySelector('[data-decision="confirm"]').onclick=()=>{accepted=true;dialog.close();};
+      dialog.addEventListener('close',()=>{dialog.remove();resolve(accepted);},{once:true});
+      document.body.appendChild(dialog);dialog.showModal();
+    });
+  }
 
-    if (action === "accept-bid") {
-      let btn = document.querySelector(`[data-action="accept-bid"][data-id="${id}"]`);
-      if (!btn) return;
-      if (!confirm(`Confirmar contratação por ${cash(btn.dataset.amount)}?`)) return;
-      const selectedCourier = btn.dataset.courier;
-      const result = await runTransaction(ref(db, "orders/" + id), current => {
-        if (!current || current.status !== "cotacao") return;
-        const bid = current.bids && current.bids[selectedCourier];
-        if (!bid || Number(bid.amount) !== Number(btn.dataset.amount)) return;
-        return { ...current, status: "cotacao_aceita", courierId: selectedCourier, assignedCourierId: selectedCourier, courierName: bid.courierName || btn.dataset.cname, fee: Number(bid.amount), agreedFee: Number(bid.amount), quoteAcceptedAt: Date.now() };
-      });
-      if (!result.committed) return toast("Esta cotação já foi aceita ou alterada. Atualize a tela.", "warn");
-      const acceptedOrder = result.snapshot.val();
-      data.orders = data.orders.map(item => item.id === id ? { id, ...acceptedOrder } : item);
-      await syncPublicTracking(id, acceptedOrder);
-      toast("Proposta aceita. Complete os dados do cliente para encaminhar ao motoboy."); view = "dashboard"; render(); window.openOrderSheet(id, "complete-quote");
-    }
-
-    if (action === "cancel-free") {
-      if(role!=="store"||o.status!=="run"||o.picked||!o.accepted||Date.now()-Number(o.accepted)<25*60*1000)return toast("O cancelamento sem custo só fica disponível após 25 minutos sem retirada.","warn");
-      if(!confirm("O prazo de 25 minutos foi excedido e a retirada ainda não foi confirmada. Cancelar este pedido sem custo?"))return;
-      const result=await runTransaction(ref(db,"orders/"+id),current=>{
-        if(!current||current.status!=="run"||current.picked||!current.accepted||Date.now()-Number(current.accepted)<25*60*1000)return;
-        return {...current,status:"cancelled",cancelledAt:Date.now(),cancelledBy:actor,cancellationReason:"Prazo de espera de 25 minutos excedido sem retirada",paid:false,location:null};
-      });
-      if(!result.committed)return toast("Não foi possível cancelar. O pedido pode ter sido atualizado ou a retirada confirmada.","warn");
-      stopGpsTracking();await syncPublicTracking(id,result.snapshot.val());toast("Pedido cancelado sem custo.");render();
-    }
-
-    if (action === "cancel-quote") {
-      if(!confirm("Deseja cancelar este orçamento?")) return;
-      const changes = { status: "cancelado_cotacao" };
-      await update(ref(db, "orders/" + id), changes);
-      await syncPublicTracking(id, { ...o, ...changes });
-      toast("Orçamento cancelado."); render();
-    }
-
-    if (action === "accept") {
-      if (data.orders.some(x => x.status === "run" && x.courierId === actor)) return toast("Finalize a corrida atual.", "warn");
-      let isRaining = confirm("Está chovendo no trajeto?\n\nOK: Aplicar taxa de chuva\nCancelar: Tarifa normal");
-      let newFee = isRaining && !o.rain ? calculateFee(o.paymentMethod, true, o.bag, o.bank, o.selectedZone) : o.fee;
-      try {
-        let result = await runTransaction(ref(db, "orders/" + id), current => {
-          if (!current || current.status !== "open" || (current.assignedCourierId && current.assignedCourierId !== actor)) return;
-          return { ...current, status:"run", courierId:actor, courierName:(person()||{}).name||"Motoboy", accepted:Date.now(), rain:isRaining, fee:newFee, tripStage: current.serviceType === "roundtrip" ? 0 : null };
-        });
-        if (!result.committed) throw new Error("Corrida já aceita por outro motoboy.");
-        await syncPublicTracking(id, result.snapshot.val());
-        toast("Corrida aceita! Use o botão GPS.");
-        startGpsTracking(id);
-        view = "run"; render();
-      } catch(err) { toast(err.message, "warn"); }
-    }
-    if (action === "picked") {
-      await update(ref(db, "orders/" + id), { picked: Date.now() });
-      toast("Retirada confirmada!"); render();
-    }
-    if (action === "finish") {
-      stopGpsTracking();
-      let completedAt = Date.now();
-      let durationMs = o.accepted ? Math.max(0, completedAt - Number(o.accepted)) : 0;
-      const finishChanges = { status: "done", completed: completedAt, durationMs, paid: false, location: null };
-      await update(ref(db, "orders/" + id), finishChanges);
-      await syncPublicTracking(id, { ...o, ...finishChanges });
-      toast("Entrega concluída!"); view = "done"; render();
-    }
-    if (action === "cancel") {
-      if(!confirm("Deseja cancelar e retornar para a fila?")) return;
-      stopGpsTracking();
-      let revertStatus = o.bids && Object.keys(o.bids).length > 0 ? "cotacao" : "open";
-      const cancelChanges = { status: revertStatus, courierId: null, assignedCourierId: null, courierName: null, accepted: null, picked: null, location: null, tripStage: null };
-      await update(ref(db, "orders/" + id), cancelChanges);
-      await syncPublicTracking(id, { ...o, ...cancelChanges });
-      toast("Corrida retornada para a fila."); render();
-    }
-    if (action === "toggle-pay") {
-      await update(ref(db, "orders/" + id), { paid: true });
-      toast("Recebimento confirmado!");
-    }
-    if (action === "save-rates") {
-      let zones = {};
-      document.querySelectorAll("[data-zone]").forEach(x => { zones[x.dataset.zone] = Math.max(0, Number(x.value) || 0); });
-      await set(ref(db, "config/rates"), { zones: zones, night: 3, rain: 3, weekend: 2, bag: 10, bankService: 10 });
-      toast("Taxas salvas com sucesso!");
-    }
+  async function openPushSettings() {
+    if(role === "admin" || !currentUser) return;
+    const dialog = document.createElement("dialog");
+    dialog.className="express-dialog";dialog.setAttribute("aria-label","Notificações e som");
+    dialog.innerHTML = '<form><h2 style="margin-top:0">Notificações e som</h2><p data-push-status role="status">Conferindo este dispositivo...</p><div class="dialog-actions"><button type="button" class="btn primary" data-push-enable>Ativar neste dispositivo</button><button type="button" class="btn secondary" data-push-test>Testar recebimento</button></div><p>O teste envia uma notificação para os dispositivos cadastrados nesta conta. Confira também com o Express em segundo plano.</p>' +
+      (role === "courier" ? [["enabled","Receber novas ofertas"],["orders","Novos pedidos"],["quotes","Novas cotações"],["reminders","Lembretes a cada 5 minutos"]] : []).map(([key,label]) => '<label style="display:flex;align-items:center;gap:10px;margin:14px 0"><input style="width:auto" type="checkbox" name="'+key+'" '+(pushPreferences[key] !== false ? 'checked' : '')+'>'+label+'</label>').join('') +
+      '<p style="font-size:12px">Atualizações das suas entregas continuam disponíveis quando você pausa novas ofertas.</p>' +
+      (window.Capacitor?.isNativePlatform?.() ? '<button type="button" class="btn secondary full" data-sound-settings>Alterar som no Android</button>' : '<p>O som das notificações é controlado pelo navegador e pelo volume do computador. Permita notificações neste endereço.</p>') +
+      '<p data-feedback role="status"></p><div style="display:flex;gap:8px;margin-top:16px"><button type="button" class="btn secondary" data-close>Fechar</button><button type="submit" class="btn primary">Salvar preferências</button></div></form>';
+    const feedback=dialog.querySelector('[data-feedback]');
+    const status=dialog.querySelector('[data-push-status]');
+    async function refreshStatus(){try{status.textContent=await pushDeviceStatus();}catch(error){status.textContent=error.message;}}
+    dialog.querySelector('[data-push-enable]').onclick=async event=>{
+      event.target.disabled=true;feedback.textContent='Ativando...';
+      try{await enablePushNotifications();feedback.textContent='Ativação solicitada. Confira o status e use Testar recebimento.';}
+      catch(error){feedback.textContent=pushError(error);}
+      finally{event.target.disabled=false;await refreshStatus();}
+    };
+    dialog.querySelector('[data-push-test]').onclick=async event=>{
+      event.target.disabled=true;feedback.textContent='Solicitando teste ao servidor...';
+      try{await notificationTool('test');feedback.textContent='Teste solicitado ao servidor. Aguarde a notificação. Se não chegar, confira permissões, som e conexão.';}
+      catch(error){feedback.textContent=pushError(error);}
+      finally{event.target.disabled=false;}
+    };
+    refreshStatus();
+    dialog.querySelector('[data-close]').onclick = () => dialog.close();
+    dialog.querySelector('[data-sound-settings]')?.addEventListener('click', async () => {
+      try { await window.ExpressNativePush.NativeSettings.openAndroid({ option: "app_notification" }); }
+      catch(error) { dialog.querySelector('[data-feedback]').textContent = "Abra Configurações do Android, Aplicativos, Express Entregas, Notificações e escolha a categoria."; }
+    });
+    dialog.querySelector('form').onsubmit = async event => {
+      event.preventDefault();
+      const prefs = Object.fromEntries(["enabled","orders","quotes","reminders"].map(key => [key, dialog.querySelector('[name="'+key+'"]')?.checked !== false]));
+      try { if(role === "courier") await set(ref(db, "pushPreferences/" + currentUser.uid), prefs); dialog.close(); toast("Preferências salvas."); }
+      catch(error) { dialog.querySelector('[data-feedback]').textContent = "Não foi possível salvar. Verifique sua conexão."; }
+    };
+    dialog.addEventListener('close', () => dialog.remove(), { once: true });
+    document.body.appendChild(dialog); dialog.showModal();
   }
 
   window.__express = {
     prepareSheet: prepareSheet,
-    setView: function(v){ view = v; render(); },
+    setView: function(v){ if(v === "new" && role === "store") return window.openOrderSheet(); view = v; render(); },
     doAction: function(a, id){ return act(a, id).catch(err => toast(err.message, "warn")); },
-    enablePush: function(){ return enablePushNotifications().catch(err => toast(err.message || "Falha ao ativar notificações.", "warn")); },
+    enablePush: function(){ return openPushSettings().catch(err => toast(pushError(err), "warn")); },
+    toggleAvailability: function(){ return toggleCourierAvailability().catch(error => toast(error.message, "warn")); },
     selectLoginRole: function(r){ window.selectLoginRole(r); },
     setAuthTab: function(m){ window.setAuthTab(m); },
     togglePassword: function(){ window.togglePassword(); },
     loginAsAdmin: function(){ return window.loginAsAdmin(); },
     logout: function(){ return window.logout(); },
-    openSheet: function(id){ window.openOrderSheet(id); },
+    openSheet: function(id, mode){ window.openOrderSheet(id, mode); },
     closeSheet: function(){ window.closeOrderSheet(); }
   };
 
@@ -1715,7 +2363,7 @@
     
     let completingQuote = f.dataset.completingQuote === "true";
     let serviceType = f.serviceType.value;
-    let city = f.elements.namedItem("city").value.trim();
+    let city = f.elements.namedItem("city").value.trim() || "ARACRUZ";
     let clientStreet = f.clientStreet.value.trim();
     let clientNumber = f.clientNumber.value.trim();
     let clientNeighborhood = f.clientNeighborhood.value.trim();
@@ -1749,31 +2397,21 @@
         rain: false, bag: isQuote ? false : b, bank: isQuote ? false : k, fee: completingQuote ? Number(data.orders.find(o=>o.id===editId)?.agreedFee||0) : finalFee, status: isQuote ? "cotacao" : "open"
       };
 
-      if (editId) {
-        if(completingQuote){const prior=data.orders.find(o=>o.id===editId)||{};orderPayload.assignedCourierId=prior.assignedCourierId;orderPayload.courierId=prior.courierId;orderPayload.courierName=prior.courierName;orderPayload.accepted=Date.now();orderPayload.quoteAcceptedAt=prior.quoteAcceptedAt;orderPayload.agreedFee=prior.agreedFee;orderPayload.tripStage=serviceType==="roundtrip"?0:null;}
-        await update(ref(db, "orders/" + editId), orderPayload);
-        await syncPublicTracking(editId,{...data.orders.find(o=>o.id===editId),...orderPayload});
-        toast(completingQuote ? "Pedido completo e encaminhado ao motoboy." : "Atualizado com sucesso!");
-      } else {
-        orderPayload.orderCode = code;
-        orderPayload.trackingToken = createTrackingToken();
-        orderPayload.storeId = s.id;
-        orderPayload.storeName = s.name;
-        orderPayload.storeAddress = s.address;
-        orderPayload.created = Date.now();
-        orderPayload.location = null;
-        orderPayload.paid = false;
-        const newOrderRef = push(ref(db, "orders"));
-        await set(newOrderRef, orderPayload);
-        await syncPublicTracking(newOrderRef.key, orderPayload);
-        toast(isQuote ? "Cotação publicada!" : "Pedido enviado!"); 
-      }
+      const requestId = f.dataset.requestId || crypto.randomUUID();
+      f.dataset.requestId = requestId;
+      const payloadFingerprint = JSON.stringify(orderPayload);
+      if(f.dataset.payloadFingerprint && f.dataset.payloadFingerprint !== payloadFingerprint) f.dataset.requestId = crypto.randomUUID();
+      f.dataset.payloadFingerprint = payloadFingerprint;
+      await command("saveOrder", editId || null, { ...orderPayload, isQuote }, f.dataset.requestId);
+      delete f.dataset.requestId; delete f.dataset.payloadFingerprint;
+      toast(completingQuote ? "Pedido encaminhado ao motoboy contratado." : isQuote ? "Cotação publicada!" : "Pedido salvo!");
       closeOrderSheet(); 
       view = isQuote ? "quotes" : "open"; render();
     } catch(err) { toast("Erro ao enviar: " + err.message, "warn"); }
     finally { submitButton.disabled = false; submitButton.textContent = "Confirmar e Enviar Pedido →"; }
   });
 
+  checkUrlTracking();
   window.__expressModuleReady = true;
 </script>
 <script>

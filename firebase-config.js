@@ -9,5 +9,6 @@ window.EXPRESS_FIREBASE_CONFIG = {
   messagingSenderId: "292745200666",
   appId: "1:292745200666:web:ff18ab3ef94d36ac327da3",
   // Chave pública VAPID gerada/configurada para Web Push. Não é uma chave privada.
+  publicTrackingBaseUrl: "https://express-v2-rastreio-fmrpbr.web.app/rastreio/",
   vapidPublicKey: ""
 };
