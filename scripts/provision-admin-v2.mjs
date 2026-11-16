@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 const require=createRequire(import.meta.url);
 const admin=require('../functions/node_modules/firebase-admin');
 const project='express-entregas-2-testes';
+process.env.GOOGLE_CLOUD_QUOTA_PROJECT=project;
 const email='rp.rephone@gmail.com';
 // Usa a sessão já autenticada do Cloud Shell. Nunca grava chave privada ou senha.
 const credential={getAccessToken:async()=>({access_token:execFileSync('gcloud',['auth','print-access-token','--project',project],{encoding:'utf8',stdio:['ignore','pipe','inherit']}).trim(),expires_in:300})};
