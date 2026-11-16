@@ -62,11 +62,19 @@ test('cadastro mobile, perfil, pedido, aceite, retirada, conclusão e pagamento 
   courier.on('dialog',d=>d.dismiss());
   await courier.locator('[data-action=accept]').click();
   await expect(courier.locator('[data-action=picked]')).toHaveCount(1);
+  await expect(courier.locator('[data-work-status]')).toHaveText('OCUPADO');
+  await expect(courier.locator('#hero-busy')).toHaveText('1');
+  await expect(courier.locator('#hero-available')).toHaveText('0');
+  await store.locator('#nav [data-nav=run]').click();
+  await expect(store.locator('#page-title')).toHaveText('Em execução');
+  await expect(store.locator('[data-order-id]')).toHaveCount(1);
+
   await expect(courier.locator('#content')).toContainText('RUA PARTICULAR');
   await courier.locator('[data-action=picked]').click();
   await expect(courier.locator('[data-action=finish]')).toHaveCount(1);
   await courier.locator('[data-action=finish]').click();
   await expect(courier.locator('[data-action=confirm-payment]')).toHaveCount(0);
+  await expect(courier.locator('[data-work-status]')).toHaveText('DISPONÍVEL');
   await expect(courier.locator('#content')).toContainText('Aguardando lojista informar pagamento');
   const [completedId, completedOrder] = Object.entries((await db.ref('orders').get()).val()).find(([,o])=>o.status==='done');
   const previousDay = { ...completedOrder, completed: Date.now()-86400000, revision: completedOrder.revision+1 };

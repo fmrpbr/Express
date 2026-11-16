@@ -10,7 +10,7 @@ const config: CapacitorConfig = {
   },
   plugins: {
     CapacitorHttp: { enabled: true },
-    LocalNotifications: { smallIcon: 'ic_express_notification', sound: 'express_alert.wav' },
+    LocalNotifications: { smallIcon: 'ic_express_notification', iconColor: '#EA1D2C', sound: 'express_alert.wav' },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert']
     }

@@ -204,6 +204,7 @@
 .quick-controls{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;margin:0 0 18px}
 .quick-heading{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}.quick-heading small{color:var(--muted)}
 .quick-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.quick-grid button{font:inherit;text-align:left;border:1px solid #e5e7eb;border-radius:14px;padding:14px;background:#f8fafc;color:#222;cursor:pointer;display:grid;gap:5px;min-width:0}.quick-grid button:hover{border-color:var(--green-dark);background:#f0fdf4}.quick-grid span{font-size:22px;color:var(--green-dark)}.quick-grid b{font-size:13px}.quick-grid small{color:var(--muted);font-size:11px}.express-dialog{width:min(92vw,440px);max-height:85dvh;overflow:auto;box-sizing:border-box;border:0;border-radius:20px;padding:24px;color:#222;box-shadow:0 20px 70px #0003}.express-dialog::backdrop{background:#0f172a99}.express-dialog p{line-height:1.6}.dialog-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}.dialog-actions .btn{flex:1;min-height:44px}.quick-grid button:focus-visible{outline:3px solid var(--green-dark);outline-offset:2px}@media(max-width:600px){.quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.quick-controls{padding:14px}.quick-grid button{padding:12px}}
+.logo img{display:block;width:100%;height:100%;object-fit:contain;border-radius:inherit}
 </style>
 </head>
 <body>
@@ -333,7 +334,7 @@
 <div id="login-screen" class="login-screen">
   <div class="login-card">
     <div class="login-brand">
-      <div class="logo">🏍</div>
+      <div class="logo"><img src="./icons/icon-192.png" alt=""></div>
       <div>
         <h1>Express Entregas</h1>
         <small>Exclusivo para Lojistas e Motoboys</small>
@@ -518,7 +519,7 @@
 <div class="app">
   <aside class="side">
     <div class="brand">
-      <div class="logo">🏍</div>
+      <div class="logo"><img src="./icons/icon-192.png" alt=""></div>
       <div><b>Express Entregas</b><small>Lojista ↔ Motoboy</small></div>
     </div>
     <div>
@@ -751,7 +752,7 @@
           const channels = NotificationPolicy.CHANNELS;
             await window.ExpressNativePush.LocalNotifications.schedule({ notifications: [{
               id: crypto.getRandomValues(new Uint32Array(1))[0] % 2147483647,
-              title, body, channelId: channels[category] || channels.update, smallIcon:"ic_express_notification", extra: notification.data || {}
+              title, body, channelId: channels[category] || channels.update, smallIcon:"ic_express_notification", largeIcon:"ic_express_brand", iconColor:"#EA1D2C", extra: notification.data || {}
             }] });
           } catch(error) { toast("Confira a permissão de notificações e o volume do Android.", "warn"); }
         }),
@@ -1263,8 +1264,8 @@
     const total = presence.length;
     const onlineList = presence.filter(p => p.online === true);
     const online = onlineList.length;
-    const occupied = onlineList.filter(p => Number(p.occupiedSlots ?? (p.busy ? 1 : 0)) >= 2).length;
-    const available = onlineList.filter(p => p.availableForWork === true && Number(p.occupiedSlots ?? (p.busy ? 1 : 0)) < 2).length;
+    const occupied = onlineList.filter(p => p.busy === true || Number(p.occupiedSlots || p.activeCount || 0) > 0).length;
+    const available = onlineList.filter(p => p.availableForWork === true && p.busy !== true && Number(p.occupiedSlots || p.activeCount || 0) === 0).length;
     const offline = Math.max(0, total - online);
     const values = {
       "hero-total":total, "hero-online":online, "hero-available":available,
@@ -1690,7 +1691,7 @@
   function mine(){ return data.orders.filter(o => role === "store" ? o.storeId === actor : role === "courier" ? o.courierId === actor : true); }
 
   function items(){
-    if (role === "store") return [["dashboard","⌂","Visão geral"],["new","＋","Pedir motoboy"],["quotes","💬","Cotações"],["done","✓","Concluídos"],["reports","📊","Relatório"],["alerts","🔔","Alertas"]];
+    if (role === "store") return [["dashboard","⌂","Visão geral"],["new","＋","Pedir motoboy"],["quotes","💬","Cotações"],["run","◷","Em execução"],["done","✓","Concluídos"],["reports","📊","Relatório"],["alerts","🔔","Alertas"]];
     else if (role === "courier") return [["available","＋","Disponíveis"],["quotes","💬","Cotações"],["run","◷","Em execução"],["done","✓","Concluídos"],["reports","📊","Relatório"],["alerts","🔔","Alertas"]];
     else return [["dashboard","⌂","Visão geral"],["all","▣","Todos"],["quotes","💬","Cotações"],["alerts","🔔","Alertas"],["reports","📊","Relatórios"],["rates","R$","Taxas"],["registry","♙","Cadastros"]];
   }
@@ -1822,8 +1823,10 @@
     document.getElementById("avatar").textContent = initials(role === "admin" ? "Admin" : (person()||{}).name);
     document.getElementById("crumb").textContent = label + " / " + title(); document.getElementById("page-title").textContent = title();
     const presence = role === "courier" ? (data.presence || []).find(p => p.id === currentUser?.uid) || {} : {};
+    const workSlots=role==='courier'?courierOccupiedSlots():0;
+    const workStatus=workSlots>0?'OCUPADO':presence.availableForWork===true?'DISPONÍVEL':'PAUSADO';
     const availabilityPanel = role === "courier"
-      ? '<section class="panel" style="margin:0 0 14px;border:1px solid '+(presence.availableForWork === true ? '#A7F3D0' : '#E5E7EB')+';background:'+(presence.availableForWork === true ? '#F0FDF4' : '#F8FAFC')+'"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b style="display:block">STATUS DE DISPONIBILIDADE</b><small style="color:var(--muted)">'+(courierOccupiedSlots() >= 2 ? '2/2 VAGAS OCUPADAS · CONCLUA OU DEVOLVA UMA CORRIDA PARA ACEITAR OUTRA' : presence.availableForWork === true ? courierOccupiedSlots() + '/2 VAGAS OCUPADAS · VOCÊ PODE ACEITAR MAIS ' + (2-courierOccupiedSlots()) : courierOccupiedSlots() + '/2 VAGAS OCUPADAS · NOVAS OFERTAS PAUSADAS')+'</small></div><button type="button" class="btn '+(presence.availableForWork === true ? 'danger' : 'primary')+' tiny" data-toggle-availability>'+(presence.availableForWork === true ? 'PAUSAR' : 'FICAR DISPONÍVEL')+'</button></div></section>'
+      ? '<section class="panel" style="margin:0 0 14px;border:1px solid '+(workSlots>0?'#FED7AA':presence.availableForWork === true ? '#A7F3D0' : '#E5E7EB')+';background:'+(workSlots>0?'#FFF7ED':presence.availableForWork === true ? '#F0FDF4' : '#F8FAFC')+'"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b data-work-status style="display:block">'+workStatus+'</b><small style="color:var(--muted)">'+(courierOccupiedSlots() >= 2 ? '2/2 VAGAS OCUPADAS · CONCLUA OU DEVOLVA UMA CORRIDA PARA ACEITAR OUTRA' : presence.availableForWork === true ? courierOccupiedSlots() + '/2 VAGAS OCUPADAS · VOCÊ PODE ACEITAR MAIS ' + (2-courierOccupiedSlots()) : courierOccupiedSlots() + '/2 VAGAS OCUPADAS · NOVAS OFERTAS PAUSADAS')+'</small></div><button type="button" class="btn '+(presence.availableForWork === true ? 'danger' : 'primary')+' tiny" data-toggle-availability>'+(presence.availableForWork === true ? 'PAUSAR' : 'FICAR DISPONÍVEL')+'</button></div></section>'
       : '';
     const review = window.ExpressPayments.summary(mine());
     const paymentNotice = role === "courier" && review.reportedCount ? '<div class="info" role="status"><b>'+review.reportedCount+' pagamento(s) para conferir · '+cash(review.reported)+'</b><p>A loja informou o pagamento. Confira sua conta e confirme o recebimento. Você pode continuar aceitando corridas.</p><button type="button" class="btn secondary tiny" data-nav="reports">Conferir pagamentos</button></div>' : '';
@@ -2078,7 +2081,7 @@
     if(mode!=='all')html+='<section class="panel" style="margin-top:14px"><h2>Financeiro da seleção</h2><p>Apenas entregas concluídas. Informar pagamento não confirma recebimento.</p><div class="grid stats">'+metric('finance-total','Valor das entregas',cash(summary.finance.total),summary.done+' concluída(s)')+metric('finance-pending','Não informado',cash(summary.unreportedValue),summary.pending+' pagamento(s)','payment:pending')+metric('finance-reported','Para conferir',cash(summary.finance.reported),summary.reported+' informado(s)','payment:reported')+metric('finance-confirmed','Confirmados',cash(summary.finance.received),summary.confirmed+' recebido(s)','payment:confirmed')+metric('finance-receivable','A acertar',cash(summary.finance.pending),'Inclui os informados')+metric('finance-overdue','Dias anteriores',cash(summary.finance.overdue),summary.finance.overdueCount+' pendência(s)')+'</div></section>';
     if(mode==='dashboard'){
       html+='<section class="panel" style="margin-top:14px"><h2>Atenção necessária · '+summary.issues.length+'</h2><p>Alertas para conferência. Eles não cancelam corridas nem bloqueiam usuários.</p><div class="list">'+(summary.issues.slice(0,10).map(issue=>'<article class="chip" style="display:block;overflow-wrap:anywhere"><b>'+esc(issue.order.orderCode||issue.order.id)+'</b><p>'+esc(issue.label)+'</p><small>'+esc(issue.order.storeName||'Loja')+' · '+esc(issue.order.courierName||'Sem motoboy')+'</small><div><button type="button" class="btn secondary tiny" data-action="admin-detail" data-id="'+esc(issue.order.id)+'">Conferir pedido</button></div></article>').join('')||empty('Nenhum alerta na seleção','Os critérios são 15 minutos em aberto, 25 sem retirada, mais de 2 sem GPS e pagamentos de dias anteriores.'))+'</div>'+(summary.issues.length>10?'<button class="btn secondary tiny" type="button" data-action="admin-filter" data-id="alert:any">Ver todos os pedidos com alerta</button>':'')+'</section>';
-      html+='<section class="panel" style="margin-top:14px"><h2>Equipe agora</h2><p>Situação atual de todos os motoboys, independente dos filtros dos pedidos. Conexão e ON/OFF são informações diferentes. Vagas contam corridas aceitas e reservas.</p><div class="grid stats">'+metric('team-total','Cadastrados',staff.total,'Equipe completa')+metric('team-online','Online',staff.online,'Sessão vista em menos de 90s')+metric('team-offline','Offline',staff.offline,'Sem sessão recente')+metric('team-zero','Sem vagas ocupadas',staff.zero,'Inclui offline e pausados')+metric('team-one','Uma vaga ocupada',staff.one,'Corrida ou reserva')+metric('team-two','Duas ou mais vagas',staff.two,'Corridas ou reservas')+'</div><details id="admin-team"><summary>Ver equipe e ocupação</summary><div class="list">'+(staff.roster.map(member=>'<article class="chip" style="display:block;overflow-wrap:anywhere"><b>'+esc(member.name)+'</b><p>'+(member.online?'ONLINE':'OFFLINE')+' · '+member.slots+'/2 VAGAS · '+(member.available?'OFERTAS ATIVADAS':'OFERTAS PAUSADAS')+'</p><small>'+member.running+' corrida(s) em execução</small>'+(member.location?'<p>Último GPS: '+esc(adminTime(member.location.updatedAt))+'</p>':'')+'<div><button class="btn secondary tiny" type="button" data-action="admin-courier" data-id="'+esc(member.id)+'">Filtrar pedidos deste motoboy</button></div></article>').join('')||empty('Nenhum motoboy cadastrado','Os cadastros aparecerão aqui.'))+'</div></details></section>';
+      html+='<section class="panel" style="margin-top:14px"><h2>Equipe agora</h2><p>Situação atual de todos os motoboys, independente dos filtros dos pedidos. Conexão e ON/OFF são informações diferentes. Vagas contam corridas aceitas e reservas.</p><div class="grid stats">'+metric('team-total','Cadastrados',staff.total,'Equipe completa')+metric('team-online','Online',staff.online,'Sessão vista em menos de 90s')+metric('team-offline','Offline',staff.offline,'Sem sessão recente')+metric('team-zero','Sem vagas ocupadas',staff.zero,'Inclui offline e pausados')+metric('team-one','Uma vaga ocupada',staff.one,'Corrida ou reserva')+metric('team-two','Duas ou mais vagas',staff.two,'Corridas ou reservas')+'</div><details id="admin-team"><summary>Ver equipe e ocupação</summary><div class="list">'+(staff.roster.map(member=>'<article class="chip" style="display:block;overflow-wrap:anywhere"><b>'+esc(member.name)+'</b><p>'+(member.online?'ONLINE':'OFFLINE')+' · '+(member.slots>0?'OCUPADO':member.available?'DISPONÍVEL':'PAUSADO')+' · '+member.slots+'/2 VAGAS · '+(member.available?'OFERTAS ATIVADAS':'OFERTAS PAUSADAS')+'</p><small>'+member.running+' corrida(s) em execução</small>'+(member.location?'<p>Último GPS: '+esc(adminTime(member.location.updatedAt))+'</p>':'')+'<div><button class="btn secondary tiny" type="button" data-action="admin-courier" data-id="'+esc(member.id)+'">Filtrar pedidos deste motoboy</button></div></article>').join('')||empty('Nenhum motoboy cadastrado','Os cadastros aparecerão aqui.'))+'</div></details></section>';
     }
     const pages=Math.max(1,Math.ceil(selected.length/20));adminPage=Math.max(0,Math.min(adminPage,pages-1));
     const rows=selected.slice(adminPage*20,adminPage*20+20);
@@ -2345,7 +2348,7 @@
         const api=window.ExpressNativePush.LocalNotifications;
         if((await api.checkPermissions()).display!=='granted')throw new Error('Ative a permissão de notificações primeiro.');
         await prepareNativePushChannels();
-        await api.schedule({notifications:[{id:crypto.getRandomValues(new Uint32Array(1))[0]%2147483647,title:'Teste local · '+NotificationPolicy.LABELS[category()],body:'Este teste verifica o aviso e o som no aparelho, sem envio pela internet.',channelId:NotificationPolicy.CHANNELS[category()],smallIcon:'ic_express_notification',extra:{type:'test'}}]});
+        await api.schedule({notifications:[{id:crypto.getRandomValues(new Uint32Array(1))[0]%2147483647,title:'Teste local · '+NotificationPolicy.LABELS[category()],body:'Este teste verifica o aviso e o som no aparelho, sem envio pela internet.',channelId:NotificationPolicy.CHANNELS[category()],smallIcon:'ic_express_notification',largeIcon:'ic_express_brand',iconColor:'#EA1D2C',extra:{type:'test'}}]});
         feedback.textContent='Aviso local solicitado ao Android. Confira o toque e use o diagnóstico se estiver silencioso.';
       }else{await playBeep();feedback.textContent='Teste de áudio executado nesta tela. Agora teste o recebimento remoto.';}
       await refresh();
