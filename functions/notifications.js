@@ -1,12 +1,12 @@
 "use strict";
 const { createHash, randomUUID } = require("node:crypto");
-const { eligibleOrder, FIVE_MINUTES, courierSlots, COURIER_CAPACITY } = require("./domain");
+const { eligibleOrder, FIVE_MINUTES, courierSlots, COURIER_CAPACITY, accessAllowed } = require("./domain");
 const Policy=require('./notification-policy');
 const {validWebEndpoint}=Policy;
 const CHANNELS=Policy.LEGACY;
 function eligibleRecipient(state, uid, order, kind, orderId) {
   const prefs = state.pushPreferences?.[uid] || {};
-  return !!state.profiles?.couriers?.[uid] && state.courierPresence?.[uid]?.availableForWork === true &&
+  return accessAllowed(state.profiles?.couriers?.[uid]) && state.courierPresence?.[uid]?.availableForWork === true &&
     courierSlots(state, uid, orderId).length < COURIER_CAPACITY &&
     (!order.assignedCourierId || order.assignedCourierId === uid) && prefs.enabled !== false &&
     prefs[kind === "quote" ? "quotes" : "orders"] !== false;
@@ -86,6 +86,7 @@ function createUpdateDispatcher(db, messaging, clock = Date.now, webPush = null)
     if(!event||!Array.isArray(event.recipients))return;
     if(event.expiresAt && event.expiresAt<=clock()) {await db.ref(`pushUpdateRetries/${eventId}`).remove();return;}
     const root=(await db.ref().get()).val()||{};
+    if(event.action==='operational-alert' && (!root.alerts?.[event.alertId] || root.alerts[event.alertId].cancelledAt || root.alerts[event.alertId].expiresAt<=clock()))return;
     let nextRetry=null,foreignInFlight=false;
     const category=['operational-alert','rain-signal'].includes(event.action)?'alert':event.action==='notification-test'?Policy.category(event.category):'update';
     const titles={'notification-test':'Teste de notificação Express','operational-alert':'Novo alerta operacional','rain-signal':'Chuva sinalizada na sede',finish:'Entrega concluída','report-payment':'Pagamento informado','confirm-payment':'Recebimento confirmado','toggle-pay':'Atualização de pagamento'};
@@ -93,7 +94,7 @@ function createUpdateDispatcher(db, messaging, clock = Date.now, webPush = null)
     const body=event.action==='notification-test'?'Teste de aviso e som. Confira o toque neste dispositivo.':event.action==='rain-signal'?'Dois ou mais motoboys sinalizaram chuva. Confira a condição no painel. A taxa não foi ativada.':event.action==='operational-alert'?'Há um aviso novo na central de alertas. Abra o Express para conferir.':event.action==='announcement'?event.body:event.action==='finish'?'Confira a entrega e informe o pagamento quando realizado.':event.action==='report-payment'?'Confira sua conta e confirme o recebimento no aplicativo.':'Abra o Express Entregas para acompanhar.';
     const data=event.action==='notification-test'?{type:'test',category,eventId}:event.action==='rain-signal'?{type:'admin-rain',category}:event.action==='operational-alert'?{type:'alert',alertId:event.alertId,category}:event.action==='announcement'?{type:'announcement',noticeId:event.noticeId,category}:{type:'update',orderId:event.orderId,category};
     for(const uid of [...new Set(event.recipients)]) {
-      if(!root.profiles?.stores?.[uid]&&!root.profiles?.couriers?.[uid]&&root.notificationAccounts?.[uid]?.role!=='admin')continue;
+      if(!accessAllowed(root.profiles?.stores?.[uid])&&!accessAllowed(root.profiles?.couriers?.[uid])&&root.notificationAccounts?.[uid]?.role!=='admin')continue;
       if(event.action==='operational-alert'&&root.pushPreferences?.[uid]?.alerts===false)continue;
       const devices=[...Object.entries(root.fcmTokens?.[uid]||{}).map(([id,d])=>({...d,id,platform:'android'})),...Object.entries(root.pushSubscriptions?.[uid]||{}).map(([id,d])=>({...d,id,platform:'web'}))];
       const seen=new Set();
@@ -120,6 +121,9 @@ function createUpdateDispatcher(db, messaging, clock = Date.now, webPush = null)
           const path=`${device.platform==='android'?'fcmTokens':'pushSubscriptions'}/${uid}/${device.id}`;
           const current=(await db.ref(path).get()).val();
           if(!current||(current.token||current.endpoint)!==address){await delivery.update({status:'cancelled'});if(testRef)await testRef.set({status:'cancelled',platform:device.platform});continue;}
+          const profilesNow=(await db.ref('profiles').get()).val()||{};
+          if(!accessAllowed(profilesNow.stores?.[uid])&&!accessAllowed(profilesNow.couriers?.[uid])&&root.notificationAccounts?.[uid]?.role!=='admin'){await delivery.update({status:'cancelled'});continue;}
+          if(event.action==='operational-alert'){const alertNow=(await db.ref(`alerts/${event.alertId}`).get()).val();if(!alertNow||alertNow.cancelledAt||alertNow.expiresAt<=clock()){await delivery.update({status:'cancelled'});continue;}}
           if(device.platform==='android')await messaging.send({token:device.token,notification:{title,body},data:{...data,notificationId:id},android:{priority:'high',ttl:300000,notification:{channelId:Policy.channel(device,category),tag:id,sound:device.notificationSchema===Policy.SCHEMA?'express_alert':'default',icon:'ic_express_notification',visibility:'private',priority:'max'}}});
           else await webPush.sendNotification({endpoint:device.endpoint,keys:device.keys},JSON.stringify({title,body,...data,tag:id}),{TTL:300,urgency:'high'});
           await delivery.update({status:'sent',sentAt:clock()});if(testRef)await testRef.set({status:'sent',platform:device.platform,at:clock()});

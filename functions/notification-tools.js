@@ -1,11 +1,11 @@
 'use strict';
-const {DomainError}=require('./domain');
+const {DomainError,accessAllowed}=require('./domain');
 const Policy=require('./notification-policy');
 function createNotificationTools(db,getPublicConfig,clock=Date.now){return async(auth,input)=>{
  if(!auth?.uid)throw new DomainError('unauthenticated','Entre na sua conta.');
  const uid=auth.uid;
  const [store,courier]=await Promise.all([db.ref(`profiles/stores/${uid}`).get(),db.ref(`profiles/couriers/${uid}`).get()]);
- if(!store.exists()&&!courier.exists()&&auth.token?.admin!==true)throw new DomainError('permission-denied','Use uma conta de loja ou motoboy.');
+ if(!accessAllowed(store.val())&&!accessAllowed(courier.val())&&auth.token?.admin!==true)throw new DomainError('permission-denied','Use uma conta de loja ou motoboy.');
  if(input?.action==='config'){
   const config=getPublicConfig();
   if(!config.vapidPublicKey)throw new DomainError('failed-precondition','A chave pública de notificações ainda não está configurada no servidor.');

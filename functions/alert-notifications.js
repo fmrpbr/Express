@@ -1,9 +1,10 @@
 'use strict';
+const {accessAllowed}=require('./domain');
 function createAlertNotification(db,clock=Date.now){return async id=>{
   const alert=(await db.ref(`alerts/${id}`).get()).val();const now=clock();
-  if(!alert||!alert.senderId||alert.expiresAt<=now||alert.createdAt<now-120000)return;
+  if(!alert||!alert.senderId||alert.cancelledAt||alert.expiresAt<=now||alert.createdAt<now-120000)return;
   const root=(await db.ref('profiles').get()).val()||{};
-  if(!root.stores?.[alert.senderId]&&!root.couriers?.[alert.senderId])return;
+  if(!accessAllowed(root.stores?.[alert.senderId])&&!accessAllowed(root.couriers?.[alert.senderId]))return;
   // Free-text alerts stay in the authenticated app; lock-screen text is generic.
   const accounts=(await db.ref('notificationAccounts').get()).val()||{};
   const recipients=[...new Set([...Object.keys(root.stores||{}),...Object.keys(root.couriers||{}),...Object.keys(accounts).filter(uid=>accounts[uid].role==='admin')])].filter(uid=>uid!==alert.senderId);

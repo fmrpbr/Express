@@ -17,6 +17,10 @@ async function register(page,role,email){
   await page.locator('#auth-password').fill('test-password-123');
   await page.locator('#auth-submit-btn').click();
   await expect(page.locator('#login-screen')).toBeHidden({timeout:15000});
+  await expect(page.getByRole('heading',{name:'Cadastro aguardando aprovação'})).toBeVisible();
+  const user=await app.auth().getUserByEmail(email);
+  await db.ref('profiles/'+(role==='store'?'stores/':'couriers/')+user.uid+'/accessStatus').set('approved');
+  await expect(page.getByRole('heading',{name:'Cadastro aguardando aprovação'})).toHaveCount(0);
 }
 test('cadastro mobile, perfil, pedido, aceite, retirada, conclusão e pagamento sincronizado',async({browser})=>{
   const storeContext=await browser.newContext({viewport:{width:393,height:852}});
@@ -177,8 +181,10 @@ test('cadastro interrompido pode ser retomado com o mesmo e-mail sem perder a co
   await page.unroute('**/southamerica-east1/orderCommand');
   await page.locator('#auth-submit-btn').click();
   await expect(page.locator('#login-screen')).toBeHidden({timeout:15000});
-  await page.locator('#avatar').click();
-  await expect(page.locator('#prof-name')).toHaveValue('CONTA RECUPERADA');
+  await expect(page.getByRole('heading',{name:'Cadastro aguardando aprovação'})).toBeVisible();
+  const recovered=await app.auth().getUserByEmail(await page.locator('#auth-email').inputValue());
+  expect((await db.ref('profiles/stores/'+recovered.uid+'/name').get()).val()).toBe('CONTA RECUPERADA');
+  expect((await db.ref('profiles/stores/'+recovered.uid+'/accessStatus').get()).val()).toBe('pending');
 });
 
 test('duas corridas organizadas, prioridade trocada e terceira bloqueada; lojista copia link público',async({browser})=>{
@@ -463,4 +469,42 @@ test('diagnóstico nativo revela canal silencioso e volume zero, e teste local u
  await page.locator('[data-sound-settings]').click();
  expect(await page.evaluate(()=>window.__qaSoundSettings[0].channel)).toBe('express_orders_sound_v1');
  await page.locator('[data-close]').click();
+});
+
+test('aprovação e bloqueio em tempo real, cuidados no aceite, cancelamento de alerta e impressão',async({browser})=>{
+  const ctx=await browser.newContext({viewport:{width:393,height:852}}),rctx=await browser.newContext({viewport:{width:393,height:852}}),actx=await browser.newContext({viewport:{width:393,height:852}});
+  const store=await ctx.newPage(),rider=await rctx.newPage(),adminPage=await actx.newPage();
+  const errors=[];for(const p of [store,rider,adminPage])p.on('pageerror',e=>errors.push(e.message));
+  const suffix=Date.now();
+  const adminUser=await app.auth().createUser({email:'approval-admin-'+suffix+'@example.test',password:'test-password-123'});
+  await app.auth().setCustomUserClaims(adminUser.uid,{admin:true});
+  await adminPage.goto(base);
+  await adminPage.locator('#auth-email').fill(adminUser.email);await adminPage.locator('#auth-password').fill('test-password-123');await adminPage.locator('[data-admin-login]').click();
+  await expect(adminPage.locator('#login-screen')).toBeHidden();
+  // Register without bypassing the actual approval UI.
+  await store.goto(base);await store.locator('#tab-register').click();await store.locator('#auth-name').fill('LOJA APROVAÇÃO');await store.locator('#auth-extra').fill('27999999999');await store.locator('#auth-email').fill('approval-shop-'+suffix+'@example.test');await store.locator('#auth-password').fill('test-password-123');await store.locator('#auth-submit-btn').click();
+  await expect(store.getByRole('heading',{name:'Cadastro aguardando aprovação'})).toBeVisible();
+  const shop=await app.auth().getUserByEmail('approval-shop-'+suffix+'@example.test');
+  await adminPage.evaluate(()=>window.__express.setView('registry'));
+  await adminPage.locator('[data-action=account-access][data-id="'+shop.uid+'"][data-status=approved]').click();await adminPage.locator('dialog [data-decision=confirm]').click();
+  await expect(store.getByRole('heading',{name:'Cadastro aguardando aprovação'})).toHaveCount(0);
+  await store.evaluate(()=>window.__express.setView('profile'));await store.locator('#prof-address').fill('Rua da Loja, 10');await store.locator('#store-profile-form button[type=submit]').click();await expect(store.locator('#store-profile-form')).toHaveCount(0);
+  await register(rider,'courier','care-rider-'+suffix+'@example.test');await rider.locator('[data-toggle-availability]').click();
+  await store.evaluate(()=>window.__express.openSheet());await store.locator('#inp-client').fill('CLIENTE CUIDADOS');await store.locator('#inp-street').fill('RUA DESTINO');await store.locator('#inp-number').fill('15');await store.locator('#input-neighborhood').fill('Centro');await store.locator('#inp-notes').fill('NÃO EMPILHAR. MANTER EM PÉ.');await store.locator('#inp-fragile').check();await store.locator('#inp-important-notes').check();await store.locator('#mobile-order-form button[type=submit]').click();await expect(store.locator('#order-sheet-overlay')).not.toHaveClass(/active/);
+  const orders=(await db.ref('storeOrders/'+shop.uid).get()).val();const id=Object.keys(orders)[0];
+  await expect(rider.locator('[data-order-id="'+id+'"]')).toContainText('CONTEÚDO FRÁGIL');
+  await rider.locator('[data-action=accept][data-id="'+id+'"]').click();await expect(rider.locator('dialog')).toContainText('NÃO EMPILHAR');await rider.locator('dialog [data-decision=cancel]').click();
+  expect((await db.ref('orders/'+id+'/status').get()).val()).toBe('open');
+  await rider.locator('[data-action=accept][data-id="'+id+'"]').click();await rider.getByRole('button',{name:'Li e estou ciente'}).click();await expect(rider.locator('[data-order-id="'+id+'"]')).toContainText('OBSERVAÇÃO IMPORTANTE');
+  await expect.poll(async()=>(await db.ref('orders/'+id+'/careAcknowledgedBy').get()).val()).toBe((await app.auth().getUserByEmail('care-rider-'+suffix+'@example.test')).uid);
+  await store.evaluate(()=>window.__express.setView('run'));
+  // Stub only the OS print dialog, keep the real print document and popup.
+  await store.evaluate(()=>{const original=window.open;window.open=function(...args){const win=original.apply(this,args);win.print=()=>{win.__printed=true;};return win;};});
+  const popupPromise=store.waitForEvent('popup');await store.locator('[data-action=print-order][data-id="'+id+'"]').click();const popup=await popupPromise;await expect(popup.locator('body')).toContainText('CLIENTE CUIDADOS');await expect(popup.locator('body')).toContainText('NÃO EMPILHAR');expect(await popup.evaluate(()=>window.__printed)).toBe(true);await popup.close();
+  await store.evaluate(()=>window.__express.setView('alerts'));await store.locator('#alert-message').fill('AVISO PARA CANCELAR');await store.locator('#alert-form button').click();await expect(store.locator('#alert-message')).toHaveValue('');
+  const alerts=(await db.ref('alerts').get()).val();const aid=Object.keys(alerts).find(k=>alerts[k].senderId===shop.uid&&alerts[k].message==='AVISO PARA CANCELAR');
+  await store.locator('[data-action=cancel-alert][data-id="'+aid+'"]').click();await store.locator('dialog [data-decision=confirm]').click();await expect(store.locator('#hero-alert-track')).not.toContainText('AVISO PARA CANCELAR');await expect(store.locator('#content')).toContainText('CANCELADO · AVISO PARA CANCELAR');
+  await adminPage.locator('[data-action=account-access][data-id="'+shop.uid+'"][data-status=blocked]').click();await adminPage.locator('#access-reason').fill('CONFERIR DADOS');await adminPage.locator('dialog button[type=submit]').click();await expect(store.getByRole('heading',{name:'Acesso bloqueado'})).toBeVisible();await expect(store.locator('#content')).toContainText('CONFERIR DADOS');
+  await store.getByRole('button',{name:'Sair da conta'}).click();await expect(store.locator('#login-screen')).toBeVisible();
+  expect(errors).toEqual([]);await ctx.close();await rctx.close();await actx.close();
 });

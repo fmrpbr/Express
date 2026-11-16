@@ -5,6 +5,7 @@ await patchBackgroundGeolocation();
 await mkdir('android/app/src/main/res/drawable', { recursive: true });
 await writeFile('android/app/src/main/res/values/express_tracking.xml', `<resources><string name="capacitor_background_geolocation_notification_icon">drawable/ic_express_notification</string><string name="capacitor_background_geolocation_notification_color">#EA1D2C</string><string name="capacitor_background_geolocation_notification_channel_name">Localização da corrida</string></resources>`);
 await copyFile('native/ExpressNotificationsPlugin.java', 'android/app/src/main/java/com/fmrpbr/express/v2/ExpressNotificationsPlugin.java');
+await copyFile('native/ExpressPrintPlugin.java', 'android/app/src/main/java/com/fmrpbr/express/v2/ExpressPrintPlugin.java');
 await copyFile('native/MainActivity.java', 'android/app/src/main/java/com/fmrpbr/express/v2/MainActivity.java');
 // Bundled notification tone; no external file, media playback or DND bypass.
 await mkdir('android/app/src/main/res/raw',{recursive:true});
@@ -30,7 +31,7 @@ const gradlePath='android/app/build.gradle';
 let gradle=await readFile(gradlePath,'utf8');
 const versionCode=200000+Number(process.env.GITHUB_RUN_NUMBER || 1);
 if(!Number.isSafeInteger(versionCode)||versionCode<=0||versionCode>2100000000) throw new Error('Código de versão inválido');
-gradle=gradle.replace(/versionCode \d+/,`versionCode ${versionCode}`).replace(/versionName "[^"]+"/,'versionName "2.0.10-teste"');
+gradle=gradle.replace(/versionCode \d+/,`versionCode ${versionCode}`).replace(/versionName "[^"]+"/,'versionName "2.0.11-teste"');
 await writeFile(gradlePath,gradle);
 if(!gradle.includes("apply plugin: 'com.google.gms.google-services'")) throw new Error('Plugin Google Services ausente');
 const google=JSON.parse(await readFile('android/app/google-services.json','utf8'));

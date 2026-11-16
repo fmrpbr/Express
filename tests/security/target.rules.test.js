@@ -83,3 +83,21 @@ test("pedido canônico e índices não podem ser alterados diretamente pelo clie
   await assertFails(set(ref(dbAs("storeA"), "storeOrders/storeA/newOrder"), true));
   await assertFails(set(ref(dbAs("courierA"), "availableOrders/newOrder"), true));
 });
+
+test('pendente/reprovado/bloqueado lê apenas seu cadastro e não opera por cliente antigo', async () => {
+  for (const accessStatus of ['pending','rejected','blocked']) {
+    await env.withSecurityRulesDisabled(async context => {
+      await update(ref(context.database(),'profiles/couriers/courierA'),{accessStatus});
+      await update(ref(context.database(),'profiles/stores/storeA'),{accessStatus});
+    });
+    await assertSucceeds(get(ref(dbAs('courierA'),'profiles/couriers/courierA')));
+    await assertSucceeds(get(ref(dbAs('storeA'),'profiles/stores/storeA')));
+    for(const path of ['availableOrders','quoteBoard','courierOrders/courierA','orders/orderA','courierPresence','alerts','config/rates'])await assertFails(get(ref(dbAs('courierA'),path)));
+    await assertFails(get(ref(dbAs('storeA'),'storeOrders/storeA')));
+    await assertFails(set(ref(dbAs('courierA'),'courierPresence/courierA/availableForWork'),true));
+    await assertFails(set(ref(dbAs('courierA'),'courierConnections/courierA/session'),{lastSeen:Date.now()}));
+    await assertFails(update(ref(dbAs('courierA'),'profiles/couriers/courierA'),{accessStatus:'approved'}));
+  }
+  await env.withSecurityRulesDisabled(context=>update(ref(context.database(),'profiles/couriers/courierA'),{accessStatus:'approved'}));
+  await assertSucceeds(get(ref(dbAs('courierA'),'availableOrders')));
+});

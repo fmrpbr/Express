@@ -34,9 +34,10 @@ function put(state, path, value) {
   for (const part of parts) node = node[part] ||= {};
   if (value === null) delete node[leaf]; else node[leaf] = value;
 }
+const accessAllowed = entry => !!entry && (!entry.accessStatus || entry.accessStatus === "approved");
 function publicOrder(order) {
   const result = {};
-  for (const field of ["orderCode", "status", "serviceType", "serviceDate", "city", "clientNeighborhood", "neighborhood", "selectedZone", "fee", "created", "updatedAt", "revision"])
+  for (const field of ["orderCode", "status", "serviceType", "serviceDate", "city", "clientNeighborhood", "neighborhood", "selectedZone", "fee", "created", "updatedAt", "revision", "fragile", "importantNotes"])
     if (order[field] !== undefined) result[field] = order[field];
   return result;
 }
@@ -117,6 +118,9 @@ function orderInput(input, quote) {
   for (const field of ["city", "clientNeighborhood"]) result[field] = text(input[field], 120, true);
   for (const field of ["client", "phone", "clientStreet", "clientNumber", "clientReference", "notes"])
     result[field] = quote ? "" : text(input[field] || "", field === "notes" ? 500 : 160, ["client", "clientStreet", "clientNumber"].includes(field));
+  result.fragile = !quote && input.fragile === true;
+  result.importantNotes = !quote && input.importantNotes === true;
+  fail(!result.importantNotes || result.notes.length > 0, "Preencha a observação importante.");
   result.selectedZone = String(input.selectedZone || "");
   fail(result.selectedZone.length <= 120, "Zona inválida.");
   result.paymentMethod = quote ? "" : String(input.paymentMethod || "");
@@ -136,12 +140,13 @@ function applyCommand(original, auth, command, context) {
   const input = command.input || {};
   const { now, newId, token } = context;
   const state = structuredClone(original || {});
+  const who = profile(state, uid);
+  if (action !== "createProfile" && auth.token?.admin !== true) fail(accessAllowed(who), who ? "Acesso pendente, reprovado ou bloqueado. Aguarde o administrador." : "Perfil não encontrado.", "permission-denied");
   const receipt = state.operationReceipts?.[uid]?.[requestId];
   if (receipt) {
     fail(receipt.fingerprint === context.fingerprint, "Identificador reutilizado com outros dados.", "already-exists");
     return { state, result: receipt.result };
   }
-  const who = profile(state, uid);
   let result = { ok: true };
   let id = command.orderId ? key(command.orderId, "Pedido") : null;
   let order = id ? state.orders?.[id] : null;
@@ -152,10 +157,41 @@ function applyCommand(original, auth, command, context) {
   if (action === "createProfile") {
     fail(!who, "Esta conta já possui perfil.");
     fail(["store", "courier"].includes(input.role), "Perfil inválido.");
-    const entry = { name: text(input.name, 80, true), phone: text(input.phone, 30, true), email: String(auth.token?.email || ""), address: "", created: now };
+    const entry = { name: text(input.name, 80, true), phone: text(input.phone, 30, true), email: String(auth.token?.email || ""), address: "", created: now, accessStatus: "pending" };
     fail(entry.phone.replace(/\D/g, "").length >= 10, "Telefone inválido.");
     put(state, `profiles/${input.role === "store" ? "stores" : "couriers"}/${uid}`, entry);
     if (input.role === "courier") put(state, `courierPresence/${uid}`, { registered: true, online: false, busy: false, availableForWork: false, lastSeen: now });
+  } else if (action === "setAccountAccess") {
+    fail(auth.token?.admin === true, "Acesso administrativo necessário.", "permission-denied");
+    const target = key(input.uid);
+    fail(["store", "courier"].includes(input.role) && ["approved", "rejected", "blocked"].includes(input.status), "Situação inválida.");
+    fail(target !== uid, "Não é possível alterar o próprio acesso administrativo.");
+    const path = `profiles/${input.role === "store" ? "stores" : "couriers"}/${target}`;
+    const entry = profile(state, target);
+    fail(entry?.role === input.role, "Cadastro não encontrado.", "not-found");
+    fail((entry.accessStatus || "approved") === input.expectedStatus, "Cadastro alterado. Confira a situação atual antes de tentar novamente.");
+    const reason = text(input.reason || "", 300);
+    fail(input.status === "approved" || reason.length > 0, "Informe o motivo.");
+    put(state, path, {...entry, role: undefined, accessStatus: input.status, accessReason: reason, accessUpdatedAt: now, accessUpdatedBy: uid});
+    delete state.profiles[input.role === "store" ? "stores" : "couriers"][target].role;
+    if (input.status !== "approved" && input.role === "courier") {
+      if(state.courierPresence?.[target]) state.courierPresence[target].availableForWork = false;
+      put(state, `courierConnections/${target}`, null);
+    }
+    put(state, `adminEvents/${uid}_${requestId}`, {action, actorUid: uid, targetUid: target, targetRole: input.role, previousStatus: entry.accessStatus || "approved", status: input.status, reason, at: now});
+  } else if (action === "cancelAlert") {
+    const alertId = key(input.alertId, "Alerta");
+    const alert = state.alerts?.[alertId];
+    fail(alert, "Alerta não encontrado.", "not-found");
+    fail(alert.senderId === uid || auth.token?.admin === true, "Somente o autor ou administrador pode cancelar.", "permission-denied");
+    fail(alert.expiresAt > now && !alert.cancelledAt, "Este alerta já foi cancelado ou expirou.");
+    Object.assign(alert, {status: "cancelled", cancelledAt: now, cancelledBy: uid});
+    put(state, `pushUpdates/alert_${alertId}`, null);
+    put(state, `adminEvents/${uid}_${requestId}`, {action, actorUid: uid, alertId, at: now});
+  } else if (action === "previewOrderCare") {
+    available();
+    fail(order?.status === "open" && (!order.assignedCourierId || order.assignedCourierId === uid), "Pedido indisponível.");
+    result.care = {fragile: order.fragile === true, importantNotes: order.importantNotes === true, notes: order.fragile || order.importantNotes ? order.notes || "" : "", revision: Number(order.revision || 0)};
   } else if (action === "saveProfile") {
     fail(who, "Perfil não encontrado.", "permission-denied");
     const entry = { ...state.profiles[who.role === "store" ? "stores" : "couriers"][uid], name: text(input.name, 80, true), phone: text(input.phone, 30, true), address: text(input.address, 300, true) };
@@ -272,10 +308,14 @@ function applyCommand(original, auth, command, context) {
         store(); fail(order.status === "cotacao", "Cotação já aceita ou encerrada.");
         const selected = key(input.courierId);
         const bid = order.bids?.[selected]; fail(bid && Number(input.amount) === bid.amount, "Proposta alterada ou inválida.");
-        fail(state.profiles?.couriers?.[selected] && state.courierPresence?.[selected]?.availableForWork === true && courierSlots(state, selected, id).length < COURIER_CAPACITY, "Motoboy indisponível: limite de duas corridas aceitas ou reservadas.");
+        fail(accessAllowed(state.profiles?.couriers?.[selected]) && state.courierPresence?.[selected]?.availableForWork === true && courierSlots(state, selected, id).length < COURIER_CAPACITY, "Motoboy indisponível: limite de duas corridas aceitas ou reservadas.");
         Object.assign(order, { status: "cotacao_aceita", courierId: selected, assignedCourierId: selected, courierName: bid.courierName, fee: bid.amount, agreedFee: bid.amount, quoteAcceptedAt: now });
       } else if (action === "accept") {
         available(); fail(order.status === "open" && (!order.assignedCourierId || order.assignedCourierId === uid), "Corrida já aceita ou reservada.");
+        if (order.fragile || order.importantNotes) {
+          fail(input.careAcknowledged === true && input.careRevision === Number(order.revision || 0), "Leia e confirme os cuidados atualizados antes de aceitar.");
+          order.careAcknowledgedAt = now; order.careAcknowledgedBy = uid;
+        }
         Object.assign(order, { status: "run", courierId: uid, courierName: who.name, accepted: now, tripStage: 0 });
         // Aceite nunca modifica o valor registrado, inclusive em APK antigo.
       } else if (action === "focus") {
@@ -350,4 +390,4 @@ function applyCommand(original, auth, command, context) {
   put(state, `operationReceipts/${uid}/${requestId}`, { fingerprint: context.fingerprint, result, createdAt: now });
   return { state, result };
 }
-module.exports = { applyCommand, DomainError, eligibleOrder, publicOrder, projectOrder, courierSlots, COURIER_CAPACITY, FIVE_MINUTES };
+module.exports = { applyCommand, DomainError, eligibleOrder, publicOrder, projectOrder, courierSlots, COURIER_CAPACITY, FIVE_MINUTES, accessAllowed };
