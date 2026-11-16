@@ -874,9 +874,10 @@
   });
 
   // native-push-entry.js
+  var OrderPrinter = registerPlugin("ExpressPrint");
   var BackgroundGeolocation = registerPlugin("BackgroundGeolocation");
   var NotificationSettings = registerPlugin("ExpressNotifications");
-  window.ExpressNativePush = { NotificationSettings, PushNotifications, LocalNotifications, NativeSettings, BackgroundGeolocation, Share };
+  window.ExpressNativePush = { OrderPrinter, NotificationSettings, PushNotifications, LocalNotifications, NativeSettings, BackgroundGeolocation, Share };
 })();
 /*! Bundled license information:
 

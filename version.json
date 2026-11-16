@@ -1,5 +1,5 @@
 {
-  "version": "2.0.10",
-  "apk_sha256": "b4f488da4c48b0170ff8ab8ab7e074df3eaaee00973ac09f10a1df1039668fb7",
-  "source_commit": "41019813e9455e7c42663529c480078bbc7eae8b"
+  "version": "2.0.11",
+  "apk_sha256": "225344fa72e9dbbdef96b6ed04be9fb8626a2edb2efeaefc94002450807c2b26",
+  "source_commit": "6709ad8c0ab04fafd232734619b925c3ce309955"
 }
