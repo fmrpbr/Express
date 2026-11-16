@@ -92,7 +92,7 @@ test('changing priority between two active orders preserves the existing physica
   const a={status:'run',courierId:'courier',queuePosition:2,accepted:1};
   const b={status:'run',courierId:'courier',queuePosition:1,accepted:2};
   Object.assign(h.context,{actor:'courier',role:'courier',gpsStartInterrupted:false,ownBids:{},pendingPushOrderId:null,
-    orderSources:new Map([['courier',new Map([['ride',a],['next',b]])]]),render(){}});
+    carePreviews:new Map(),orderSources:new Map([['courier',new Map([['ride',a],['next',b]])]]),render(){}});
   vm.runInContext(html.slice(html.indexOf('  function courierRunningOrders('),html.indexOf('  function courierOccupiedSlots('))+
     html.slice(html.indexOf('  function mergeOrders('),html.indexOf('  function listenOrders(')),h.context);
   h.context.mergeOrders();

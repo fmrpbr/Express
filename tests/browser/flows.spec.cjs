@@ -508,3 +508,36 @@ test('aprovação e bloqueio em tempo real, cuidados no aceite, cancelamento de 
   await store.getByRole('button',{name:'Sair da conta'}).click();await expect(store.locator('#login-screen')).toBeVisible();
   expect(errors).toEqual([]);await ctx.close();await rctx.close();await actx.close();
 });
+
+test('aceite consulta cuidados no servidor mesmo com resumo antigo e pede nova leitura após edição',async({browser})=>{
+  const shopContext=await browser.newContext({viewport:{width:393,height:852}}),riderContext=await browser.newContext({viewport:{width:393,height:852}});
+  const shop=await shopContext.newPage(),rider=await riderContext.newPage();const suffix=Date.now();
+  try{
+    await register(shop,'store','care-refresh-shop-'+suffix+'@example.test');
+    const shopUser=await app.auth().getUserByEmail('care-refresh-shop-'+suffix+'@example.test');
+    await db.ref('profiles/stores/'+shopUser.uid+'/address').set('RUA DA LOJA, 1');
+    const fields={serviceType:'delivery',serviceDate:'2026-11-16',city:'ARACRUZ',clientNeighborhood:'ITAPUTERA',client:'CLIENTE TESTE',clientStreet:'RUA TESTE',clientNumber:'520',paymentMethod:'money',notes:'NÃO BUZINAR',fragile:true,importantNotes:true};
+    const save=async(id,input)=>shop.evaluate(async({id,input})=>{const f=window.ExpressFirebase;return (await f.httpsCallable(f.getFunctions(undefined,'southamerica-east1'),'orderCommand')({action:'saveOrder',orderId:id,requestId:crypto.randomUUID(),input})).data;},{id,input});
+    const {orderId:id}=await save(null,fields);
+    await db.ref('availableOrders/'+id).update({fragile:null,importantNotes:null});
+    await register(rider,'courier','care-refresh-rider-'+suffix+'@example.test');
+    await rider.locator('[data-toggle-availability]').click();
+    const card=rider.locator('[data-order-id="'+id+'"]');await expect(card).toBeVisible();
+    await card.locator('[data-action=accept]').click();
+    await expect(rider.locator('dialog')).toContainText('NÃO BUZINAR');
+    await rider.locator('dialog [data-decision=cancel]').click();
+    expect((await db.ref('orders/'+id+'/status').get()).val()).toBe('open');
+    await expect(card).toContainText('CONTEÚDO FRÁGIL');await expect(card).toContainText('NÃO BUZINAR');
+    await card.locator('[data-action=accept]').click();await expect(rider.locator('dialog')).toContainText('NÃO BUZINAR');
+    await save(id,{...fields,notes:'LIGAR AO CHEGAR. NÃO BUZINAR.'});
+    await rider.locator('dialog [data-decision=confirm]').click();
+    await expect(rider.locator('dialog')).toContainText('LIGAR AO CHEGAR');
+    expect((await db.ref('orders/'+id+'/status').get()).val()).toBe('open');
+    await rider.locator('dialog [data-decision=confirm]').click();
+    await expect.poll(async()=>(await db.ref('orders/'+id+'/status').get()).val()).toBe('run');
+    const order=(await db.ref('orders/'+id).get()).val();
+    expect(order.careAcknowledgedBy).toBe((await app.auth().getUserByEmail('care-refresh-rider-'+suffix+'@example.test')).uid);
+    expect(order.fee).toBe(7);expect(order.notes).toBe('LIGAR AO CHEGAR. NÃO BUZINAR.');
+    await expect(rider.locator('[data-order-id="'+id+'"]')).toContainText('LIGAR AO CHEGAR');
+  }finally{await shopContext.close();await riderContext.close();}
+});

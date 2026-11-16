@@ -399,6 +399,7 @@
       <p style="font-size:12px">A senha será definida no link enviado pelo Firebase. Este processo não cria uma conta nem concede acesso de administrador.</p>
       <button type="button" class="btn secondary full" data-action="recovery-back">Voltar para entrar</button>
     </section>
+    <p data-app-version style="text-align:center;font-size:12px;color:#666;margin:14px 0 0">Versão 2.0.12</p>
     <button type="button" id="admin-entry-button" class="btn secondary full" style="margin-top:15px; width:100%" data-admin-login>🔒 Entrar como Administrador</button>
   </div>
 </div>
@@ -587,6 +588,9 @@
 <script src="./vendor/native-push.bundle.js"></script>
 <script src="./vendor/firebase.bundle.js"></script>
 <script type="module">
+  const APP_VERSION="2.0.12";
+  window.EXPRESS_APP_VERSION=APP_VERSION;
+  document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão "+APP_VERSION);
   const { initializeApp, getDatabase, ref, set, update, push, get, onValue, query, orderByChild, equalTo, limitToLast, startAt, onDisconnect, serverTimestamp,
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult, sendPasswordResetEmail,
     getFunctions, httpsCallable, connectDatabaseEmulator, connectAuthEmulator, connectFunctionsEmulator } = window.ExpressFirebase;
@@ -779,6 +783,7 @@
   setupNativePushListeners();
   let unsubscribers = [];
   let orderSources = new Map();
+  const carePreviews = new Map();
   let pendingProfileWrite = null;
   let sessionInitPromise = null;
   let activeSessionUid = null;
@@ -1039,14 +1044,19 @@
     unsubscribers.forEach(fn => { try { fn(); } catch (_) {} }); unsubscribers = [];
     if(presenceTimer) clearInterval(presenceTimer);
     presenceTimer = null; presenceSessionRef = null;
-    stopGpsTracking(); orderSources.clear(); data.orders = []; data.presence = [];
+    stopGpsTracking(); orderSources.clear(); carePreviews.clear(); data.orders = []; data.presence = [];
     data.stores = []; data.couriers = []; data.alerts = []; data.alertHistory=[]; connections = {}; ownBids = {}; pushPreferences = {}; lastOrderCount = 0;
     document.getElementById("content").innerHTML = "";
   }
   function mergeOrders() {
     const merged = new Map();
     orderSources.forEach(source => source.forEach((value, id) => merged.set(id, { id, ...value })));
-    data.orders = Array.from(merged.values()).map(order => ownBids[order.id] && order.status === "cotacao" ? { ...order, bids: { [actor]: ownBids[order.id] } } : order);
+    data.orders = Array.from(merged.values()).map(order=>{
+      const care=carePreviews.get(order.id);
+      if(care&&order.status==="open"&&care.revision>=Number(order.revision||0))return {...order,...care};
+      if(care)carePreviews.delete(order.id);
+      return order;
+    }).map(order => ownBids[order.id] && order.status === "cotacao" ? { ...order, bids: { [actor]: ownBids[order.id] } } : order);
     if(role === "courier") {
       const running = courierRunningOrders();
       // One physical GPS session serves both accepted orders. Changing their
@@ -1852,7 +1862,7 @@
     document.getElementById("actor").disabled = role === "admin" || !people.length;
     document.getElementById("avatar").dataset.nav = role === "store" ? "profile" : "dashboard";
     document.getElementById("avatar").textContent = initials(role === "admin" ? "Admin" : (person()||{}).name);
-    document.getElementById("crumb").textContent = label + " / " + title(); document.getElementById("page-title").textContent = title();
+    document.getElementById("crumb").textContent = label + " / " + title() + " · " + APP_VERSION; document.getElementById("page-title").textContent = title();
     const presence = role === "courier" ? (data.presence || []).find(p => p.id === currentUser?.uid) || {} : {};
     const workSlots=role==='courier'?courierOccupiedSlots():0;
     const workStatus=workSlots>0?'OCUPADO':presence.availableForWork===true?'DISPONÍVEL':'PAUSADO';
@@ -2325,13 +2335,6 @@
         await startGpsTracking(id); render(); return;
       }
       let input = {};
-      if(action==='accept'&&(order.fragile||order.importantNotes)){
-        const preview=await command('previewOrderCare',id);
-        if(preview.care.fragile||preview.care.importantNotes){
-          if(!await confirmInApp('⚠️ Cuidados com o pedido',(preview.care.fragile?'📦 CONTEÚDO FRÁGIL. Transportar com cuidado.\n\n':'')+(preview.care.notes?'OBSERVAÇÕES: '+preview.care.notes:'Confirme que leu os cuidados.'),'Li e estou ciente'))return;
-          input={careAcknowledged:true,careRevision:preview.care.revision};
-        }
-      }
       if(action === "send-bid") input.amount = Number(document.getElementById("bid-input-" + id)?.value);
       if(action === "roundtrip-step") input.step = Number(document.querySelector(`[data-action="roundtrip-step"][data-id="${id}"]`)?.dataset.step);
       if(action === "accept-bid") {
@@ -2342,7 +2345,8 @@
       if(["cancel", "cancel-quote", "cancel-free"].includes(action) && !confirm("Confirmar cancelamento desta solicitação?")) return;
       if(action === "report-payment" && !await confirmInApp("Informar pagamento", "Você já realizou o pagamento de " + cash(order.fee) + "? O motoboy ainda precisará confirmar o recebimento.")) return;
       if(action === "confirm-payment" && !await confirmInApp("Confirmar recebimento", "Você conferiu sua conta e recebeu " + cash(order.fee) + " desta corrida?")) return;
-      const confirmed = await command(action, id, input);
+      const confirmed = action==="accept" ? await acceptOrderWithCare(id) : await command(action, id, input);
+      if(!confirmed)return;
       if(["finish", "cancel", "cancel-free"].includes(action) && trackingOrderId === id) stopGpsTracking();
       if(action === "accept") view = "run";
       if(action === "finish") view = role === "courier" && courierRunningOrders().some(o => o.id !== id) ? "run" : "done";
@@ -2355,6 +2359,34 @@
       }
       render();
     } finally { actionsInFlight.delete(lock); }
+  }
+  async function acceptOrderWithCare(id){
+    const owner=currentUser?.uid;
+    const sameSession=()=>owner&&currentUser?.uid===owner&&role==="courier"&&accountAllowed();
+    for(let attempt=0;attempt<3;attempt++){
+      if(!sameSession())throw Error("A sessão mudou. Entre novamente antes de aceitar.");
+      // O resumo do mural pode estar incompleto ou desatualizado. O servidor
+      // fornece os cuidados e a revisão que deverão ser confirmados no aceite.
+      const preview=await command("previewOrderCare",id);
+      if(!sameSession())throw Error("A sessão mudou. Entre novamente antes de aceitar.");
+      const care=preview?.care;
+      if(!care||typeof care.fragile!=="boolean"||typeof care.importantNotes!=="boolean"||typeof care.notes!=="string"||!Number.isSafeInteger(care.revision)||care.revision<0)throw Error("Não foi possível conferir os cuidados. Tente novamente.");
+      carePreviews.set(id,{fragile:care.fragile,importantNotes:care.importantNotes,notes:care.notes,revision:care.revision});
+      mergeOrders();
+      let input={};
+      if(care.fragile||care.importantNotes){
+        const message=(attempt?"O pedido foi atualizado. Confira os cuidados novamente.\n\n":"")+(care.fragile?"📦 CONTEÚDO FRÁGIL. Transportar com cuidado.\n\n":"")+(care.notes?"OBSERVAÇÕES: "+care.notes:"Confirme que leu os cuidados.");
+        if(!await confirmInApp("⚠️ Cuidados com o pedido",message,"Li e estou ciente"))return null;
+        input={careAcknowledged:true,careRevision:care.revision};
+      }
+      if(!sameSession())throw Error("A sessão mudou. Entre novamente antes de aceitar.");
+      try{return await command("accept",id,input);}
+      catch(error){
+        const outdated=String(error.message||"").includes("Leia e confirme os cuidados atualizados antes de aceitar");
+        if(!outdated)throw error;
+        if(attempt===2)throw Error("O pedido mudou novamente. Toque em Aceitar corrida para conferir a versão atual.");
+      }
+    }
   }
   function confirmInApp(title, message, confirmLabel="Confirmar") {
     return new Promise(resolve => {
