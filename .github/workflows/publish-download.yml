@@ -1,0 +1,64 @@
+name: Publicar APK verificado para download
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-download.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+  pages: write
+concurrency:
+  group: express-public-download
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Baixar e verificar o APK aprovado
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import urllib.request,urllib.error,urllib.parse,os,hashlib,zipfile,io,pathlib,json
+          repository=os.environ['GITHUB_REPOSITORY']
+          api='https://api.github.com/repos/'+repository+'/actions/artifacts/14225038872/zip'
+          headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,*args): return None
+          try:
+              with urllib.request.build_opener(NoRedirect()).open(urllib.request.Request(api,headers=headers),timeout=60) as response: archive=response.read()
+          except urllib.error.HTTPError as error:
+              if error.code not in (301,302,303,307,308): raise
+              location=error.headers['Location'];url=urllib.parse.urlsplit(location)
+              if url.scheme!='https' or not (url.hostname.endswith('.blob.core.windows.net') or url.hostname.endswith('.githubusercontent.com')): raise RuntimeError('Destino de artefato inesperado')
+              # Nunca encaminhar o token GitHub ao servidor do arquivo assinado.
+              with urllib.request.urlopen(location,timeout=60) as response: archive=response.read()
+          assert hashlib.sha256(archive).hexdigest()=='221de4a3ab7be6f9494a6d7f6456506193c1161f4ff56e19a7f2839bd0cfcb7e','Arquivo ZIP diferente do validado'
+          with zipfile.ZipFile(io.BytesIO(archive)) as bundle: apk=bundle.read('app-debug.apk')
+          digest=hashlib.sha256(apk).hexdigest()
+          assert digest=='b4f488da4c48b0170ff8ab8ab7e074df3eaaee00973ac09f10a1df1039668fb7','APK diferente do aprovado'
+          path=pathlib.Path('downloads');path.mkdir(exist_ok=True)
+          name='Express-Entregas-V2-2.0.10-Teste.apk';(path/name).write_bytes(apk)
+          (path/'latest.json').write_text(json.dumps({'version':'2.0.10','file':name,'size_bytes':len(apk),'sha256':digest,'source_commit':'41019813e9455e7c42663529c480078bbc7eae8b'},indent=2)+'\n')
+          print('APK 2.0.10 conferido:',len(apk),'bytes')
+          PY
+      - name: Publicar arquivo e versão no repositório
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add downloads/
+          if ! git diff --cached --quiet; then
+            git commit -m 'Disponibilizar APK 2.0.10 verificado para download direto'
+            git push origin HEAD:main
+          fi
+      - name: Atualizar GitHub Pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import urllib.request,os
+          request=urllib.request.Request('https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/pages/builds',data=b'{}',method='POST',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json','X-GitHub-Api-Version':'2022-11-28'})
+          with urllib.request.urlopen(request,timeout=60) as response: print('Publicação do Pages solicitada:',response.status)
+          PY
