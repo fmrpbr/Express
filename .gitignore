@@ -5,6 +5,7 @@ android/
 assets/
 www/icons/
 www/vendor/firebase.bundle.js
+www/payments.js
 firebase-debug.log
 database-debug.log
 *-debug.log

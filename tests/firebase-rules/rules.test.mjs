@@ -40,6 +40,26 @@ after(async () => {
   await env.cleanup();
 });
 
+test("Pix privado só é acessível no próprio perfil e nos pedidos próprios, sem escrita direta", async () => {
+  const pix = { type: 'email', key: 'pix@example.com', holder: 'MOTO' };
+  await env.withSecurityRulesDisabled(async context => {
+    const db = context.database();
+    await set(ref(db, 'profiles/couriers/courierA/pix'), pix);
+    await set(ref(db, 'storeOrders/storeA/orderA'), { storeId: 'storeA', courierId: 'courierA', status: 'done', paymentPix: pix, paid: false });
+  });
+  const owner = env.authenticatedContext('courierA').database();
+  const store = env.authenticatedContext('storeA').database();
+  const other = env.authenticatedContext('storeB').database();
+  await assertSucceeds(get(ref(owner, 'profiles/couriers/courierA/pix')));
+  await assertFails(get(ref(store, 'profiles/couriers/courierA/pix')));
+  await assertSucceeds(get(ref(store, 'storeOrders/storeA/orderA/paymentPix')));
+  await assertFails(get(ref(other, 'storeOrders/storeA/orderA/paymentPix')));
+  await assertFails(get(ref(env.unauthenticatedContext().database(), 'storeOrders/storeA/orderA/paymentPix')));
+  await assertFails(set(ref(owner, 'profiles/couriers/courierA/pix'), pix));
+  await assertFails(set(ref(store, 'orders/orderA/paid'), true));
+  await assertFails(set(ref(store, 'storeOrders/storeA/orderA/paid'), true));
+});
+
 test("loja lê apenas o próprio perfil", async () => {
   const db = env.authenticatedContext("storeA").database();
   await assertSucceeds(get(ref(db, "profiles/stores/storeA")));

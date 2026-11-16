@@ -102,8 +102,8 @@ function createUpdateDispatcher(db, messaging, clock = Date.now, webPush = null)
         const delivery = db.ref(`pushDeliveries/${id}`);
         const claimed = await delivery.transaction(current => current ? undefined : { status: "submitting", createdAt: clock() });
         if (!claimed.committed) continue;
-        const title = update.action === "finish" ? "Entrega concluída" : update.action === "toggle-pay" ? "Pagamento confirmado" : "Sua entrega foi atualizada";
-        const body = update.action === "finish" ? "Confira a entrega e informe o pagamento quando realizado." : "Abra o Express Entregas para acompanhar.";
+        const title = update.action === "finish" ? "Entrega concluída" : update.action === "report-payment" ? "Pagamento informado" : update.action === "confirm-payment" ? "Recebimento confirmado" : update.action === "toggle-pay" ? "Atualização de pagamento" : "Sua entrega foi atualizada";
+        const body = update.action === "finish" ? "Confira a entrega e informe o pagamento quando realizado." : update.action === "report-payment" ? "Confira sua conta e confirme o recebimento no aplicativo." : "Abra o Express Entregas para acompanhar.";
         try {
           if (device.platform === "android") await messaging.send({ token: device.token, notification: { title, body }, data: { type: "update", orderId: update.orderId, category: "update" }, android: { priority: "high", notification: { channelId: CHANNELS.update, tag: id, sound: "default", visibility: "private" } } });
           else await webPush.sendNotification({ endpoint: device.endpoint, keys: device.keys }, JSON.stringify({ title, body, type: "update", orderId: update.orderId, tag: id }), { TTL: 300 });

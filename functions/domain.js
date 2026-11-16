@@ -1,6 +1,7 @@
 "use strict";
 
 const FIVE_MINUTES = 300000;
+const { paymentState, normalizePix } = require("./payments");
 class DomainError extends Error {
   constructor(code, message) { super(message); this.code = code; }
 }
@@ -143,6 +144,7 @@ function applyCommand(original, auth, command, context) {
   const uid = key(auth.uid, "Usuário");
   const requestId = key(command.requestId, "Operação");
   const action = command.action;
+  let eventAction = action;
   const input = command.input || {};
   const { now, newId, token } = context;
   const state = structuredClone(original || {});
@@ -171,6 +173,21 @@ function applyCommand(original, auth, command, context) {
     const entry = { ...state.profiles[who.role === "store" ? "stores" : "couriers"][uid], name: text(input.name, 80, true), phone: text(input.phone, 30, true), address: text(input.address, 300, true) };
     fail(entry.phone.replace(/\D/g, "").length >= 10, "Telefone inválido.");
     put(state, `profiles/${who.role === "store" ? "stores" : "couriers"}/${uid}`, entry);
+  } else if (action === "savePix") {
+    fail(who?.role === "courier", "Somente o motoboy altera sua chave Pix.", "permission-denied");
+    let pix;
+    try { pix = { ...normalizePix(input), updatedAt: now }; }
+    catch (error) { throw new DomainError("invalid-argument", error.message); }
+    put(state, `profiles/couriers/${uid}/pix`, pix);
+    // A chave usada em pagamento informado ou confirmado fica preservada no pedido.
+    for (const [orderId, done] of Object.entries(state.orders || {})) {
+      if (done.courierId !== uid || done.status !== "done" || paymentState(done) !== "pending") continue;
+      const before = structuredClone(done);
+      done.paymentPix = { ...pix };
+      done.revision = Number(done.revision || 0) + 1;
+      done.updatedAt = now;
+      projectOrder(state, orderId, done, before, now);
+    }
   } else if (action === "registerDevice") {
     fail(who?.role === "store" || who?.role === "courier", "Perfil não encontrado.", "permission-denied");
     fail(typeof input.token === "string" && input.token.length >= 20 && input.token.length <= 4096, "Token inválido.");
@@ -236,7 +253,8 @@ function applyCommand(original, auth, command, context) {
         else { const step = Number(input.step); fail(order.serviceType === "roundtrip" && step >= 1 && step <= 3 && step === Number(order.tripStage || 0) + 1, "Etapa inválida."); order.tripStage = step; if (step === 1) order.picked = now; }
       } else if (action === "finish") {
         courier(); fail(order.status === "run" && order.picked && (order.serviceType !== "roundtrip" || order.tripStage === 3), "Confirme as etapas antes de concluir.");
-        Object.assign(order, { status: "done", completed: now, durationMs: Math.max(0, now - order.accepted), paid: false, location: null });
+        Object.assign(order, { status: "done", completed: now, durationMs: Math.max(0, now - order.accepted), paid: false, paymentStatus: "pending", paymentSchemaVersion: 2, location: null });
+        if (who.pix) order.paymentPix = { ...who.pix };
       } else if (action === "cancel-free") {
         store(); fail(order.status === "run" && !order.picked && order.accepted && now - order.accepted >= 1500000, "Aguarde 25 minutos sem retirada.");
         Object.assign(order, { status: "cancelled", cancelledAt: now, cancelledBy: uid, cancellationReason: "Prazo de 25 minutos sem retirada", location: null });
@@ -249,10 +267,21 @@ function applyCommand(original, auth, command, context) {
         for (const field of ["courierId", "assignedCourierId", "courierName", "accepted", "picked", "location", "tripStage", "agreedFee", "quoteAcceptedAt"]) delete order[field];
         if (order.status === "cotacao") { order.fee = 0; order.bids = {}; for (const courierUid of Object.keys(previous.bids || {})) put(state, `courierBids/${courierUid}/${id}`, null); }
         order.offerGeneration = Number(order.offerGeneration || 0) + 1;
-      } else if (action === "toggle-pay") {
-        fail(order.storeId === uid || order.courierId === uid || auth.token?.admin === true, "Pagamento de outro pedido.", "permission-denied");
+      } else if (["report-payment", "confirm-payment", "toggle-pay"].includes(action)) {
+        // Compatibilidade com APK antigo: nunca permite confirmar pelo lado da loja.
+        const paymentAction = action === "toggle-pay" ? (who?.role === "store" ? "report-payment" : "confirm-payment") : action;
+        eventAction = paymentAction;
+        if (paymentAction === "report-payment") store(); else courier();
         fail(order.status === "done", "Conclua a entrega antes de confirmar pagamento.");
-        if (!order.paid) Object.assign(order, { paid: true, paymentStatus: "confirmed", paymentConfirmedBy: uid, paymentConfirmedAt: now });
+        const status = paymentState(order);
+        if (paymentAction === "report-payment" && status === "pending") {
+          const pix = order.paymentPix || state.profiles?.couriers?.[order.courierId]?.pix;
+          if (pix) order.paymentPix = { ...pix };
+          Object.assign(order, { paid: false, paymentStatus: "reported", paymentSchemaVersion: 2, paymentReportedBy: uid, paymentReportedAt: now });
+        } else if (paymentAction === "confirm-payment" && status !== "confirmed") {
+          fail(status === "reported", "Aguarde o lojista informar o pagamento.");
+          Object.assign(order, { paid: true, paymentStatus: "confirmed", paymentSchemaVersion: 2, paymentConfirmedBy: uid, paymentConfirmedAt: now });
+        }
       } else if (action === "location") {
         courier(); fail(order.status === "run", "Rastreamento encerrado.");
         const { lat, lng } = input;
@@ -266,21 +295,23 @@ function applyCommand(original, auth, command, context) {
         else if (!order.trackingToken || order.trackingExpiresAt <= now || input.rotate === true) { order.trackingToken = token; order.trackingExpiresAt = now + 86400000; }
       } else throw new DomainError("invalid-argument", "Ação desconhecida.");
     }
-    const redundant = action === "toggle-pay" && previous?.paid === true;
+    const paymentCommand = ["toggle-pay", "report-payment", "confirm-payment"].includes(action);
+    const redundant = paymentCommand && paymentState(previous) === paymentState(order);
     if (!redundant) {
     order.revision = Number(order.revision || 0) + 1;
     order.updatedAt = now; order.lastActorUid = uid;
     projectOrder(state, id, order, previous, now);
     // GPS não multiplica o histórico de ações de negócio.
-    if (action !== "location") put(state, `orderEvents/${id}/${uid}_${requestId}`, { action, actorUid: uid, at: now, revision: order.revision });
+    if (action !== "location") put(state, `orderEvents/${id}/${uid}_${requestId}`, { action: eventAction, actorUid: uid, at: now, revision: order.revision });
       if (!["location", "tracking", "focus"].includes(action) && (order.courierId || previous?.courierId)) {
         const recipients = [...new Set([order.storeId, order.courierId, previous?.courierId].filter(id => id && id !== uid))];
-        put(state, `pushUpdates/${id}_${order.revision}`, { orderId: id, action, status: order.status, recipients, createdAt: now });
+        put(state, `pushUpdates/${id}_${order.revision}`, { orderId: id, action: eventAction, status: order.status, recipients, createdAt: now });
       }
     }
     result = { ok: true, orderId: id };
     if (action === "accept-bid") result.order = structuredClone(order);
     if (action === "tracking" && order.trackingToken) result.token = order.trackingToken;
+    if (action === "accept") result.paymentReviewCount = Object.values(state.orders || {}).filter(o => o.courierId === uid && o.status === "done" && paymentState(o) === "reported").length;
   }
   put(state, `operationReceipts/${uid}/${requestId}`, { fingerprint: context.fingerprint, result, createdAt: now });
   return { state, result };

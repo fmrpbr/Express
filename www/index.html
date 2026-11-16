@@ -550,6 +550,7 @@
 <div id="toasts" class="toastbox"></div>
 
 <script src="./firebase-config.js"></script>
+<script src="./payments.js"></script>
 <script src="./vendor/native-push.bundle.js"></script>
 <script src="./vendor/firebase.bundle.js"></script>
 <script type="module">
@@ -846,7 +847,7 @@
   document.addEventListener("input", e => {
     const target = e.target;
     // Campos de login e criação de conta preservam a digitação original, inclusive nomes e senhas.
-    if (target && !target.closest("#auth-form") && (target.matches('input:not([type="email"]):not([type="password"]):not([type="url"]):not([type="hidden"]):not([type="number"]):not([type="date"]):not([type="time"]), textarea'))) {
+    if (target && !target.hasAttribute("data-preserve-case") && !target.closest("#auth-form") && (target.matches('input:not([type="email"]):not([type="password"]):not([type="url"]):not([type="hidden"]):not([type="number"]):not([type="date"]):not([type="time"]), textarea'))) {
       const upper = target.value.toLocaleUpperCase("pt-BR");
       if (upper !== target.value) {
         const start = target.selectionStart, end = target.selectionEnd;
@@ -1561,7 +1562,7 @@
     else return [["dashboard","⌂","Visão geral"],["all","▣","Todos"],["quotes","💬","Cotações"],["alerts","🔔","Alertas"],["reports","📊","Relatórios"],["rates","R$","Taxas"],["registry","♙","Cadastros"]];
   }
 
-  function title(){ return ({dashboard:"Visão geral",new:"Solicitar motoboy",quotes:"Mural de Cotações",alerts:"Central de Alertas",reports:"Relatórios de Caixa",profile:"Perfil da Loja",open:"Pedidos em aberto",available:"Pedidos disponíveis",run:"Em execução",done:"Concluídos",rates:"Tabela de Taxas",registry:"Cadastros Globais"})[view]||"Visão geral"; }
+  function title(){ return ({dashboard:"Visão geral",new:"Solicitar motoboy",quotes:"Mural de Cotações",alerts:"Central de Alertas",reports:"Relatórios de Caixa",profile:role === "courier" ? "Meu Pix" : "Perfil da Loja",open:"Pedidos em aberto",available:"Pedidos disponíveis",run:"Em execução",done:"Concluídos",rates:"Tabela de Taxas",registry:"Cadastros Globais"})[view]||"Visão geral"; }
   function toast(s,t){ let e=document.createElement("div"); e.className="toast "+(t||""); e.textContent=s; document.getElementById("toasts").replaceChildren(e); setTimeout(()=>e.remove(),4000); }
   function empty(a,b){ return '<div class="empty"><b>'+a+'</b>'+b+'</div>'; }
   function stat(a,b,c,d){ return '<div class="stat"><div class="stat-top">'+a+'</div><div class="stat-value">'+b+'</div><div class="stat-sub">'+c+'</div></div>'; }
@@ -1653,7 +1654,7 @@
     }
 
     if (o.status === "done") {
-      action = o.paid ? '<span class="tag green">✓ Pago Confirmado</span>' : '<button type="button" class="btn primary tiny" data-action="toggle-pay" data-id="'+o.id+'">'+(role === "store" ? '💵 Informar pagamento' : '💵 Confirmar recebimento')+'</button>' ;
+      action = paymentActions(o);
     }
     
     if (role === "store" && o.status === "run" && !o.picked && canCancelFree) action += ` <button type="button" class="btn danger tiny" data-action="cancel-free" data-id="${o.id}">⚠️ Cancelar sem custo</button>`;
@@ -1666,7 +1667,7 @@
     let clientLine = (isSpecialQuote || (role === "courier" && !o.courierId)) ? "Cotação especial · sem dados do cliente nesta etapa" : "Cliente: <b>"+esc(o.client)+"</b> "+(o.phone ? "("+esc(o.phone)+")" : "");
     let serviceBadge = o.serviceType === "collection" ? '<span class="tag orange">🔄 RECOLHA</span>' : o.serviceType === "roundtrip" ? '<span class="tag purpletag">🔁 2 VIAGENS</span>' : '<span class="tag bluetag">🚚 ENTREGA</span>';
 
-    return '<article data-order-id="'+esc(o.id)+'" class="order '+queueClass+'"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+locationLine+'</h3><div class="order-store">'+clientLine+'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>'+queueBadge+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+pickupTimerHtml+' '+runDurationHtml+'</div>'+trackingShareHtml+bidsHtml+gpsTrackingInfo+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
+    return '<article data-order-id="'+esc(o.id)+'" class="order '+queueClass+'"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+locationLine+'</h3><div class="order-store">'+clientLine+'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>'+queueBadge+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+(o.notes?'<span>↳ '+esc(o.notes)+'</span>':"")+' '+pickupTimerHtml+' '+runDurationHtml+'</div>'+trackingShareHtml+bidsHtml+gpsTrackingInfo+(o.status === "done" ? paymentDetails(o) : '')+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
   }
 
   function render(){
@@ -1689,7 +1690,10 @@
     const availabilityPanel = role === "courier"
       ? '<section class="panel" style="margin:0 0 14px;border:1px solid '+(presence.availableForWork === true ? '#A7F3D0' : '#E5E7EB')+';background:'+(presence.availableForWork === true ? '#F0FDF4' : '#F8FAFC')+'"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b style="display:block">STATUS DE DISPONIBILIDADE</b><small style="color:var(--muted)">'+(courierOccupiedSlots() >= 2 ? '2/2 VAGAS OCUPADAS · CONCLUA OU DEVOLVA UMA CORRIDA PARA ACEITAR OUTRA' : presence.availableForWork === true ? courierOccupiedSlots() + '/2 VAGAS OCUPADAS · VOCÊ PODE ACEITAR MAIS ' + (2-courierOccupiedSlots()) : courierOccupiedSlots() + '/2 VAGAS OCUPADAS · NOVAS OFERTAS PAUSADAS')+'</small></div><button type="button" class="btn '+(presence.availableForWork === true ? 'danger' : 'primary')+' tiny" data-toggle-availability>'+(presence.availableForWork === true ? 'PAUSAR' : 'FICAR DISPONÍVEL')+'</button></div></section>'
       : '';
-    document.getElementById("content").innerHTML = availabilityPanel + (role === "courier" ? '<button class="btn secondary tiny" type="button" data-action="push-settings">Notificações e som</button>' : '') + show();
+    const review = window.ExpressPayments.summary(mine());
+    const paymentNotice = role === "courier" && review.reportedCount ? '<div class="info" role="status"><b>'+review.reportedCount+' pagamento(s) para conferir · '+cash(review.reported)+'</b><p>A loja informou o pagamento. Confira sua conta e confirme o recebimento. Você pode continuar aceitando corridas.</p><button type="button" class="btn secondary tiny" data-nav="reports">Conferir pagamentos</button></div>' : '';
+    const overdueNotice = role === "store" && review.overdueCount ? '<div class="info" role="status"><b>'+review.overdueCount+' pendência(s) de dias anteriores · '+cash(review.overdue)+'</b><p>Confira o que falta pagar e o que aguarda confirmação do motoboy.</p><button type="button" class="btn secondary tiny" data-nav="reports">Ver pendências</button></div>' : '';
+    document.getElementById("content").innerHTML = availabilityPanel + paymentNotice + overdueNotice + (role === "courier" ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button class="btn secondary tiny" type="button" data-action="push-settings">Notificações e som</button><button class="btn secondary tiny" type="button" data-nav="profile">Meu Pix</button></div>' : '') + show();
     if(pendingPushOrderId) {
       const card = document.querySelector('[data-order-id="' + CSS.escape(pendingPushOrderId) + '"]');
       if(!card && data.orders.some(order => order.id === pendingPushOrderId && order.status === "cotacao")) { view = "quotes"; document.getElementById("content").innerHTML = availabilityPanel + show(); }
@@ -1705,6 +1709,7 @@
     if(view==="new" && role==="store") { openOrderSheet(); return dashboard(); }
     if(view==="reports") return reportsView();
     if(view==="profile" && role==="store") return profileView();
+    if(view==="profile" && role==="courier") return pixProfileView();
     if(view==="all" && role === "admin") return listView("all");
     if(view==="open"||view==="available") return listView("open");
     if(view==="quotes") return quotesView();
@@ -1726,32 +1731,57 @@
   }
 
   function reportsView(){
-    let os = mine();
-    let doneOrders = os.filter(o => o.status === "done");
-    let totalValue = doneOrders.reduce((acc, o) => acc + o.fee, 0);
-    let paidValue = doneOrders.filter(o => o.paid).reduce((acc, o) => acc + o.fee, 0);
-    let pendingValue = doneOrders.filter(o => !o.paid).reduce((acc, o) => acc + o.fee, 0);
+    const payments = window.ExpressPayments;
+    const done = mine().filter(o => o.status === "done").sort((a,b) => Number(b.completed || b.created) - Number(a.completed || a.created));
+    const totals = payments.summary(done);
+    const groups = new Map();
+    for (const order of done.filter(o => payments.paymentState(o) !== "confirmed").reverse()) {
+      const day = payments.completedDay(order) || "SEM DATA";
+      const counterpart = role === "courier" ? order.storeId : role === "store" ? order.courierId : order.storeId + ":" + order.courierId;
+      const groupId = day + ":" + counterpart;
+      if (!groups.has(groupId)) groups.set(groupId, { day, name: role === "courier" ? order.storeName : role === "store" ? order.courierName : order.storeName + " / " + order.courierName, orders: [] });
+      groups.get(groupId).orders.push(order);
+    }
+    return '<div class="head"><div><h1>Relatórios e Caixa</h1><p>Entregas concluídas e pagamentos. Valores acumulados, sem apagar pendências na virada do dia.</p></div></div>' +
+      '<div class="grid stats">' + stat("Total de entregas", totals.count, "Finalizadas", "▣") + stat("Valor das entregas", cash(totals.total), "Concluídas", "R$") +
+      stat(role === "store" ? "Pagamento confirmado" : "Recebido", cash(totals.received), "Inclui registros antigos já pagos", "✓") + stat(role === "store" ? "A acertar" : "A receber", cash(totals.pending), "Inclui valores informados pela loja", "R$") +
+      stat("Para confirmar", cash(totals.reported), totals.reportedCount + " pagamento(s) informado(s)", "◷") + stat("Dias anteriores", cash(totals.overdue), totals.overdueCount + " pendência(s) anterior(es)", "!") + '</div>' +
+      '<p class="info">Informar pagamento não confirma recebimento. Somente o motoboy confirma depois de conferir a conta. Pendências financeiras não bloqueiam novas corridas.</p>' +
+      (role === "courier" ? '<button type="button" class="btn secondary" data-nav="profile">Cadastrar ou alterar meu Pix</button>' : '') +
+      '<section class="panel" style="margin-top:14px"><div class="panel-head"><h2>Pendências por dia e '+(role === "courier" ? 'lojista' : 'motoboy')+'</h2></div>' +
+      (groups.size ? Array.from(groups.values()).map(group => '<div style="margin:12px 0"><h3>'+esc(group.name || "Cadastro anterior")+' · '+esc(formatServiceDate(group.day))+' · '+cash(payments.summary(group.orders).pending)+'</h3><div class="list">'+group.orders.map(financialCard).join('')+'</div></div>').join('') : empty("Tudo conferido", "Nenhum pagamento pendente.")) + '</section>' +
+      '<section class="panel" style="margin-top:14px"><div class="panel-head"><h2>Histórico de pagamentos confirmados</h2></div><div class="list">'+(done.filter(o => payments.paymentState(o) === "confirmed").map(financialCard).join('') || empty("Sem recebimentos confirmados", "As confirmações aparecerão aqui."))+'</div></section>';
+  }
 
-    return `
-      <div class="head"><div><h1>Relatórios e Caixa</h1><p>Fechamento financeiro e histórico de entregas.</p></div></div>
-      <div class="grid stats">
-        ${stat("Total Entregas", doneOrders.length, "Finalizadas", "▣")}
-        ${stat("Faturamento", cash(totalValue), "Acumulado", "✓")}
-        ${stat("Valores Pagos", cash(paidValue), "Confirmados", "$")}
-        ${stat("Pendentes", cash(pendingValue), "Aguardando", "◷")}
-      </div>
-      <section class="panel">
-        <div class="panel-head"><h2>Auditoria de Entregas</h2></div>
-        <div class="list">
-          ${doneOrders.length ? doneOrders.map(o => `
-            <div class="chip">
-              <span><b>${esc(o.orderCode || o.id)}</b> — ${esc(o.client)} (${esc(o.clientNeighborhood)})</span>
-              <span><b>${cash(o.fee)}</b> ${o.paid ? '<span class="tag green" style="margin-left:6px;">Pago</span>' : '<span class="tag orange" style="margin-left:6px;">Pendente</span>'}</span>
-            </div>
-          `).join("") : '<div class="empty"><b>Nenhuma entrega concluída</b></div>'}
-        </div>
-      </section>
-    `;
+  function paymentActions(order) {
+    const state = window.ExpressPayments.paymentState(order);
+    if (state === "confirmed") return '<span class="tag green">✓ Pagamento confirmado</span>';
+    if (role === "store" && state === "pending") return '<button type="button" class="btn primary tiny" data-action="report-payment" data-id="'+esc(order.id)+'">Informar pagamento</button>';
+    if (role === "courier" && state === "reported") return '<button type="button" class="btn primary tiny" data-action="confirm-payment" data-id="'+esc(order.id)+'">Confirmar recebimento</button>';
+    return '<span class="tag orange">'+(state === "reported" ? 'Aguardando confirmação do motoboy' : 'Aguardando lojista informar pagamento')+'</span>';
+  }
+
+  function paymentDetails(order) {
+    const p = window.ExpressPayments;
+    const state = p.paymentState(order);
+    const pix = order.paymentPix;
+    const old = p.isOverdue(order);
+    const status = state === "confirmed" ? 'Recebimento confirmado' : state === "reported" ? 'Pagamento informado · aguardando conferência' : 'Pagamento pendente';
+    const times = (order.paymentReportedAt ? '<small style="display:block">Informado pela loja em '+date(order.paymentReportedAt)+'</small>' : '') + (order.paymentConfirmedAt ? '<small style="display:block">Confirmado em '+date(order.paymentConfirmedAt)+'</small>' : '');
+    const pixHtml = pix ? '<div style="margin-top:8px"><b>Pix do motoboy</b><div>Titular: '+esc(pix.holder)+'</div><div style="overflow-wrap:anywhere">Chave: '+esc(pix.key)+'</div><button type="button" class="btn secondary tiny" data-action="copy-pix" data-id="'+esc(order.id)+'">Copiar chave Pix</button></div>' : '<p>'+(role === "courier" ? 'Cadastre seu Pix em Meu Pix para a loja visualizar a chave.' : 'Motoboy ainda não cadastrou a chave Pix para esta corrida.')+'</p>';
+    return '<section style="margin-top:10px;padding:12px;background:#F2F3F5;border-radius:12px"><b>'+status+'</b>'+times+(old ? '<p style="color:#9A3412">Pendência de dia anterior'+(state === "reported" ? ': confira o recebimento. A loja já informou o pagamento.' : ': a loja ainda não informou o pagamento.')+'</p>' : '')+(state !== "confirmed" ? '<p>Valor da corrida: <b>'+cash(order.fee)+'</b>. Confira o titular no seu banco antes de transferir.</p>'+pixHtml : '')+'</section>';
+  }
+
+  function financialCard(order) {
+    return '<article class="order" data-order-id="'+esc(order.id)+'"><b>'+esc(order.orderCode || order.id)+'</b><div>'+esc(order.storeName || '')+' · '+esc(order.courierName || '')+' · '+cash(order.fee)+'</div>'+paymentDetails(order)+'<div class="buttons" style="margin-top:10px">'+paymentActions(order)+'</div></article>';
+  }
+
+  function pixProfileView() {
+    const pix = person()?.pix || {};
+    return '<div class="head"><div><h1>Meu Pix</h1><p>A loja vê a chave nas corridas concluídas. Confira se ela está cadastrada no seu banco.</p></div></div><form id="pix-profile-form" class="panel">' +
+      '<div class="field full"><label for="pix-type">Tipo da chave</label><select id="pix-type" required>'+[['cpf','CPF'],['cnpj','CNPJ'],['email','E-mail'],['phone','Telefone'],['random','Aleatória']].map(([value,label]) => '<option value="'+value+'" '+(pix.type === value ? 'selected' : '')+'>'+label+'</option>').join('')+'</select></div>' +
+      '<div class="field full" style="margin-top:12px"><label for="pix-key">Chave Pix</label><input id="pix-key" data-preserve-case autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="254" required value="'+esc(pix.key || '')+'"></div>' +
+      '<div class="field full" style="margin-top:12px"><label for="pix-holder">Nome do titular</label><input id="pix-holder" maxlength="120" required value="'+esc(pix.holder || '')+'"></div><p>Alterações atualizam corridas pendentes. Pagamentos já informados mantêm a chave registrada naquele momento. O app não movimenta dinheiro.</p><button type="submit" class="btn primary full">Salvar chave Pix</button><div id="pix-feedback" role="status" aria-live="polite"></div></form>';
   }
 
   function profileView(){
@@ -1775,6 +1805,22 @@
   }
 
   document.addEventListener("submit", async e => {
+    if (e.target.id === "pix-profile-form") {
+      e.preventDefault();
+      if (!currentUser || role !== "courier") return;
+      const form = e.target;
+      const button = form.querySelector('button[type="submit"]');
+      const feedback = form.querySelector('#pix-feedback');
+      if (button.disabled) return;
+      try {
+        const input = window.ExpressPayments.normalizePix({ type: form.querySelector('#pix-type').value, key: form.querySelector('#pix-key').value, holder: form.querySelector('#pix-holder').value });
+        button.disabled = true;
+        await command("savePix", null, input);
+        toast("Chave Pix salva. As lojas poderão copiar a chave nas corridas concluídas.");
+        view = "reports"; render();
+      } catch (error) { feedback.textContent = error.message; button.disabled = false; }
+      return;
+    }
     if (e.target.id === "alert-form") {
       e.preventDefault();
       if (!currentUser || (role !== "store" && role !== "courier")) return;
@@ -1844,6 +1890,11 @@
     if(currentUser && role === "courier" && view === "run") render();
   }, 1000);
 
+  // Recalcula dias anteriores mesmo sem novas escritas no banco, na virada do dia.
+  setInterval(() => {
+    if(currentUser && (view === "reports" || view === "done")) render();
+  }, 60000);
+
   function listView(status){
     let arr = role === "store" ? (status==="all"?mine():mine().filter(o => status==="open"?o.status==="open":o.status===status)) : role === "courier" ? (status==="open"?data.orders.filter(o => o.status==="open"):mine().filter(o => o.status===status)) : (status==="all"?data.orders:today().filter(o => o.status===status));
     if(role === "courier" && status === "open"){
@@ -1895,6 +1946,18 @@
         toast("Taxas salvas."); return;
       }
       if(!order) throw new Error("Pedido não encontrado.");
+      if(action === "copy-pix") {
+        if(!order.paymentPix?.key) throw new Error("Chave Pix ainda não cadastrada.");
+        try { await navigator.clipboard.writeText(order.paymentPix.key); }
+        catch (_) {
+          const field = document.createElement("textarea");
+          field.value = order.paymentPix.key; field.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+          document.body.appendChild(field); field.select();
+          const copied = document.execCommand("copy"); field.remove();
+          if(!copied) throw new Error("Não foi possível copiar. Selecione a chave exibida para copiar.");
+        }
+        toast("Chave Pix copiada. Confira o titular no banco antes de pagar."); return;
+      }
       if(action === "show-order") {
         document.querySelector('article[data-order-id="'+CSS.escape(id)+'"]')?.scrollIntoView({block:"start",behavior:"smooth"});
         return;
@@ -1914,11 +1977,14 @@
       }
       if(["cancel", "cancel-quote", "cancel-free"].includes(action) && !confirm("Confirmar cancelamento desta solicitação?")) return;
       if(action === "accept") input.rain = confirm("Está chovendo no trajeto? OK para aplicar a condição de chuva.");
+      if(action === "report-payment" && !confirm("Você já realizou o pagamento de " + cash(order.fee) + "? O motoboy ainda precisará confirmar o recebimento.")) return;
+      if(action === "confirm-payment" && !confirm("Você conferiu sua conta e recebeu " + cash(order.fee) + " desta corrida?")) return;
       const confirmed = await command(action, id, input);
       if(["finish", "cancel", "cancel-free"].includes(action) && trackingOrderId === id) stopGpsTracking();
       if(action === "accept") view = "run";
       if(action === "finish") view = role === "courier" && courierRunningOrders().some(o => o.id !== id) ? "run" : "done";
-      toast(action === "finish" ? "Entrega concluída. Confirme o pagamento quando realizado." : action === "toggle-pay" ? "Pagamento confirmado e sincronizado." : "Atualização confirmada.");
+      toast(action === "finish" ? "Entrega concluída. Aguardando o lojista informar o pagamento." : action === "report-payment" ? "Pagamento informado. Aguardando confirmação do motoboy." : action === "confirm-payment" ? "Recebimento confirmado e sincronizado." : "Atualização confirmada.");
+      if(action === "accept" && confirmed.paymentReviewCount > 0) toast("Corrida aceita. Você tem " + confirmed.paymentReviewCount + " pagamento(s) para conferir no Relatório.", "warn");
       if(action === "accept-bid") {
         const order = { id, ...confirmed.order };
         orderSources.get("store")?.set(id, order);

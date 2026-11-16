@@ -99,16 +99,38 @@ test('primeiro cadastro funciona em banco vazio e não permite segundo papel', {
   assert.equal((await db.ref('profiles/couriers/newUser/name').get()).val(),'MOTO');
   await assert.rejects(()=>execute(auth('newUser'),request('createProfile',null,{role:'store',name:'LOJA',phone:'27999999999'})),/já possui/);
 });
-test('atualização de corrida chega com OFF e preferência de ofertas desativada, sem duplicidade', { timeout:30000 }, async () => {
+test('atualização de pagamento chega com OFF e preferência de ofertas desativada, sem duplicidade', { timeout:30000 }, async () => {
   const { createUpdateDispatcher } = require('../../functions/notifications');
   const id = await create();
   await execute(auth('courierA'),request('accept',id));
   await db.ref('courierPresence/courierA/availableForWork').set(false);
   await db.ref('pushPreferences/courierA').set({enabled:false,orders:false,quotes:false,reminders:false});
   await db.ref('fcmTokens/courierA').set({a:{token:'device'},b:{token:'device'}});
-  await db.ref('pushUpdates/manual').set({orderId:id,action:'toggle-pay',recipients:['courierA'],createdAt:now});
+  await db.ref('pushUpdates/manual').set({orderId:id,action:'report-payment',recipients:['courierA'],createdAt:now});
   let sends=0;
-  const dispatch = createUpdateDispatcher(db,{send:async message=>{sends++;assert.equal(message.android.notification.channelId,'express_updates_v2');}},()=>now);
+  const dispatch = createUpdateDispatcher(db,{send:async message=>{sends++;assert.equal(message.android.notification.channelId,'express_updates_v2');assert.equal(message.notification.title,'Pagamento informado');assert.ok(!JSON.stringify(message).includes('paymentPix'));}},()=>now);
   await Promise.all([dispatch('manual'),dispatch('manual')]);
   assert.equal(sends,1);
+});
+
+test('financeiro: loja não quita, confirmação concorrente é única e Pix fica privado', { timeout:30000 }, async () => {
+  const id = await create();
+  await execute(auth('courierA'),request('savePix',null,{type:'email',key:'pix@example.com',holder:'MOTO A'}));
+  await execute(auth('courierA'),request('accept',id));
+  await execute(auth('courierA'),request('picked',id));
+  await execute(auth('courierA'),request('finish',id));
+  await assert.rejects(()=>execute(auth('courierA'),request('confirm-payment',id)),/lojista/);
+  await Promise.all([1,2].map(()=>execute(auth('storeA'),request('report-payment',id))));
+  let order = (await db.ref('orders/'+id).get()).val();
+  assert.equal(order.paid,false);
+  assert.equal(order.paymentStatus,'reported');
+  await Promise.all([1,2].map(()=>execute(auth('courierA'),request('confirm-payment',id))));
+  order = (await db.ref('orders/'+id).get()).val();
+  assert.equal(order.paid,true);
+  assert.equal(order.paymentConfirmedBy,'courierA');
+  for (const path of ['storeOrders/storeA/'+id,'courierOrders/courierA/'+id]) assert.equal((await db.ref(path+'/paymentPix/key').get()).val(),'pix@example.com');
+  const events = Object.values((await db.ref('orderEvents/'+id).get()).val());
+  assert.equal(events.filter(e=>e.action==='report-payment').length,1);
+  assert.equal(events.filter(e=>e.action==='confirm-payment').length,1);
+  for (const path of ['availableOrders','quoteBoard','publicTracking']) assert.ok(!JSON.stringify((await db.ref(path).get()).val()).includes('pix@example.com'));
 });

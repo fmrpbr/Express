@@ -1,5 +1,5 @@
-const CACHE_NAME = 'express-v2-519c6ac4d93e';
-const APP_SHELL = ['./index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './vendor/firebase.bundle.js', './vendor/native-push.bundle.js'];
+const CACHE_NAME = 'express-v2-dbf455feb26c';
+const APP_SHELL = ['./index.html', './payments.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './vendor/firebase.bundle.js', './vendor/native-push.bundle.js'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
   self.skipWaiting();

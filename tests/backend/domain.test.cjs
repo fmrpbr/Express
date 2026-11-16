@@ -139,10 +139,17 @@ test('pagamento sincroniza e preserva primeira autoria em confirmações repetid
   assert.throws(() => run(state, 'storeA', 'toggle-pay', 'orderA'), /Conclua/);
   state = run(state, 'courierA', 'picked', 'orderA').state;
   state = run(state, 'courierA', 'finish', 'orderA').state;
+  assert.throws(() => run(state, 'courierA', 'toggle-pay', 'orderA'), /lojista/);
   state = run(state, 'storeA', 'toggle-pay', 'orderA').state;
-  const confirmed = state.orders.orderA.paymentConfirmedAt;
+  assert.equal(state.orders.orderA.paid, false);
+  assert.equal(state.orders.orderA.paymentStatus, 'reported');
+  const reported = state.orders.orderA.paymentReportedAt;
   state = run(state, 'courierA', 'toggle-pay', 'orderA', {}, { now: now + 5000 }).state;
-  assert.equal(state.orders.orderA.paymentConfirmedBy, 'storeA');
+  const confirmed = state.orders.orderA.paymentConfirmedAt;
+  state = run(state, 'courierA', 'toggle-pay', 'orderA', {}, { now: now + 10000 }).state;
+  state = run(state, 'storeA', 'toggle-pay', 'orderA', {}, { now: now + 11000 }).state;
+  assert.equal(state.orders.orderA.paymentConfirmedBy, 'courierA');
+  assert.equal(state.orders.orderA.paymentReportedAt, reported);
   assert.equal(state.orders.orderA.paymentConfirmedAt, confirmed);
   assert.equal(state.courierOrders.courierA.orderA.paid, true);
 });
@@ -172,6 +179,7 @@ test('confirmações de pagamento repetidas não duplicam evento de pagamento', 
   state=run(state,'courierA','picked','orderA').state;
   state=run(state,'courierA','finish','orderA').state;
   state=run(state,'storeA','toggle-pay','orderA').state;
+  state=run(state,'courierA','toggle-pay','orderA').state;
   const before=Object.keys(state.orderEvents.orderA).length;
   state=run(state,'courierA','toggle-pay','orderA').state;
   assert.equal(Object.keys(state.orderEvents.orderA).length,before);
