@@ -232,6 +232,11 @@ function applyCommand(original, auth, command, context) {
     put(state,`rainSignals/${uid}`,{at:now,region:Tariffs.SEDE});
     const count=Object.values(state.rainSignals||{}).filter(s=>now-s.at<1800000).length;
     put(state,'config/rainSummary',{count,updatedAt:now});
+    if(count>=2){
+      const recipients=Object.entries(state.notificationAccounts||{}).filter(([,a])=>a.role==='admin').map(([id])=>id);
+      const noticeId='rain_signal_'+Math.floor(now/1800000);
+      if(recipients.length&&!state.pushUpdates?.[noticeId])put(state,`pushUpdates/${noticeId}`,{action:'rain-signal',recipients,createdAt:now,expiresAt:now+1800000});
+    }
   } else {
     fail(who || auth.token?.admin === true, "Perfil não encontrado.", "permission-denied");
     if (action === "saveOrder") {

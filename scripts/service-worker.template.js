@@ -29,7 +29,8 @@ self.addEventListener('notificationclick', event => {
   event.notification.close();
   const target = new URL('./index.html', self.location.href);
   const orderId = event.notification.data?.orderId;
-  if(event.notification.data?.type==='alert')target.hash='alerts';
+  if(event.notification.data?.type==='admin-rain')target.hash='rain';
+  else if(event.notification.data?.type==='alert')target.hash='alerts';
   else if(event.notification.data?.type==='announcement')target.hash='notices';
   else if(/^[A-Za-z0-9_-]{1,128}$/.test(orderId || ''))target.hash='order='+orderId;
   event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clients => {

@@ -440,6 +440,7 @@ test('diagnóstico nativo revela canal silencioso e volume zero, e teste local u
  await page.evaluate(()=>{
   window.__qaLocalNotifications=[];window.__qaSoundSettings=[];
   window.Capacitor.isNativePlatform=()=>true;
+  window.ExpressNativePush.PushNotifications={checkPermissions:async()=>({receive:'granted'})};
   window.ExpressNativePush.NotificationSettings={prepare:async()=>{},status:async()=>({permission:true,volume:0,ringerMode:0,doNotDisturb:true,batteryOptimized:true,channels:[{id:'express_orders_sound_v1',name:'Novos pedidos',exists:true,importance:2,sound:false}]}),settings:async value=>window.__qaSoundSettings.push(value)};
   window.ExpressNativePush.LocalNotifications={checkPermissions:async()=>({display:'granted'}),schedule:async value=>window.__qaLocalNotifications.push(value)};
  });

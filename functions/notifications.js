@@ -58,7 +58,7 @@ function createDispatcher(db, messaging, clock = Date.now, webPush = null) {
         try {
           if (device.platform === "android") {
             await messaging.send({ token: device.token, notification: { title, body }, data: { type: job.kind, category, orderId: job.orderId, notificationId:deliveryId },
-              android: { priority: "high", ttl:300000, collapseKey: deliveryId.slice(0, 64), notification: { channelId: Policy.channel(device,category), tag: deliveryId, sound: device.notificationSchema===Policy.SCHEMA?"express_alert.wav":"default", icon:"ic_express_notification", priority: "max", visibility: "private" } } });
+              android: { priority: "high", ttl:300000, collapseKey: deliveryId.slice(0, 64), notification: { channelId: Policy.channel(device,category), tag: deliveryId, sound: device.notificationSchema===Policy.SCHEMA?"express_alert":"default", icon:"ic_express_notification", priority: "max", visibility: "private" } } });
           } else {
             await webPush.sendNotification({ endpoint: device.endpoint, keys: device.keys }, JSON.stringify({ title, body, orderId: job.orderId, type: job.kind, category, tag: deliveryId }), { TTL: 300 });
           }
@@ -87,11 +87,11 @@ function createUpdateDispatcher(db, messaging, clock = Date.now, webPush = null)
     if(event.expiresAt && event.expiresAt<=clock()) {await db.ref(`pushUpdateRetries/${eventId}`).remove();return;}
     const root=(await db.ref().get()).val()||{};
     let nextRetry=null,foreignInFlight=false;
-    const category=event.action==='operational-alert'?'alert':event.action==='notification-test'?Policy.category(event.category):'update';
-    const titles={'notification-test':'Teste de notificação Express','operational-alert':'Novo alerta operacional',finish:'Entrega concluída','report-payment':'Pagamento informado','confirm-payment':'Recebimento confirmado','toggle-pay':'Atualização de pagamento'};
+    const category=['operational-alert','rain-signal'].includes(event.action)?'alert':event.action==='notification-test'?Policy.category(event.category):'update';
+    const titles={'notification-test':'Teste de notificação Express','operational-alert':'Novo alerta operacional','rain-signal':'Chuva sinalizada na sede',finish:'Entrega concluída','report-payment':'Pagamento informado','confirm-payment':'Recebimento confirmado','toggle-pay':'Atualização de pagamento'};
     const title=event.action==='announcement'?event.title:titles[event.action]||'Sua entrega foi atualizada';
-    const body=event.action==='notification-test'?'Teste de aviso e som. Confira o toque neste dispositivo.':event.action==='operational-alert'?'Há um aviso novo na central de alertas. Abra o Express para conferir.':event.action==='announcement'?event.body:event.action==='finish'?'Confira a entrega e informe o pagamento quando realizado.':event.action==='report-payment'?'Confira sua conta e confirme o recebimento no aplicativo.':'Abra o Express Entregas para acompanhar.';
-    const data=event.action==='notification-test'?{type:'test',category,eventId}:event.action==='operational-alert'?{type:'alert',alertId:event.alertId,category}:event.action==='announcement'?{type:'announcement',noticeId:event.noticeId,category}:{type:'update',orderId:event.orderId,category};
+    const body=event.action==='notification-test'?'Teste de aviso e som. Confira o toque neste dispositivo.':event.action==='rain-signal'?'Dois ou mais motoboys sinalizaram chuva. Confira a condição no painel. A taxa não foi ativada.':event.action==='operational-alert'?'Há um aviso novo na central de alertas. Abra o Express para conferir.':event.action==='announcement'?event.body:event.action==='finish'?'Confira a entrega e informe o pagamento quando realizado.':event.action==='report-payment'?'Confira sua conta e confirme o recebimento no aplicativo.':'Abra o Express Entregas para acompanhar.';
+    const data=event.action==='notification-test'?{type:'test',category,eventId}:event.action==='rain-signal'?{type:'admin-rain',category}:event.action==='operational-alert'?{type:'alert',alertId:event.alertId,category}:event.action==='announcement'?{type:'announcement',noticeId:event.noticeId,category}:{type:'update',orderId:event.orderId,category};
     for(const uid of [...new Set(event.recipients)]) {
       if(!root.profiles?.stores?.[uid]&&!root.profiles?.couriers?.[uid]&&root.notificationAccounts?.[uid]?.role!=='admin')continue;
       if(event.action==='operational-alert'&&root.pushPreferences?.[uid]?.alerts===false)continue;
@@ -120,7 +120,7 @@ function createUpdateDispatcher(db, messaging, clock = Date.now, webPush = null)
           const path=`${device.platform==='android'?'fcmTokens':'pushSubscriptions'}/${uid}/${device.id}`;
           const current=(await db.ref(path).get()).val();
           if(!current||(current.token||current.endpoint)!==address){await delivery.update({status:'cancelled'});if(testRef)await testRef.set({status:'cancelled',platform:device.platform});continue;}
-          if(device.platform==='android')await messaging.send({token:device.token,notification:{title,body},data:{...data,notificationId:id},android:{priority:'high',ttl:300000,notification:{channelId:Policy.channel(device,category),tag:id,sound:device.notificationSchema===Policy.SCHEMA?'express_alert.wav':'default',icon:'ic_express_notification',visibility:'private',priority:'max'}}});
+          if(device.platform==='android')await messaging.send({token:device.token,notification:{title,body},data:{...data,notificationId:id},android:{priority:'high',ttl:300000,notification:{channelId:Policy.channel(device,category),tag:id,sound:device.notificationSchema===Policy.SCHEMA?'express_alert':'default',icon:'ic_express_notification',visibility:'private',priority:'max'}}});
           else await webPush.sendNotification({endpoint:device.endpoint,keys:device.keys},JSON.stringify({title,body,...data,tag:id}),{TTL:300,urgency:'high'});
           await delivery.update({status:'sent',sentAt:clock()});if(testRef)await testRef.set({status:'sent',platform:device.platform,at:clock()});
         }catch(error){

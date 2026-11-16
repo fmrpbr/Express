@@ -681,7 +681,7 @@
     let deviceId = localStorage.getItem("express_device_id");
     if(!deviceId) { deviceId = crypto.randomUUID(); localStorage.setItem("express_device_id", deviceId); }
     const saved=await command("registerDevice", null, { token: tokenValue, deviceId, notificationSchema:window.ExpressNotificationPolicy.SCHEMA });
-    if(currentUser?.uid!==owner)return;
+    if(currentUser?.uid!==owner)throw new Error('A sessão mudou durante a ativação. Entre e ative na conta atual.');
     if(saved.notificationSchema!==window.ExpressNotificationPolicy.SCHEMA)throw new Error('Atualize as funções de notificações no Firebase para concluir a ativação.');
     tokenKeyForDevice = tokenKey;
   }
@@ -699,7 +699,8 @@
   function navigateFromPush(extra){
     pendingPushNavigation=extra;
     if(!currentUser)return;
-    if(extra.type==='alert'){view='alerts';render();}
+    if(extra.type==='admin-rain'&&role==='admin'){view='rates';render();}
+    else if(extra.type==='alert'){view='alerts';render();}
     else if(extra.type==='announcement'){view='tariffs';render();}
     else if(extra.orderId){pendingPushOrderId=extra.orderId;mergeOrders();}
     else if(extra.type==='test')openPushSettings().catch(()=>{});
@@ -743,11 +744,11 @@
           const title = notification.title || "Express Entregas";
           const body = notification.body || "Você recebeu uma nova notificação.";
           toast(title + ": " + body);
+          try {
           const permission=await window.ExpressNativePush.LocalNotifications.checkPermissions();
           if(permission.display !== 'granted') {toast('Permita as notificações locais do Express nas configurações do Android.','warn');return;}
           const category = notification.data?.category || "order";
           const channels = NotificationPolicy.CHANNELS;
-          try {
             await window.ExpressNativePush.LocalNotifications.schedule({ notifications: [{
               id: crypto.getRandomValues(new Uint32Array(1))[0] % 2147483647,
               title, body, channelId: channels[category] || channels.update, smallIcon:"ic_express_notification", extra: notification.data || {}
@@ -801,6 +802,7 @@
   function checkUrlTracking(){
     let hash = window.location.hash;
     if(hash.startsWith("#order=")) { pendingPushOrderId = hash.slice(7); if(currentUser) mergeOrders(); }
+    if(hash==='#rain'&&currentUser&&role==='admin'){view='rates';render();}
     if(hash==='#alerts'&&currentUser){view='alerts';render();}
     if(hash==='#notices'&&currentUser){view='tariffs';render();}
     if(hash.startsWith("#track=")) {
@@ -1602,10 +1604,10 @@
   function samePushKey(a,b){const x=new Uint8Array(a);return x.length===b.length&&x.every((v,i)=>v===b[i]);}
   async function pushDeviceStatus(){
     if(window.Capacitor?.isNativePlatform?.()){
-      const api=window.ExpressNativePush?.PushNotifications;
-      if(!api)return 'Módulo Android indisponível. Atualize o APK.';
-      const permission=await api.checkPermissions();
-      return permission.receive==='granted' ? (pendingFcmToken&&tokenKeyForDevice?'Permissão concedida. Dispositivo registrado nesta sessão. Teste o recebimento.':'Permissão concedida. Ative para confirmar o registro no servidor.'):'Notificações não permitidas no Android. Toque em Ativar neste dispositivo.';
+      const api=window.ExpressNativePush?.NotificationSettings;
+      if(!api)return 'Diagnóstico Android indisponível. Atualize para o APK 2.0.9.';
+      const status=await withTimeout(api.status(),8000,'O Android não respondeu ao diagnóstico. Feche e abra o Express.');
+      return status.permission ? (pendingFcmToken&&tokenKeyForDevice?'Permissão concedida. Dispositivo registrado nesta sessão. Teste o recebimento.':'Permissão concedida. Ative para confirmar o registro no servidor.'):'Notificações não permitidas no Android. Toque em Ativar neste dispositivo.';
     }
     if(!('Notification' in window)||!('PushManager' in window))return 'Este navegador não oferece suporte a push. Use Chrome ou Edge atualizado.';
     if(Notification.permission==='denied')return 'Bloqueado no navegador. Permita notificações nas configurações deste site.';
@@ -1647,6 +1649,7 @@
       if(firebaseConfig.vapidPublicKey) return {vapidPublicKey:firebaseConfig.vapidPublicKey};
       throw new Error(pushError(error));
     });
+    if(config.version!=='2.0.9')throw new Error('Atualize as funções de notificações no Firebase para concluir a ativação.');
     const vapidKey = config.vapidPublicKey || firebaseConfig.vapidPublicKey;
     if(!vapidKey){
       throw new Error("A chave pública VAPID não está configurada no Firebase.");

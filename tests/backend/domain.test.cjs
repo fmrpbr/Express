@@ -221,3 +221,10 @@ test('notification channel schema is validated server-side; web registration tra
  assert.throws(()=>run(fixture(),'storeA','registerWebDevice',null,{endpoint:'https://evil.example/private',keys:{p256dh:'a'.repeat(40),auth:'b'.repeat(20)},deviceId:'browser'}));
  assert.equal(moved.state.notificationAccounts.courierB.role,'courier');
 });
+
+test('rain push is limited to registered administrators after two distinct couriers and never activates the fee',()=>{
+ const state=fixture();state.notificationAccounts={admin:{role:'admin'},storeA:{role:'store'}};
+ const first=run(state,'courierA','signalRain').state;assert.equal(Object.keys(first.pushUpdates||{}).length,0);
+ const second=run(first,'courierB','signalRain').state;
+ const event=Object.values(second.pushUpdates)[0];assert.deepEqual(event.recipients,['admin']);assert.equal(event.action,'rain-signal');assert.equal(second.config.rainPlans,undefined);
+});

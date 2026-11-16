@@ -175,7 +175,7 @@ test('audible channels and per-device tests route only to the selected device; s
  const messages=[];const dispatch=require('../../functions/notifications').createUpdateDispatcher(db,{send:async p=>messages.push(p)},()=>now);
  await dispatch(result.eventId);
  assert.equal(messages.length,1);assert.equal(messages[0].token,'native-one');
- assert.equal(messages[0].android.notification.channelId,'express_orders_sound_v1');assert.equal(messages[0].android.notification.sound,'express_alert.wav');
+ assert.equal(messages[0].android.notification.channelId,'express_orders_sound_v1');assert.equal(messages[0].android.notification.sound,'express_alert');
  const status=await tools(auth('storeA'),{action:'status',eventId:result.eventId});
  assert.equal(status.devices[0].status,'sent');assert.ok(!JSON.stringify(status).includes('native-one'));
 });

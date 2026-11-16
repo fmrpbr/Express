@@ -1,4 +1,4 @@
-const CACHE_NAME = 'express-v2-d3e47a96a322';
+const CACHE_NAME = 'express-v2-b233342d237e';
 const APP_SHELL = ['./index.html', './notification-policy.js', './payments.js', './tariffs.js', './admin-dashboard.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './vendor/firebase.bundle.js', './vendor/native-push.bundle.js'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
@@ -29,7 +29,8 @@ self.addEventListener('notificationclick', event => {
   event.notification.close();
   const target = new URL('./index.html', self.location.href);
   const orderId = event.notification.data?.orderId;
-  if(event.notification.data?.type==='alert')target.hash='alerts';
+  if(event.notification.data?.type==='admin-rain')target.hash='rain';
+  else if(event.notification.data?.type==='alert')target.hash='alerts';
   else if(event.notification.data?.type==='announcement')target.hash='notices';
   else if(/^[A-Za-z0-9_-]{1,128}$/.test(orderId || ''))target.hash='order='+orderId;
   event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clients => {
