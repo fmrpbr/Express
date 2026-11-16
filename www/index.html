@@ -200,6 +200,10 @@
   .main{padding-bottom:0}
 }
   .dashboard-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.dashboard-section{margin-top:14px}.dashboard-section .panel-head{display:flex;align-items:center;justify-content:space-between}.section-count{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 8px;border-radius:20px;background:var(--paper);font-weight:800;font-size:12px}
+
+.quick-controls{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;margin:0 0 18px}
+.quick-heading{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}.quick-heading small{color:var(--muted)}
+.quick-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.quick-grid button{font:inherit;text-align:left;border:1px solid #e5e7eb;border-radius:14px;padding:14px;background:#f8fafc;color:#222;cursor:pointer;display:grid;gap:5px;min-width:0}.quick-grid button:hover{border-color:var(--green-dark);background:#f0fdf4}.quick-grid span{font-size:22px;color:var(--green-dark)}.quick-grid b{font-size:13px}.quick-grid small{color:var(--muted);font-size:11px}.express-dialog{width:min(92vw,440px);max-height:85dvh;overflow:auto;box-sizing:border-box;border:0;border-radius:20px;padding:24px;color:#222;box-shadow:0 20px 70px #0003}.express-dialog::backdrop{background:#0f172a99}.express-dialog p{line-height:1.6}.dialog-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}.dialog-actions .btn{flex:1;min-height:44px}.quick-grid button:focus-visible{outline:3px solid var(--green-dark);outline-offset:2px}@media(max-width:600px){.quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.quick-controls{padding:14px}.quick-grid button{padding:12px}}
 </style>
 </head>
 <body>
@@ -673,10 +677,10 @@
     if(!tokenValue || !currentUser || (role !== "courier" && role !== "store") || !window.Capacitor?.isNativePlatform?.()) return;
     const tokenKey = await digestKey(tokenValue);
     if (tokenKeyForDevice && tokenKeyForDevice !== tokenKey) await set(ref(db, "fcmTokens/" + currentUser.uid + "/" + tokenKeyForDevice), null);
-    tokenKeyForDevice = tokenKey;
     let deviceId = localStorage.getItem("express_device_id");
     if(!deviceId) { deviceId = crypto.randomUUID(); localStorage.setItem("express_device_id", deviceId); }
     await command("registerDevice", null, { token: tokenValue, deviceId });
+    tokenKeyForDevice = tokenKey;
   }
 
   const EXPRESS_PUSH_CHANNELS = [
@@ -703,6 +707,7 @@
     }
   }
 
+  let nativeRegistrationWaiter = null;
   let nativePushSetupPromise = null;
   async function setupNativePushListeners(){
     const pushApi = window.ExpressNativePush?.PushNotifications;
@@ -716,14 +721,17 @@
           pendingFcmToken = token.value;
           try {
             await saveNativeFcmToken(token.value);
+            nativeRegistrationWaiter?.resolve();
             if(currentUser) toast("Notificações ativadas neste aparelho.", "success");
           } catch(error) {
-            console.warn("Não foi possível salvar o token FCM:", error);
+            nativeRegistrationWaiter?.reject(error);
+            console.warn("Não foi possível salvar o token FCM:", error.code);
             toast("O token FCM chegou, mas não foi salvo. Verifique a conexão e as regras do Firebase.", "warn");
           }
         }),
         pushApi.addListener("registrationError", error => {
-          console.error("Falha no registro FCM:", error);
+          nativeRegistrationWaiter?.reject(new Error("Falha no registro FCM. Confira Google Play Services e conexão."));
+          console.error("Falha no registro FCM:", error?.code);
           const detail = error?.message || error?.error || "Erro não identificado";
           toast("Falha ao obter token FCM: " + String(detail).slice(0,100), "warn");
         }),
@@ -731,6 +739,8 @@
           const title = notification.title || "Express Entregas";
           const body = notification.body || "Você recebeu uma nova notificação.";
           toast(title + ": " + body);
+          const permission=await window.ExpressNativePush.LocalNotifications.checkPermissions();
+          if(permission.display !== 'granted') {toast('Permita as notificações locais do Express nas configurações do Android.','warn');return;}
           const category = notification.data?.category || "order";
           const channels = { order:"express_orders_v2", quote:"express_quotes_v2", reminder:"express_reminders_v2", update:"express_updates_v2" };
           try {
@@ -751,7 +761,7 @@
           if(extra.orderId) {
             pendingPushOrderId = extra.orderId;
             view = role === "courier" ? (extra.type === "quote" ? "quotes" : "available") : "dashboard";
-            if(currentUser) render();
+            if(currentUser) mergeOrders();
           }
         })
       ]);
@@ -798,7 +808,7 @@
   window.addEventListener("hashchange", checkUrlTracking);
   function checkUrlTracking(){
     let hash = window.location.hash;
-    if(hash.startsWith("#order=")) { pendingPushOrderId = hash.slice(7); if(currentUser) { view = "available"; render(); } }
+    if(hash.startsWith("#order=")) { pendingPushOrderId = hash.slice(7); if(currentUser) mergeOrders(); }
     if(hash.startsWith("#track=")) {
       openPublicTracker(hash.replace("#track=", ""));
     }
@@ -1095,8 +1105,10 @@
       if(role !== "admin" && window.Capacitor?.isNativePlatform?.()) {
         await setupNativePushListeners();
         const pushApi = window.ExpressNativePush?.PushNotifications;
-        if(pushApi && (await pushApi.checkPermissions()).receive === "granted") await pushApi.register();
-        if(pendingFcmToken) await saveNativeFcmToken(pendingFcmToken);
+        try {
+          if(pushApi && (await pushApi.checkPermissions()).receive === "granted") await pushApi.register();
+          if(pendingFcmToken) await saveNativeFcmToken(pendingFcmToken);
+        }catch(error){toast('Login realizado. Abra Notificações e som para revisar o registro deste aparelho.','warn');}
       }
       refreshSavedClientsDatalist();
       checkUrlTracking();
@@ -1578,6 +1590,31 @@
     return Uint8Array.from(raw, c => c.charCodeAt(0));
   }
 
+  function withTimeout(promise,ms,message){
+    let timer;return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(message)),ms);})]).finally(()=>clearTimeout(timer));
+  }
+  const callNotificationTools=httpsCallable(functions,'notificationTools');
+  async function notificationTool(action){return (await callNotificationTools({action})).data;}
+  function pushError(error){
+    if(error?.code==='functions/not-found')return 'O servidor de notificações precisa ser atualizado. A ativação ainda não foi concluída.';
+    if(error?.name==='NotAllowedError')return 'Notificações bloqueadas. Abra as permissões deste site no navegador e permita notificações.';
+    return error?.message||'Não foi possível concluir. Confira a conexão e tente novamente.';
+  }
+  function samePushKey(a,b){const x=new Uint8Array(a);return x.length===b.length&&x.every((v,i)=>v===b[i]);}
+  async function pushDeviceStatus(){
+    if(window.Capacitor?.isNativePlatform?.()){
+      const api=window.ExpressNativePush?.PushNotifications;
+      if(!api)return 'Módulo Android indisponível. Atualize o APK.';
+      const permission=await api.checkPermissions();
+      return permission.receive==='granted' ? (pendingFcmToken&&tokenKeyForDevice?'Permissão concedida. Dispositivo registrado nesta sessão. Teste o recebimento.':'Permissão concedida. Ative para confirmar o registro no servidor.'):'Notificações não permitidas no Android. Toque em Ativar neste dispositivo.';
+    }
+    if(!('Notification' in window)||!('PushManager' in window))return 'Este navegador não oferece suporte a push. Use Chrome ou Edge atualizado.';
+    if(Notification.permission==='denied')return 'Bloqueado no navegador. Permita notificações nas configurações deste site.';
+    const registration=await navigator.serviceWorker.getRegistration();
+    const subscription=await registration?.pushManager?.getSubscription();
+    return Notification.permission==='granted'&&subscription?'Este navegador tem uma inscrição push. Ative para sincronizar e teste o recebimento.':'Push ainda não ativado neste navegador. Toque em Ativar neste dispositivo.';
+  }
+
   async function enablePushNotifications(){
     if(window.Capacitor?.isNativePlatform?.()){
       const pushApi = window.ExpressNativePush?.PushNotifications;
@@ -1589,23 +1626,38 @@
       let permission = await pushApi.checkPermissions();
       if(permission.receive !== "granted") permission = await pushApi.requestPermissions();
       if(permission.receive !== "granted"){ toast("Permissão de notificações não concedida.", "warn"); return; }
+      const localApi=window.ExpressNativePush.LocalNotifications;
+      let localPermission=await localApi.checkPermissions();
+      if(localPermission.display!=='granted')localPermission=await localApi.requestPermissions();
+      if(localPermission.display!=='granted')throw new Error('Permita as notificações do Express no Android.');
       await prepareNativePushChannels(pushApi);
-      await pushApi.register();
-      toast("Solicitação de ativação enviada. O aparelho será registrado ao receber o token FCM.");
+      await withTimeout(new Promise((resolve,reject)=>{
+        nativeRegistrationWaiter={resolve,reject};
+        pushApi.register().catch(reject);
+      }),20000,'O Android não entregou o registro FCM. Confira internet, Google Play Services e permissões. Tente novamente.').finally(()=>{nativeRegistrationWaiter=null;});
+      toast("Dispositivo registrado no servidor. Use Testar recebimento para conferir.");
       return;
     }
     if(!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)){
       toast("Este aparelho ou navegador não oferece suporte a notificações push.", "warn"); return;
     }
     if(role === "admin" || !currentUser) throw new Error("Entre com uma conta de loja ou motoboy para ativar notificações.");
-    const vapidKey = firebaseConfig.vapidPublicKey;
+    const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+    if(permission !== 'granted') throw new Error('Notificações não permitidas. Confira as permissões deste site no navegador.');
+    const config = await notificationTool('config').catch(error => {
+      if(firebaseConfig.vapidPublicKey) return {vapidPublicKey:firebaseConfig.vapidPublicKey};
+      throw new Error(pushError(error));
+    });
+    const vapidKey = config.vapidPublicKey || firebaseConfig.vapidPublicKey;
     if(!vapidKey){
       toast("Falta configurar a chave pública VAPID no Firebase de testes. A inscrição ainda não pode ser concluída.", "warn"); return;
     }
-    const permission = await Notification.requestPermission();
-    if(permission !== "granted"){ toast("Permissão de notificações não concedida.", "warn"); return; }
-    const registration = await navigator.serviceWorker.ready;
+    if(!window.isSecureContext) throw new Error('Notificações exigem uma página HTTPS.');
+    const registration = await withTimeout(navigator.serviceWorker.register('./service-worker.js').then(()=>navigator.serviceWorker.ready), 15000, 'O serviço de notificações não iniciou. Abra o site diretamente no Chrome ou Edge e tente novamente.');
     let subscription = await registration.pushManager.getSubscription();
+    if(subscription && subscription.options.applicationServerKey && !samePushKey(subscription.options.applicationServerKey,urlBase64ToUint8Array(vapidKey))) {
+      await subscription.unsubscribe();subscription=null;
+    }
     if(!subscription){
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -1779,8 +1831,9 @@
     const noticeHtml=notices.map(n=>'<div class="info" role="status"><b>'+esc(n.title)+'</b><p>'+esc(n.body)+'</p></div>').join('');
     const rainCount=Object.values(rainSignals).filter(s=>Date.now()-s.at<1800000).length;
     const rainNotice=role==='admin'&&rainCount?'<div class="info" role="status"><b>CHUVA SINALIZADA POR '+rainCount+' MOTOBOY(S)</b><p>Nos últimos 30 minutos. Confira a condição antes de agendar a taxa.</p><button type="button" class="btn secondary tiny" data-nav="rates">Gerenciar chuva</button></div>':'';
-    const tariffBanner=rainNotice+(weather.enabled?'<div class="info"><b>TAXA DIA DE CHUVA ATIVADA</b><p>Somente novos pedidos da sede. Consulte os valores em Tarifas.</p></div>':'')+noticeHtml+'<button type="button" class="btn secondary tiny" data-nav="tariffs" style="margin-bottom:12px">Tarifas e avisos</button>';
-    document.getElementById("content").innerHTML = availabilityPanel + tariffBanner + paymentNotice + overdueNotice + (role === "courier" ? '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button class="btn secondary tiny" type="button" data-action="push-settings">Notificações e som</button><button class="btn secondary tiny" type="button" data-nav="profile">Meu Pix</button><button class="btn secondary tiny" type="button" data-action="signal-rain">Sinalizar chuva na sede</button></div>' : '') + show();
+    const tariffBanner=rainNotice+(weather.enabled?'<div class="info"><b>TAXA DIA DE CHUVA ATIVADA</b><p>Somente novos pedidos da sede. Consulte os valores em Tarifas.</p></div>':'')+noticeHtml;
+    const quickActions = role !== 'admin' ? '<section class="quick-controls" aria-label="Minha operação"><div class="quick-heading"><b>Minha operação</b><small>Preferências e informações</small></div><div class="quick-grid"><button type="button" data-nav="tariffs"><span>R$</span><b>Tarifas e avisos</b><small>Valores em vigor</small></button><button type="button" data-action="push-settings"><span>♬</span><b>Notificações e som</b><small>Ativar e testar</small></button>'+(role==='courier'?'<button type="button" data-nav="profile"><span>◇</span><b>Meu Pix</b><small>Dados para recebimento</small></button><button type="button" data-action="signal-rain"><span>☂</span><b>Sinalizar chuva</b><small>Avisar o administrador</small></button>':'')+'</div></section>' : '';
+    document.getElementById("content").innerHTML = availabilityPanel + quickActions + tariffBanner + paymentNotice + overdueNotice + show();
     if(pendingPushOrderId) {
       const card = document.querySelector('[data-order-id="' + CSS.escape(pendingPushOrderId) + '"]');
       if(!card && data.orders.some(order => order.id === pendingPushOrderId && order.status === "cotacao")) { view = "quotes"; document.getElementById("content").innerHTML = availabilityPanel + show(); }
@@ -2183,7 +2236,7 @@
       if(action === "share-whatsapp") return await shareTrackingWhatsApp(id);
       if(action === "copy-tracking") return await shareTrackingWhatsApp(id, true);
       if(action === "push-settings") return await openPushSettings();
-      if(action==='signal-rain'){await command('signalRain',null);toast('Chuva sinalizada ao admin. Isso não ativa a taxa automaticamente.');return;}
+      if(action==='signal-rain'){if(!await confirmInApp('Sinalizar chuva na sede','Está chovendo na sede? Este aviso será enviado ao administrador e não ativa a taxa.'))return;await command('signalRain',null);toast('Chuva sinalizada ao admin. Isso não ativa a taxa automaticamente.');return;}
       if(action==='cancel-rates'){if(confirm('Cancelar esta alteração futura? Todos serão avisados.'))await command('cancelRates',null,{planId:id});return;}
       if(!order) throw new Error("Pedido não encontrado.");
       if(action === "copy-pix") {
@@ -2216,8 +2269,8 @@
         input = { courierId: button.dataset.courier, amount: Number(button.dataset.amount) };
       }
       if(["cancel", "cancel-quote", "cancel-free"].includes(action) && !confirm("Confirmar cancelamento desta solicitação?")) return;
-      if(action === "report-payment" && !confirm("Você já realizou o pagamento de " + cash(order.fee) + "? O motoboy ainda precisará confirmar o recebimento.")) return;
-      if(action === "confirm-payment" && !confirm("Você conferiu sua conta e recebeu " + cash(order.fee) + " desta corrida?")) return;
+      if(action === "report-payment" && !await confirmInApp("Informar pagamento", "Você já realizou o pagamento de " + cash(order.fee) + "? O motoboy ainda precisará confirmar o recebimento.")) return;
+      if(action === "confirm-payment" && !await confirmInApp("Confirmar recebimento", "Você conferiu sua conta e recebeu " + cash(order.fee) + " desta corrida?")) return;
       const confirmed = await command(action, id, input);
       if(["finish", "cancel", "cancel-free"].includes(action) && trackingOrderId === id) stopGpsTracking();
       if(action === "accept") view = "run";
@@ -2232,15 +2285,45 @@
       render();
     } finally { actionsInFlight.delete(lock); }
   }
+  function confirmInApp(title, message) {
+    return new Promise(resolve => {
+      const dialog = document.createElement('dialog');
+      dialog.className = 'express-dialog';
+      dialog.setAttribute('aria-label', title);
+      dialog.innerHTML = '<h2>'+esc(title)+'</h2><p>'+esc(message)+'</p><div class="dialog-actions"><button type="button" class="btn secondary" data-decision="cancel">Voltar</button><button type="button" class="btn primary" data-decision="confirm">Confirmar</button></div>';
+      let accepted=false;
+      dialog.querySelector('[data-decision="cancel"]').onclick=()=>dialog.close();
+      dialog.querySelector('[data-decision="confirm"]').onclick=()=>{accepted=true;dialog.close();};
+      dialog.addEventListener('close',()=>{dialog.remove();resolve(accepted);},{once:true});
+      document.body.appendChild(dialog);dialog.showModal();
+    });
+  }
+
   async function openPushSettings() {
-    if(role !== "courier" || !currentUser) return;
+    if(role === "admin" || !currentUser) return;
     const dialog = document.createElement("dialog");
-    dialog.style.cssText = "width:min(92vw,420px);border:0;border-radius:18px;padding:22px;color:#222";
-    dialog.innerHTML = '<form><h2 style="margin-top:0">Notificações e som</h2>' +
-      [["enabled","Receber novas ofertas"],["orders","Novos pedidos"],["quotes","Novas cotações"],["reminders","Lembretes a cada 5 minutos"]].map(([key,label]) => '<label style="display:flex;align-items:center;gap:10px;margin:14px 0"><input style="width:auto" type="checkbox" name="'+key+'" '+(pushPreferences[key] !== false ? 'checked' : '')+'>'+label+'</label>').join('') +
+    dialog.className="express-dialog";dialog.setAttribute("aria-label","Notificações e som");
+    dialog.innerHTML = '<form><h2 style="margin-top:0">Notificações e som</h2><p data-push-status role="status">Conferindo este dispositivo...</p><div class="dialog-actions"><button type="button" class="btn primary" data-push-enable>Ativar neste dispositivo</button><button type="button" class="btn secondary" data-push-test>Testar recebimento</button></div><p>O teste envia uma notificação para os dispositivos cadastrados nesta conta. Confira também com o Express em segundo plano.</p>' +
+      (role === "courier" ? [["enabled","Receber novas ofertas"],["orders","Novos pedidos"],["quotes","Novas cotações"],["reminders","Lembretes a cada 5 minutos"]] : []).map(([key,label]) => '<label style="display:flex;align-items:center;gap:10px;margin:14px 0"><input style="width:auto" type="checkbox" name="'+key+'" '+(pushPreferences[key] !== false ? 'checked' : '')+'>'+label+'</label>').join('') +
       '<p style="font-size:12px">Atualizações das suas entregas continuam disponíveis quando você pausa novas ofertas.</p>' +
-      (window.Capacitor?.isNativePlatform?.() ? '<button type="button" class="btn secondary full" data-sound-settings>Alterar som no Android</button>' : '') +
+      (window.Capacitor?.isNativePlatform?.() ? '<button type="button" class="btn secondary full" data-sound-settings>Alterar som no Android</button>' : '<p>O som das notificações é controlado pelo navegador e pelo volume do computador. Permita notificações neste endereço.</p>') +
       '<p data-feedback role="status"></p><div style="display:flex;gap:8px;margin-top:16px"><button type="button" class="btn secondary" data-close>Fechar</button><button type="submit" class="btn primary">Salvar preferências</button></div></form>';
+    const feedback=dialog.querySelector('[data-feedback]');
+    const status=dialog.querySelector('[data-push-status]');
+    async function refreshStatus(){try{status.textContent=await pushDeviceStatus();}catch(error){status.textContent=error.message;}}
+    dialog.querySelector('[data-push-enable]').onclick=async event=>{
+      event.target.disabled=true;feedback.textContent='Ativando...';
+      try{await enablePushNotifications();feedback.textContent='Ativação solicitada. Confira o status e use Testar recebimento.';}
+      catch(error){feedback.textContent=pushError(error);}
+      finally{event.target.disabled=false;await refreshStatus();}
+    };
+    dialog.querySelector('[data-push-test]').onclick=async event=>{
+      event.target.disabled=true;feedback.textContent='Solicitando teste ao servidor...';
+      try{await notificationTool('test');feedback.textContent='Teste solicitado ao servidor. Aguarde a notificação. Se não chegar, confira permissões, som e conexão.';}
+      catch(error){feedback.textContent=pushError(error);}
+      finally{event.target.disabled=false;}
+    };
+    refreshStatus();
     dialog.querySelector('[data-close]').onclick = () => dialog.close();
     dialog.querySelector('[data-sound-settings]')?.addEventListener('click', async () => {
       try { await window.ExpressNativePush.NativeSettings.openAndroid({ option: "app_notification" }); }
@@ -2248,8 +2331,8 @@
     });
     dialog.querySelector('form').onsubmit = async event => {
       event.preventDefault();
-      const prefs = Object.fromEntries(["enabled","orders","quotes","reminders"].map(key => [key, dialog.querySelector('[name="'+key+'"]').checked]));
-      try { await set(ref(db, "pushPreferences/" + currentUser.uid), prefs); dialog.close(); toast("Preferências salvas."); }
+      const prefs = Object.fromEntries(["enabled","orders","quotes","reminders"].map(key => [key, dialog.querySelector('[name="'+key+'"]')?.checked !== false]));
+      try { if(role === "courier") await set(ref(db, "pushPreferences/" + currentUser.uid), prefs); dialog.close(); toast("Preferências salvas."); }
       catch(error) { dialog.querySelector('[data-feedback]').textContent = "Não foi possível salvar. Verifique sua conexão."; }
     };
     dialog.addEventListener('close', () => dialog.remove(), { once: true });
@@ -2260,7 +2343,7 @@
     prepareSheet: prepareSheet,
     setView: function(v){ if(v === "new" && role === "store") return window.openOrderSheet(); view = v; render(); },
     doAction: function(a, id){ return act(a, id).catch(err => toast(err.message, "warn")); },
-    enablePush: function(){ return enablePushNotifications().catch(err => toast(err.message || "Falha ao ativar notificações.", "warn")); },
+    enablePush: function(){ return openPushSettings().catch(err => toast(pushError(err), "warn")); },
     toggleAvailability: function(){ return toggleCourierAvailability().catch(error => toast(error.message, "warn")); },
     selectLoginRole: function(r){ window.selectLoginRole(r); },
     setAuthTab: function(m){ window.setAuthTab(m); },

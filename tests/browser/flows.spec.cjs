@@ -80,6 +80,8 @@ test('cadastro mobile, perfil, pedido, aceite, retirada, conclusão e pagamento 
   expect(await store.evaluate(()=>navigator.clipboard.readText())).toBe('moto.pix@example.com');
   store.on('dialog', d=>d.accept());
   await store.locator('[data-action=report-payment]').click();
+  await expect(store.getByRole('dialog',{name:'Informar pagamento'})).toBeVisible();
+  await store.locator('[data-decision=confirm]').click();
   await expect(store.locator('#content')).toContainText('Aguardando confirmação do motoboy');
   await expect(courier.locator('[data-action=confirm-payment]')).toHaveCount(1);
   await expect(courier.locator('#content')).toContainText('pagamento(s) para conferir');
@@ -90,6 +92,7 @@ test('cadastro mobile, perfil, pedido, aceite, retirada, conclusão e pagamento 
   await expect(courier.locator('[data-action=confirm-payment]')).toHaveCount(1);
   courier.removeAllListeners('dialog'); courier.on('dialog',d=>d.accept());
   await courier.locator('[data-action=confirm-payment]').click();
+  await courier.locator('[data-decision=confirm]').click();
   await expect(store.locator('#content')).toContainText('Pagamento confirmado');
   await expect(courier.locator('#content')).toContainText('Histórico de pagamentos confirmados');
   await expect(courier.locator('[data-action=confirm-payment]')).toHaveCount(0);

@@ -1,0 +1,10 @@
+import {execFileSync} from 'node:child_process';
+import {readFile} from 'node:fs/promises';
+const project='express-entregas-2-testes';
+const config=JSON.parse(await readFile('firebase.json','utf8'));
+if(config.functions?.source!=='functions'||config.functions?.runtime!=='nodejs22')throw Error('Configuração diferente do projeto de testes.');
+const parameters=await readFile('functions/.env.'+project,'utf8').catch(()=>{throw Error('Arquivo functions/.env.express-entregas-2-testes ausente. Recupere o arquivo da publicação anterior. Não gere novas chaves VAPID.');});
+if(!/^EXPRESS_VAPID_PUBLIC_KEY=.+/m.test(parameters)||!/^EXPRESS_VAPID_SUBJECT=.+/m.test(parameters))throw Error('Parâmetros VAPID da publicação anterior estão incompletos. Preserve o par de chaves existente.');
+execFileSync(process.execPath,['scripts/check.mjs'],{stdio:'inherit'});
+execFileSync('firebase',['deploy','--only','functions:notificationTools,functions:orderCommand,functions:onPushJobCreated,functions:processPushReminders,functions:onOrderUpdateCreated','--project',project],{stdio:'inherit',env:{...process.env,GCLOUD_PROJECT:project,GOOGLE_CLOUD_QUOTA_PROJECT:project}});
+console.log('Servidor de notificações atualizado no Firebase de testes. No site e no APK, abra Notificações e som, ative o dispositivo e teste o recebimento em primeiro e segundo plano. Nenhum pedido, pagamento, tarifa ou chave privada foi substituído.');

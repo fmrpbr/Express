@@ -6,7 +6,7 @@
     "node": "22"
   },
   "scripts": {
-    "lint": "node --check index.js && node --check commands.js && node --check domain.js && node --check notifications.js",
+    "lint": "node --check index.js && node --check commands.js && node --check domain.js && node --check notifications.js && node --check notification-tools.js",
     "test": "node --test ../tests/backend/*.test.cjs"
   },
   "dependencies": {

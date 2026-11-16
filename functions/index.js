@@ -49,3 +49,15 @@ exports.processPushReminders = onSchedule({ schedule: "every 1 minutes", secrets
 });
 
 exports.onOrderUpdateCreated = onValueCreated({ ref: "/pushUpdates/{eventId}", region: "us-central1", secrets: pushSecrets }, async event => { const t = transports(); return createUpdateDispatcher(db, t.messaging, Date.now, t.web)(event.params.eventId); });
+
+// Retorna somente a chave pública. A chave privada permanece no Secret Manager.
+const { createNotificationTools } = require('./notification-tools');
+const notificationTools = createNotificationTools(db, () => ({vapidPublicKey:vapidPublic.value()}));
+exports.notificationTools = onCall(async request => {
+  try { return await notificationTools(request.auth, request.data); }
+  catch(error) {
+    if(error instanceof DomainError) throw new HttpsError(error.code,error.message);
+    console.error('Falha na ferramenta de notificações',error.code||error.name);
+    throw new HttpsError('internal','Não foi possível preparar a notificação. Tente novamente.');
+  }
+});

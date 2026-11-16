@@ -152,3 +152,18 @@ test('financeiro: loja não quita, confirmação concorrente é única e Pix fic
   assert.equal(events.filter(e=>e.action==='confirm-payment').length,1);
   for (const path of ['availableOrders','quoteBoard','publicTracking']) assert.ok(!JSON.stringify((await db.ref(path).get()).val()).includes('pix@example.com'));
 });
+
+test('notification test: native and web use production dispatcher, one submission per device and no order data', {timeout:30000},async()=>{
+  await db.ref('fcmTokens/storeA/native').set({token:'native-token'});
+  await db.ref('pushSubscriptions/storeA/web').set({endpoint:'https://fcm.googleapis.com/fcm/send/test',keys:{p256dh:'test',auth:'test'}});
+  const tools=require('../../functions/notification-tools').createNotificationTools(db,()=>({vapidPublicKey:'public'}),()=>now);
+  const results=await Promise.allSettled([tools(auth('storeA'),{action:'test'}),tools(auth('storeA'),{action:'test'})]);
+  assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+  const events=(await db.ref('pushUpdates').get()).val();assert.equal(Object.keys(events).length,1);
+  const native=[],web=[];
+  const dispatch=require('../../functions/notifications').createUpdateDispatcher(db,{send:async message=>native.push(message)},()=>now,{sendNotification:async(device,payload)=>web.push(JSON.parse(payload))});
+  const id=Object.keys(events)[0];await Promise.all([dispatch(id),dispatch(id)]);
+  assert.equal(native.length,1);assert.equal(web.length,1);
+  assert.equal(native[0].data.type,'test');assert.equal(native[0].android.notification.channelId,'express_updates_v2');
+  assert.equal(web[0].type,'test');assert.ok(!JSON.stringify([...native,...web]).includes('orderId'));
+});

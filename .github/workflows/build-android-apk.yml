@@ -62,7 +62,7 @@ jobs:
           path.write_bytes(base64.b64decode(key, validate=True))
           path.chmod(0o600)
           PY
-      - name: Compilar APK 2.0.7 com primeiro acesso e redefinição segura de senha
+      - name: Compilar APK 2.0.8 com notificações, pagamento e atalhos
         working-directory: android
         run: |
           chmod +x gradlew
