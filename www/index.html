@@ -897,7 +897,7 @@
 
   document.addEventListener("input", e => {
     const target = e.target;
-    const rateForm=target?.closest('#tariff-form,#rain-form,#admin-filter-form');if(rateForm)rateForm.dataset.dirty='true';
+    const rateForm=target?.closest('#tariff-form,#rain-form,#admin-filter-form,#store-profile-form,#pix-profile-form');if(rateForm)rateForm.dataset.dirty='true';
     // Campos de login e criação de conta preservam a digitação original, inclusive nomes e senhas.
     if (target && !target.hasAttribute("data-preserve-case") && !target.closest("#auth-form") && (target.matches('input:not([type="email"]):not([type="password"]):not([type="url"]):not([type="hidden"]):not([type="number"]):not([type="date"]):not([type="time"]), textarea'))) {
       const upper = target.value.toLocaleUpperCase("pt-BR");
@@ -1866,7 +1866,7 @@
       return;
     }
     const adminTeamOpen=document.getElementById('admin-team')?.open===true;
-    const drafts=Array.from(document.querySelectorAll('#tariff-form[data-dirty],#rain-form[data-dirty],#admin-filter-form[data-dirty]')).map(form=>({id:form.id,version:form.dataset.baseVersion,fields:Array.from(form.querySelectorAll('input,select')).map((el,index)=>({index,value:el.value})),focus:form.contains(document.activeElement)?document.activeElement.id:null}));
+    const drafts=Array.from(document.querySelectorAll('#tariff-form[data-dirty],#rain-form[data-dirty],#admin-filter-form[data-dirty],#store-profile-form[data-dirty],#pix-profile-form[data-dirty]')).map(form=>({id:form.id,version:form.dataset.baseVersion,fields:Array.from(form.querySelectorAll('input,select')).map((el,index)=>({index,value:el.value})),focus:form.contains(document.activeElement)?document.activeElement.id:null}));
     let label = role === "store" ? "Lojista" : role === "courier" ? "Motoboy" : "Administrador";
     let people = role === "store" ? data.stores : role === "courier" ? data.couriers : [{id:"admin",name:"Administrador"}];
     if(role === "admin") actor = "admin"; if(people.length && !people.some(p => p.id === actor)) actor = people[0].id;

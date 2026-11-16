@@ -34,3 +34,7 @@ git pull --ff-only && node scripts/deploy-logistics-v2.mjs
 O script preserva os parâmetros públicos de push existentes, define o projeto de quota e publica regras e funções no projeto `express-entregas-2-testes`. A chave VAPID privada permanece no Secret Manager. Usa o agendador já existente, sem criar outro serviço. Após finalizar, abrir a versão 2.0.13 e conferir os dois fluxos com contas de teste.
 
 O rastreio dedicado e os contratos antigos são preservados. Nenhuma migração retroativa ou publicação Firebase é feita pelo simples envio do APK.
+
+## Ajuste de perfil
+
+Atualizações em tempo real preservam os campos de endereço e Pix em edição. A verificação assíncrona do servidor não apaga dados digitados. A regressão é reproduzida pelo cenário de cadastro com uma nova renderização durante a edição.

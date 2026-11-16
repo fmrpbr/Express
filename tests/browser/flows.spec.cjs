@@ -30,6 +30,8 @@ test('cadastro mobile, perfil, pedido, aceite, retirada, conclusão e pagamento 
   await register(store,'store','store-'+Date.now()+'@example.test');
   await store.evaluate(()=>window.__express.setView('profile'));
   await store.locator('#prof-address').fill('Rua da Loja, 1, Centro');
+  await store.evaluate(()=>window.__express.setView('profile'));
+  await expect(store.locator('#prof-address')).toHaveValue('RUA DA LOJA, 1, CENTRO');
   await store.locator('#store-profile-form button[type=submit]').click();
   await expect(store.locator('#prof-address')).toHaveCount(0);
   await register(courier,'courier','courier-'+Date.now()+'@example.test');
