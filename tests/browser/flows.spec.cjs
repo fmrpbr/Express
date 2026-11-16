@@ -331,6 +331,81 @@ test('painel admin filtra, pagina, acompanha pagamentos e preserva detalhes sem 
   await context.close();
 });
 
+async function completePasswordReset(email,password,apiKey){
+  const list=await (await fetch('http://127.0.0.1:9099/emulator/v1/projects/demo-express-entregas-browser/oobCodes')).json();
+  const code=list.oobCodes.filter(c=>c.email===email&&c.requestType==='PASSWORD_RESET').at(-1);
+  expect(Boolean(code?.oobCode)).toBe(true);
+  // Simula apenas o formulário seguro do provedor, usando código do emulador.
+  // Nenhum link ou código real é solicitado, impresso ou armazenado pelo app.
+  const response=await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:resetPassword?key='+encodeURIComponent(apiKey),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({oobCode:code.oobCode,newPassword:password})});
+  expect(response.status).toBe(200);
+}
+
+test('admin sem senha abre primeiro acesso, solicita link e entra após definir senha pelo provedor',async({page})=>{
+  const email='first-admin-'+Date.now()+'@example.test',password='nova-senha-admin-123';
+  const user=await app.auth().createUser({email});await app.auth().setCustomUserClaims(user.uid,{admin:true});
+  await page.goto(base);await page.locator('[data-admin-login]').click();
+  await expect(page.locator('#admin-login-panel')).toBeVisible();
+  await expect(page.locator('#auth-feedback')).toContainText('primeira senha');
+  await expect(page.locator('#tab-register')).toBeHidden();
+  await page.locator('[data-action=open-first-password]').click();
+  await expect(page.locator('#recovery-title')).toHaveText('Definir primeira senha');
+  await expect(page.locator('#auth-password')).toBeHidden();
+  await page.locator('#recovery-email').fill(email);
+  await page.locator('#recovery-submit').click();
+  await expect(page.locator('#recovery-feedback')).toHaveAttribute('data-state','success');
+  await expect(page.locator('#recovery-feedback')).toContainText('spam');
+  await completePasswordReset(email,password,await page.evaluate(()=>window.EXPRESS_FIREBASE_CONFIG.apiKey));
+  await page.locator('[data-action=recovery-back]').click();
+  await expect(page.locator('#auth-email')).toHaveValue(email);
+  await expect(page.locator('#admin-login-panel')).toBeVisible();
+  await page.locator('#auth-password').fill(password);await page.locator('#auth-submit-btn').click();
+  await expect(page.locator('#login-screen')).toBeHidden();
+  await expect(page.locator('[data-admin-sync]')).toContainText('Conectado');
+  expect((await app.auth().getUser(user.uid)).customClaims.admin).toBe(true);
+  expect((await db.ref('profiles/stores/'+user.uid).get()).exists()).toBe(false);
+});
+
+test('recuperação troca a senha existente e não concede admin a uma loja',async({page})=>{
+  const email='reset-store-'+Date.now()+'@example.test',oldPassword='senha-anterior-123',newPassword='senha-recuperada-456';
+  const user=await app.auth().createUser({email,password:oldPassword});
+  await db.ref('profiles/stores/'+user.uid).set({name:'LOJA RECUPERADA',address:'RUA DA LOJA',phone:'27999999999'});
+  await page.goto(base);await page.locator('#auth-email').fill(email);
+  await page.locator('[data-action=open-password-recovery]').click();
+  await expect(page.locator('#recovery-email')).toHaveValue(email);
+  await page.locator('#recovery-submit').click();
+  await expect(page.locator('#recovery-feedback')).toHaveAttribute('data-state','success');
+  const key=await page.evaluate(()=>window.EXPRESS_FIREBASE_CONFIG.apiKey);
+  await completePasswordReset(email,newPassword,key);
+  const old=await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:oldPassword,returnSecureToken:true})});
+  expect(old.status).toBe(400);
+  await page.locator('[data-action=recovery-back]').click();await page.locator('#auth-password').fill(newPassword);
+  await page.locator('[data-admin-login]').click();
+  await expect(page.locator('#auth-feedback')).toContainText('não possui permissão de administrador');
+  expect((await app.auth().getUser(user.uid)).customClaims?.admin).not.toBe(true);
+  await page.locator('[data-action=back-to-profiles]').click();
+  await page.locator('#auth-submit-btn').click();
+  await expect(page.locator('#login-screen')).toBeHidden();
+  await expect(page.locator('#role')).toHaveValue('store');
+});
+
+test('recuperação mostra erro de rede na própria tela e permanece acessível em celular pequeno',async({page})=>{
+  await page.route('**/accounts:sendOobCode**',route=>route.abort());
+  for(const width of [320,393,480]){
+    await page.setViewportSize({width,height:568});await page.goto(base);
+    await page.locator('[data-admin-login]').click();
+    await page.locator('[data-action=open-password-recovery]').click();
+    await page.locator('#recovery-email').fill('network-test@example.test');
+    await page.locator('#recovery-submit').click();
+    await expect(page.locator('#recovery-feedback')).toHaveAttribute('data-state','error');
+    await expect(page.locator('#recovery-feedback')).toContainText('conexão');
+    await expect(page.locator('#recovery-submit')).toBeEnabled();
+    await page.locator('[data-action=recovery-back]').click();
+    await expect(page.locator('#admin-login-panel')).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }
+});
+
 test('rastreio mantém consulta segura por HTTPS quando WebSocket não está disponível',async({page})=>{
   const token='d'.repeat(64),root='publicTracking/'+token;
   await db.ref(root).set({orderCode:'EXP-FALLBACK',status:'open',expiresAt:Date.now()+600000,revoked:false});

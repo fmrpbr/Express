@@ -62,7 +62,7 @@ jobs:
           path.write_bytes(base64.b64decode(key, validate=True))
           path.chmod(0o600)
           PY
-      - name: Compilar APK 2.0.6 com painel operacional administrativo
+      - name: Compilar APK 2.0.7 com recuperação de senha e primeiro acesso admin
         working-directory: android
         run: |
           chmod +x gradlew
