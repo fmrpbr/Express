@@ -1,7 +1,7 @@
 {
-  "version": "2.0.11",
-  "file": "Express-Entregas-V2-2.0.11-Teste.apk",
+  "version": "2.0.12",
+  "file": "Express-Entregas-V2-2.0.12-Teste.apk",
   "size_bytes": 5161666,
-  "sha256": "225344fa72e9dbbdef96b6ed04be9fb8626a2edb2efeaefc94002450807c2b26",
-  "source_commit": "6709ad8c0ab04fafd232734619b925c3ce309955"
+  "sha256": "95f5d68ffb184a6db04614c89f626206020ddbe22188571f2bb5e14379b5bd6d",
+  "source_commit": "539da54c5595f9c37a0752f7ec318f93c9ed7080"
 }
