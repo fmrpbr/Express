@@ -13,6 +13,7 @@ const express = require('../functions/node_modules/express');
 const callable = express();
 callable.use(express.json());
 callable.all('/demo-express-entregas-browser/southamerica-east1/orderCommand', require('../functions/index.js').orderCommand);
+callable.all('/demo-express-entregas-browser/southamerica-east1/notificationTools', require('../functions/index.js').notificationTools);
 const callableServer = callable.listen(5001, '127.0.0.1');
 const server=createServer(async(req,res)=>{
   const pathname=new URL(req.url,'http://localhost').pathname;

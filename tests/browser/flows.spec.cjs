@@ -257,6 +257,7 @@ test('admin agenda tabela, perfis recebem aviso, preços antigos permanecem e ch
   await expect(ad.locator('#tariff-form [data-zone]')).toHaveCount(23);
   await ad.locator('#tariff-form [data-rate=sedeDay]').fill('6');
   await courier.locator('[data-action=signal-rain]').click();
+  await courier.locator('[data-decision=confirm]').click();
   await expect(ad.locator('#content')).toContainText('1 motoboy(s)');
   await expect(ad.locator('#tariff-form [data-rate=sedeDay]')).toHaveValue('6');
   await ad.locator('#tariff-form [data-rate=sedeDay]').fill('5');
@@ -420,4 +421,16 @@ test('rastreio mantém consulta segura por HTTPS quando WebSocket não está dis
   await expect(page.locator('#connection')).toContainText('10 s');
   await db.ref(root).remove();
   await expect(page.locator('#status')).toContainText('encerrado',{timeout:15000});
+});
+
+
+test('notificações da loja mostram ausência de dispositivo sem afirmar entrega',async({page})=>{
+  await register(page,'store','push-status-'+Date.now()+'@example.test');
+  await page.locator('[data-action=push-settings]').click();
+  await expect(page.getByRole('dialog',{name:'Notificações e som'})).toBeVisible();
+  await page.locator('[data-push-test]').click();
+  await expect(page.locator('dialog [data-feedback]')).toContainText('Nenhum dispositivo cadastrado');
+  await expect(page.locator('[data-push-test]')).toBeEnabled();
+  await page.locator('dialog [data-close]').click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
