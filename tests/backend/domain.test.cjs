@@ -207,3 +207,17 @@ test('Web Push não aceita endpoint arbitrário, credenciais na URL ou porta int
   assert.equal(validWebEndpoint('https://fcm.googleapis.com/fcm/send/fake'),true);
   for(const url of ['https://127.0.0.1/private','https://fcm.googleapis.com.attacker.test/x','https://user:pass@fcm.googleapis.com/x','https://fcm.googleapis.com:9000/x']) assert.equal(validWebEndpoint(url),false);
 });
+
+test('notification channel schema is validated server-side; web registration transfers one browser without sharing accounts',()=>{
+ const P=require('../../functions/notification-policy');
+ const native=run(fixture(),'courierA','registerDevice',null,{token:'token-example-123456789012345',deviceId:'device',notificationSchema:P.SCHEMA});
+ assert.equal(native.result.notificationSchema,P.SCHEMA);
+ assert.equal(Object.values(native.state.fcmTokens.courierA)[0].notificationSchema,P.SCHEMA);
+ const endpoint='https://fcm.googleapis.com/fcm/send/browser';
+ const web=run(native.state,'storeA','registerWebDevice',null,{endpoint,keys:{p256dh:'a'.repeat(40),auth:'b'.repeat(20)},deviceId:'browser'});
+ const moved=run(web.state,'courierB','registerWebDevice',null,{endpoint,keys:{p256dh:'a'.repeat(40),auth:'b'.repeat(20)},deviceId:'browser'});
+ assert.equal(Object.keys(moved.state.pushSubscriptions.storeA||{}).length,0);
+ assert.equal(Object.keys(moved.state.pushSubscriptions.courierB).length,1);
+ assert.throws(()=>run(fixture(),'storeA','registerWebDevice',null,{endpoint:'https://evil.example/private',keys:{p256dh:'a'.repeat(40),auth:'b'.repeat(20)},deviceId:'browser'}));
+ assert.equal(moved.state.notificationAccounts.courierB.role,'courier');
+});

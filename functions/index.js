@@ -46,8 +46,12 @@ exports.processPushReminders = onSchedule({ schedule: "every 1 minutes", secrets
   for (const id of Object.keys(due.val() || {})) {
     const t = transports(); await createDispatcher(db, t.messaging, Date.now, t.web)(id);
   }
+  const retries=await db.ref('pushUpdateRetries').orderByChild('nextAt').endAt(now).limitToFirst(100).get();
+  for(const id of Object.keys(retries.val()||{})){const t=transports();await createUpdateDispatcher(db,t.messaging,Date.now,t.web)(id);}
 });
 
+const {createAlertNotification}=require('./alert-notifications');
+exports.onAlertCreated=onValueCreated({ref:'/alerts/{alertId}',region:'us-central1'},event=>createAlertNotification(db)(event.params.alertId));
 exports.onOrderUpdateCreated = onValueCreated({ ref: "/pushUpdates/{eventId}", region: "us-central1", secrets: pushSecrets }, async event => { const t = transports(); return createUpdateDispatcher(db, t.messaging, Date.now, t.web)(event.params.eventId); });
 
 // Retorna somente a chave pública. A chave privada permanece no Secret Manager.

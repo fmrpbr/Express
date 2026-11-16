@@ -37,6 +37,7 @@ public class MainActivity extends BridgeActivity {
             else android.os.Process.killProcess(android.os.Process.myPid());
         });
         }
+        registerPlugin(ExpressNotificationsPlugin.class);
         super.onCreate(state);
         String report = prefs.getString("last_crash", null);
         if (report != null) {

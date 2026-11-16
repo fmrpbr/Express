@@ -17,3 +17,5 @@ test-results/
 # Generated public tracking bundle
 public-tracking/
 functions/.env*
+
+www/notification-policy.js

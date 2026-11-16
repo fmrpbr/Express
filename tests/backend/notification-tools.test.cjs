@@ -10,7 +10,7 @@ function fixture(){
 test('notification config requires authentication and a registered profile',async()=>{
   const {run}=fixture();await assert.rejects(run(null,{action:'config'}),e=>e.code==='unauthenticated');
   await assert.rejects(run({uid:'stranger'},{action:'config'}),e=>e.code==='permission-denied');
-  assert.deepEqual(await run({uid:'store'},{action:'config'}),{vapidPublicKey:'public-key'});
+  assert.deepEqual(await run({uid:'store'},{action:'config'}),{vapidPublicKey:'public-key',version:'2.0.9'});
 });
 test('test notification only targets own uid, ignores supplied recipients and is rate limited',async()=>{
   const {run,state}=fixture();
@@ -23,4 +23,12 @@ test('no phantom successful test when no devices were registered',async()=>{
   const {run,state}=fixture();delete state['fcmTokens/store'];
   await assert.rejects(run({uid:'store'},{action:'test'}),e=>e.code==='failed-precondition');
   assert.equal(state['pushUpdates/1'],undefined);
+});
+
+test('a targeted test rejects another account/device and status is scoped to its owner',async()=>{
+ const {run,state}=fixture();
+ await assert.rejects(run({uid:'store'},{action:'test',target:{platform:'android',id:'not-owned'}}),e=>e.code==='permission-denied');
+ await assert.rejects(run({uid:'store'},{action:'status',eventId:'another-account-event'}),e=>e.code==='not-found');
+ state['pushTestResults/store/own']={requestedAt:123,devices:{x:{status:'sent',platform:'android',token:'DO NOT RETURN'}}};
+ assert.deepEqual(await run({uid:'store'},{action:'status',eventId:'own'}),{requestedAt:123,devices:[{status:'sent',platform:'android',code:null}]});
 });

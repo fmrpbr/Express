@@ -62,7 +62,7 @@ jobs:
           path.write_bytes(base64.b64decode(key, validate=True))
           path.chmod(0o600)
           PY
-      - name: Compilar APK 2.0.8 com notificações, pagamento e atalhos
+      - name: Compilar APK 2.0.9 com som próprio e diagnóstico de notificações
         working-directory: android
         run: |
           chmod +x gradlew

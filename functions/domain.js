@@ -177,8 +177,9 @@ function applyCommand(original, auth, command, context) {
       projectOrder(state, orderId, done, before, now);
     }
   } else if (action === "registerDevice") {
-    fail(who?.role === "store" || who?.role === "courier", "Perfil não encontrado.", "permission-denied");
+    fail(who?.role === "store" || who?.role === "courier" || auth.token?.admin===true, "Perfil não encontrado.", "permission-denied");
     fail(typeof input.token === "string" && input.token.length >= 20 && input.token.length <= 4096, "Token inválido.");
+    put(state,`notificationAccounts/${uid}`,{role:auth.token?.admin===true?'admin':who.role,updatedAt:now});
     const deviceId = key(input.deviceId, "Aparelho");
     const tokenId = require("node:crypto").createHash("sha256").update(input.token).digest("hex");
     // O mesmo aparelho/token fica ligado somente à conta autenticada atual.
@@ -187,7 +188,19 @@ function applyCommand(original, auth, command, context) {
         if (entry.token === input.token || entry.deviceId === deviceId) put(state, `fcmTokens/${owner}/${entryId}`, null);
       }
     }
-    put(state, `fcmTokens/${uid}/${tokenId}`, { token: input.token, deviceId, platform: "android", updatedAt: now });
+    const notificationSchema=input.notificationSchema===require('./notification-policy').SCHEMA?input.notificationSchema:'legacy';
+    put(state, `fcmTokens/${uid}/${tokenId}`, { token: input.token, deviceId, platform: "android", notificationSchema, updatedAt: now });
+    result.notificationSchema=notificationSchema;
+  } else if(action==='registerWebDevice') {
+    fail(who?.role==='store'||who?.role==='courier'||auth.token?.admin===true,'Perfil não encontrado.','permission-denied');
+    put(state,`notificationAccounts/${uid}`,{role:auth.token?.admin===true?'admin':who.role,updatedAt:now});
+    fail(typeof input.endpoint==='string'&&input.endpoint.length<=2048&&require('./notification-policy').validWebEndpoint(input.endpoint),'Endereço de notificações inválido.');
+    fail(input.keys&&['p256dh','auth'].every(k=>typeof input.keys[k]==='string'&&/^[A-Za-z0-9_-]{8,256}=?=?$/.test(input.keys[k])),'Chaves de inscrição inválidas.');
+    const deviceId=key(input.deviceId,'Navegador');
+    const subscriptionId=require('node:crypto').createHash('sha256').update(input.endpoint).digest('hex');
+    for(const [owner,entries]of Object.entries(state.pushSubscriptions||{}))for(const [entryId,entry]of Object.entries(entries))if(entry.endpoint===input.endpoint||entry.deviceId===deviceId)put(state,`pushSubscriptions/${owner}/${entryId}`,null);
+    put(state,`pushSubscriptions/${uid}/${subscriptionId}`,{endpoint:input.endpoint,keys:{p256dh:input.keys.p256dh,auth:input.keys.auth},deviceId,updatedAt:now});
+    result.subscriptionId=subscriptionId;
   } else if (["saveRates", "scheduleRates", "cancelRates", "scheduleRain"].includes(action)) {
     fail(auth.token?.admin === true, "Acesso administrativo necessário.", "permission-denied");
     if(action === "cancelRates") {

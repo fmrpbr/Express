@@ -1,14 +1,9 @@
 "use strict";
 const { createHash, randomUUID } = require("node:crypto");
 const { eligibleOrder, FIVE_MINUTES, courierSlots, COURIER_CAPACITY } = require("./domain");
-function validWebEndpoint(endpoint) {
-  try {
-    const url = new URL(endpoint);
-    return url.protocol === "https:" && !url.username && !url.password && (!url.port || url.port === "443") &&
-      (url.hostname === "fcm.googleapis.com" || url.hostname === "web.push.apple.com" || url.hostname.endsWith(".push.services.mozilla.com") || url.hostname.endsWith(".notify.windows.com"));
-  } catch (_) { return false; }
-}
-const CHANNELS = { order: "express_orders_v2", quote: "express_quotes_v2", reminder: "express_reminders_v2", update: "express_updates_v2" };
+const Policy=require('./notification-policy');
+const {validWebEndpoint}=Policy;
+const CHANNELS=Policy.LEGACY;
 function eligibleRecipient(state, uid, order, kind, orderId) {
   const prefs = state.pushPreferences?.[uid] || {};
   return !!state.profiles?.couriers?.[uid] && state.courierPresence?.[uid]?.availableForWork === true &&
@@ -62,10 +57,10 @@ function createDispatcher(db, messaging, clock = Date.now, webPush = null) {
         }
         try {
           if (device.platform === "android") {
-            await messaging.send({ token: device.token, notification: { title, body }, data: { type: job.kind, category, orderId: job.orderId },
-              android: { priority: "high", collapseKey: deliveryId.slice(0, 64), notification: { channelId: CHANNELS[category], tag: deliveryId, sound: "default", priority: "max", visibility: "private" } } });
+            await messaging.send({ token: device.token, notification: { title, body }, data: { type: job.kind, category, orderId: job.orderId, notificationId:deliveryId },
+              android: { priority: "high", ttl:300000, collapseKey: deliveryId.slice(0, 64), notification: { channelId: Policy.channel(device,category), tag: deliveryId, sound: device.notificationSchema===Policy.SCHEMA?"express_alert.wav":"default", icon:"ic_express_notification", priority: "max", visibility: "private" } } });
           } else {
-            await webPush.sendNotification({ endpoint: device.endpoint, keys: device.keys }, JSON.stringify({ title, body, orderId: job.orderId, type: job.kind, tag: deliveryId }), { TTL: 300 });
+            await webPush.sendNotification({ endpoint: device.endpoint, keys: device.keys }, JSON.stringify({ title, body, orderId: job.orderId, type: job.kind, category, tag: deliveryId }), { TTL: 300 });
           }
           await deliveryRef.update({ status: "sent", sentAt: clock() });
         } catch (error) {
@@ -86,37 +81,59 @@ function createDispatcher(db, messaging, clock = Date.now, webPush = null) {
 }
 function createUpdateDispatcher(db, messaging, clock = Date.now, webPush = null) {
   return async function dispatchUpdate(eventId) {
-    const update = (await db.ref(`pushUpdates/${eventId}`).get()).val();
-    if (!update || !Array.isArray(update.recipients)) return;
-    for (const uid of update.recipients) {
-      const root = (await db.ref().get()).val() || {};
-      if (!root.profiles?.stores?.[uid] && !root.profiles?.couriers?.[uid]) continue;
-      const devices = [
-        ...Object.entries(root.fcmTokens?.[uid] || {}).map(([id, device]) => ({ ...device, id, platform: "android" })),
-        ...Object.entries(root.pushSubscriptions?.[uid] || {}).map(([id, device]) => ({ ...device, id, platform: "web" }))
-      ];
-      for (const device of devices) {
-        const address = device.token || device.endpoint;
-        if (!address || (device.platform === "web" && (!webPush || !validWebEndpoint(device.endpoint)))) continue;
-        const id = createHash("sha256").update(`update:${eventId}:${uid}:${address}`).digest("hex");
-        const delivery = db.ref(`pushDeliveries/${id}`);
-        const claimed = await delivery.transaction(current => current ? undefined : { status: "submitting", createdAt: clock() });
-        if (!claimed.committed) continue;
-        const announcement=update.action==='announcement';
-        const title = update.action==='notification-test'?'Teste de notificação Express':announcement?update.title:update.action === "finish" ? "Entrega concluída" : update.action === "report-payment" ? "Pagamento informado" : update.action === "confirm-payment" ? "Recebimento confirmado" : update.action === "toggle-pay" ? "Atualização de pagamento" : "Sua entrega foi atualizada";
-        const body = update.action==='notification-test'?'Recebimento confirmado neste dispositivo. Confira o som nas configurações.':announcement?update.body:update.action === "finish" ? "Confira a entrega e informe o pagamento quando realizado." : update.action === "report-payment" ? "Confira sua conta e confirme o recebimento no aplicativo." : "Abra o Express Entregas para acompanhar.";
-        const data=update.action==='notification-test'?{type:'test',category:'update'}:announcement?{type:'announcement',noticeId:update.noticeId,category:'update'}:{type:'update',orderId:update.orderId,category:'update'};
+    const eventRef=db.ref(`pushUpdates/${eventId}`);
+    const event=(await eventRef.get()).val();
+    if(!event||!Array.isArray(event.recipients))return;
+    if(event.expiresAt && event.expiresAt<=clock()) {await db.ref(`pushUpdateRetries/${eventId}`).remove();return;}
+    const root=(await db.ref().get()).val()||{};
+    let nextRetry=null,foreignInFlight=false;
+    const category=event.action==='operational-alert'?'alert':event.action==='notification-test'?Policy.category(event.category):'update';
+    const titles={'notification-test':'Teste de notificação Express','operational-alert':'Novo alerta operacional',finish:'Entrega concluída','report-payment':'Pagamento informado','confirm-payment':'Recebimento confirmado','toggle-pay':'Atualização de pagamento'};
+    const title=event.action==='announcement'?event.title:titles[event.action]||'Sua entrega foi atualizada';
+    const body=event.action==='notification-test'?'Teste de aviso e som. Confira o toque neste dispositivo.':event.action==='operational-alert'?'Há um aviso novo na central de alertas. Abra o Express para conferir.':event.action==='announcement'?event.body:event.action==='finish'?'Confira a entrega e informe o pagamento quando realizado.':event.action==='report-payment'?'Confira sua conta e confirme o recebimento no aplicativo.':'Abra o Express Entregas para acompanhar.';
+    const data=event.action==='notification-test'?{type:'test',category,eventId}:event.action==='operational-alert'?{type:'alert',alertId:event.alertId,category}:event.action==='announcement'?{type:'announcement',noticeId:event.noticeId,category}:{type:'update',orderId:event.orderId,category};
+    for(const uid of [...new Set(event.recipients)]) {
+      if(!root.profiles?.stores?.[uid]&&!root.profiles?.couriers?.[uid]&&root.notificationAccounts?.[uid]?.role!=='admin')continue;
+      if(event.action==='operational-alert'&&root.pushPreferences?.[uid]?.alerts===false)continue;
+      const devices=[...Object.entries(root.fcmTokens?.[uid]||{}).map(([id,d])=>({...d,id,platform:'android'})),...Object.entries(root.pushSubscriptions?.[uid]||{}).map(([id,d])=>({...d,id,platform:'web'}))];
+      const seen=new Set();
+      for(const device of devices) {
+        if(event.testTarget&&(device.platform!==event.testTarget.platform||device.id!==event.testTarget.id))continue;
+        const address=device.token||device.endpoint;
+        if(!address||seen.has(address)||(device.platform==='web'&&!validWebEndpoint(device.endpoint)))continue;
+        seen.add(address);
+        const id=createHash('sha256').update(`update:${eventId}:${uid}:${address}`).digest('hex');
+        if(device.platform==='web'&&!webPush){if(event.action==='notification-test')await db.ref(`pushTestResults/${uid}/${eventId}/devices/${id}`).set({status:'failed',platform:'web',code:'web-push/not-configured'});continue;}
+        const delivery=db.ref(`pushDeliveries/${id}`),claimId=randomUUID(),now=clock();
+        const claim=await delivery.transaction(current=>{
+          if(current && !(current.status==='retry'&&current.nextAt<=now&&current.attempts<3))return;
+          return {status:'submitting',createdAt:current?.createdAt||now,attempts:(current?.attempts||0)+1,claimId};
+        });
+        if(!claim.committed||claim.snapshot.val()?.claimId!==claimId) {
+          const current=claim.snapshot.val();if(current?.status==='submitting')foreignInFlight=true;if(current?.status==='retry'&&current.attempts<3)nextRetry=Math.min(nextRetry??Infinity,current.nextAt);
+          continue;
+        }
+        const attempts=claim.snapshot.val().attempts;
+        const testRef=event.action==='notification-test'?db.ref(`pushTestResults/${uid}/${eventId}/devices/${id}`):null;
         try {
-          if (device.platform === "android") await messaging.send({ token: device.token, notification: { title, body }, data, android: { priority: "high", notification: { channelId: CHANNELS.update, tag: id, sound: "default", visibility: "private" } } });
-          else await webPush.sendNotification({ endpoint: device.endpoint, keys: device.keys }, JSON.stringify({ title, body, ...data, tag: id }), { TTL: 300 });
-          await delivery.update({ status: "sent", sentAt: clock() });
-        } catch (error) {
-          const invalid = ["messaging/registration-token-not-registered", "messaging/invalid-registration-token"].includes(error.code) || [404, 410].includes(error.statusCode);
-          if (invalid) await db.ref(`${device.platform === "android" ? "fcmTokens" : "pushSubscriptions"}/${uid}/${device.id}`).remove();
-          await delivery.update({ status: invalid ? "invalid" : "failed" });
+          // Revalidate account/device ownership after claiming; logout and account switch cancel delivery.
+          const path=`${device.platform==='android'?'fcmTokens':'pushSubscriptions'}/${uid}/${device.id}`;
+          const current=(await db.ref(path).get()).val();
+          if(!current||(current.token||current.endpoint)!==address){await delivery.update({status:'cancelled'});if(testRef)await testRef.set({status:'cancelled',platform:device.platform});continue;}
+          if(device.platform==='android')await messaging.send({token:device.token,notification:{title,body},data:{...data,notificationId:id},android:{priority:'high',ttl:300000,notification:{channelId:Policy.channel(device,category),tag:id,sound:device.notificationSchema===Policy.SCHEMA?'express_alert.wav':'default',icon:'ic_express_notification',visibility:'private',priority:'max'}}});
+          else await webPush.sendNotification({endpoint:device.endpoint,keys:device.keys},JSON.stringify({title,body,...data,tag:id}),{TTL:300,urgency:'high'});
+          await delivery.update({status:'sent',sentAt:clock()});if(testRef)await testRef.set({status:'sent',platform:device.platform,at:clock()});
+        }catch(error){
+          const f=Policy.failure(error);const retry=f.retryable&&attempts<3;const nextAt=clock()+60000*attempts;
+          if(f.invalid)await db.ref(`${device.platform==='android'?'fcmTokens':'pushSubscriptions'}/${uid}/${device.id}`).remove();
+          await delivery.update({status:f.invalid?'invalid':retry?'retry':'failed',code:f.code,...(retry?{nextAt}:{})});
+          if(retry)nextRetry=Math.min(nextRetry??Infinity,nextAt);
+          if(testRef)await testRef.set({status:f.invalid?'invalid':retry?'retry':'failed',platform:device.platform,code:f.code});
         }
       }
     }
+    if(nextRetry!==null)await db.ref(`pushUpdateRetries/${eventId}`).set({nextAt:nextRetry});
+    else if(!foreignInFlight)await db.ref(`pushUpdateRetries/${eventId}`).remove();
   };
 }
-module.exports = { createDispatcher, createUpdateDispatcher, eligibleRecipient, validWebEndpoint, CHANNELS };
+module.exports={createDispatcher,createUpdateDispatcher,eligibleRecipient,validWebEndpoint,CHANNELS};

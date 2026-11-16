@@ -167,3 +167,40 @@ test('notification test: native and web use production dispatcher, one submissio
   assert.equal(native[0].data.type,'test');assert.equal(native[0].android.notification.channelId,'express_updates_v2');
   assert.equal(web[0].type,'test');assert.ok(!JSON.stringify([...native,...web]).includes('orderId'));
 });
+
+test('audible channels and per-device tests route only to the selected device; service status never means audible receipt',{timeout:30000},async()=>{
+ await db.ref('fcmTokens/storeA').set({one:{token:'native-one',notificationSchema:'sound-v1'},two:{token:'native-two'}});
+ const tools=require('../../functions/notification-tools').createNotificationTools(db,()=>({vapidPublicKey:'public'}),()=>now);
+ const result=await tools(auth('storeA'),{action:'test',target:{platform:'android',id:'one'},category:'order'});
+ const messages=[];const dispatch=require('../../functions/notifications').createUpdateDispatcher(db,{send:async p=>messages.push(p)},()=>now);
+ await dispatch(result.eventId);
+ assert.equal(messages.length,1);assert.equal(messages[0].token,'native-one');
+ assert.equal(messages[0].android.notification.channelId,'express_orders_sound_v1');assert.equal(messages[0].android.notification.sound,'express_alert.wav');
+ const status=await tools(auth('storeA'),{action:'status',eventId:result.eventId});
+ assert.equal(status.devices[0].status,'sent');assert.ok(!JSON.stringify(status).includes('native-one'));
+});
+
+test('operational alerts create one private push event and expire; pausing offers does not stop them',{timeout:30000},async()=>{
+ const create=require('../../functions/alert-notifications').createAlertNotification(db,()=>now);
+ await db.ref('alerts/notice').set({senderId:'storeA',createdAt:now,expiresAt:now+7200000,message:'PRIVATE FREE TEXT'});
+ await Promise.all([create('notice'),create('notice')]);
+ const events=(await db.ref('pushUpdates').get()).val();assert.equal(Object.keys(events).length,1);
+ await db.ref('fcmTokens/courierA/d').set({token:'native',notificationSchema:'sound-v1'});
+ await db.ref('courierPresence/courierA/availableForWork').set(false);
+ const messages=[];await require('../../functions/notifications').createUpdateDispatcher(db,{send:async p=>messages.push(p)},()=>now)('alert_notice');
+ assert.equal(messages.length,1);assert.equal(messages[0].android.notification.channelId,'express_alerts_sound_v1');assert.equal(messages[0].data.type,'alert');
+ assert.ok(!JSON.stringify(messages).includes('PRIVATE FREE TEXT'));
+ await db.ref('alerts/expired').set({senderId:'storeA',createdAt:now,expiresAt:now-1});await create('expired');assert.equal(Object.keys((await db.ref('pushUpdates').get()).val()).length,1);
+});
+
+test('transient update failure retries at most three attempts; successful devices are never resent',{timeout:30000},async()=>{
+ let clock=now,calls=0;
+ await db.ref('fcmTokens/storeA/d').set({token:'token'});
+ await db.ref('pushUpdates/retry').set({recipients:['storeA'],action:'notification-test',createdAt:now});
+ const dispatch=require('../../functions/notifications').createUpdateDispatcher(db,{send:async()=>{calls++;const e=new Error('service unavailable');e.code='messaging/server-unavailable';throw e;}},()=>clock);
+ await dispatch('retry');assert.equal(calls,1);assert.ok((await db.ref('pushUpdateRetries/retry').get()).exists());
+ await dispatch('retry');assert.equal(calls,1);
+ clock+=60000;await dispatch('retry');assert.equal(calls,2);
+ clock+=120000;await dispatch('retry');assert.equal(calls,3);assert.equal((await db.ref('pushUpdateRetries/retry').get()).exists(),false);
+ await dispatch('retry');assert.equal(calls,3);
+});

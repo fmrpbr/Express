@@ -875,7 +875,8 @@
 
   // native-push-entry.js
   var BackgroundGeolocation = registerPlugin("BackgroundGeolocation");
-  window.ExpressNativePush = { PushNotifications, LocalNotifications, NativeSettings, BackgroundGeolocation, Share };
+  var NotificationSettings = registerPlugin("ExpressNotifications");
+  window.ExpressNativePush = { NotificationSettings, PushNotifications, LocalNotifications, NativeSettings, BackgroundGeolocation, Share };
 })();
 /*! Bundled license information:
 

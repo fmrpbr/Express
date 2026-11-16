@@ -576,6 +576,7 @@
 <div id="toasts" class="toastbox"></div>
 
 <script src="./firebase-config.js"></script>
+<script src="./notification-policy.js"></script>
 <script src="./payments.js"></script>
 <script src="./tariffs.js"></script>
 <script src="./admin-dashboard.js"></script>
@@ -674,37 +675,35 @@
   let nativePushListenersReady = false;
 
   async function saveNativeFcmToken(tokenValue){
-    if(!tokenValue || !currentUser || (role !== "courier" && role !== "store") || !window.Capacitor?.isNativePlatform?.()) return;
+    if(!tokenValue || !currentUser || (role !== "courier" && role !== "store" && role !== "admin") || !window.Capacitor?.isNativePlatform?.()) return;
     const tokenKey = await digestKey(tokenValue);
-    if (tokenKeyForDevice && tokenKeyForDevice !== tokenKey) await set(ref(db, "fcmTokens/" + currentUser.uid + "/" + tokenKeyForDevice), null);
+    const owner=currentUser.uid;
     let deviceId = localStorage.getItem("express_device_id");
     if(!deviceId) { deviceId = crypto.randomUUID(); localStorage.setItem("express_device_id", deviceId); }
-    await command("registerDevice", null, { token: tokenValue, deviceId });
+    const saved=await command("registerDevice", null, { token: tokenValue, deviceId, notificationSchema:window.ExpressNotificationPolicy.SCHEMA });
+    if(currentUser?.uid!==owner)return;
+    if(saved.notificationSchema!==window.ExpressNotificationPolicy.SCHEMA)throw new Error('Atualize as funções de notificações no Firebase para concluir a ativação.');
     tokenKeyForDevice = tokenKey;
   }
 
-  const EXPRESS_PUSH_CHANNELS = [
-    { id: "express_orders_v2", name: "Novos pedidos", description: "Novas corridas disponíveis para aceitar" },
-    { id: "express_quotes_v2", name: "Novas cotações", description: "Novas solicitações de cotação" },
-    { id: "express_reminders_v2", name: "Lembretes", description: "Lembretes de pedidos aguardando resposta" },
-    { id: "express_updates_v2", name: "Atualizações de entregas", description: "Retirada, conclusão e pagamento das suas entregas" }
-  ];
-
-  async function prepareNativePushChannels(pushApi){
-    if(!window.Capacitor?.isNativePlatform?.() || !pushApi?.createChannel) return;
-    const existing = await pushApi.listChannels().catch(() => ({ channels: [] }));
-    const existingIds = new Set((existing.channels || []).map(channel => channel.id));
-    for(const channel of EXPRESS_PUSH_CHANNELS){
-      if(existingIds.has(channel.id)) continue;
-      await pushApi.createChannel({
-        ...channel,
-        importance: 5,
-        visibility: 1,
-        vibration: true,
-        lights: true,
-        lightColor: "#EA1D2C"
-      });
-    }
+  const NotificationPolicy=window.ExpressNotificationPolicy;
+  const EXPRESS_PUSH_CHANNELS=Object.entries(NotificationPolicy.CHANNELS).map(([category,id])=>({id,name:NotificationPolicy.LABELS[category]}));
+  async function prepareNativePushChannels(){
+    if(!window.Capacitor?.isNativePlatform?.())return;
+    const api=window.ExpressNativePush?.NotificationSettings;
+    if(!api)throw new Error('Atualize para o APK 2.0.9 para preparar som e diagnóstico.');
+    await api.prepare();
+  }
+  const receivedPushIds=new Set();
+  let pendingPushNavigation=null;
+  function navigateFromPush(extra){
+    pendingPushNavigation=extra;
+    if(!currentUser)return;
+    if(extra.type==='alert'){view='alerts';render();}
+    else if(extra.type==='announcement'){view='tariffs';render();}
+    else if(extra.orderId){pendingPushOrderId=extra.orderId;mergeOrders();}
+    else if(extra.type==='test')openPushSettings().catch(()=>{});
+    pendingPushNavigation=null;
   }
 
   let nativeRegistrationWaiter = null;
@@ -719,6 +718,7 @@
       await Promise.all([
         pushApi.addListener("registration", async token => {
           pendingFcmToken = token.value;
+          if(!currentUser)return;
           try {
             await saveNativeFcmToken(token.value);
             nativeRegistrationWaiter?.resolve();
@@ -736,34 +736,26 @@
           toast("Falha ao obter token FCM: " + String(detail).slice(0,100), "warn");
         }),
         pushApi.addListener("pushNotificationReceived", async notification => {
+          if(!currentUser)return;
+          const notificationId=notification.data?.notificationId||notification.id;
+          if(notificationId&&receivedPushIds.has(notificationId))return;
+          if(notificationId){receivedPushIds.add(notificationId);if(receivedPushIds.size>200)receivedPushIds.delete(receivedPushIds.values().next().value);}
           const title = notification.title || "Express Entregas";
           const body = notification.body || "Você recebeu uma nova notificação.";
           toast(title + ": " + body);
           const permission=await window.ExpressNativePush.LocalNotifications.checkPermissions();
           if(permission.display !== 'granted') {toast('Permita as notificações locais do Express nas configurações do Android.','warn');return;}
           const category = notification.data?.category || "order";
-          const channels = { order:"express_orders_v2", quote:"express_quotes_v2", reminder:"express_reminders_v2", update:"express_updates_v2" };
+          const channels = NotificationPolicy.CHANNELS;
           try {
             await window.ExpressNativePush.LocalNotifications.schedule({ notifications: [{
               id: crypto.getRandomValues(new Uint32Array(1))[0] % 2147483647,
-              title, body, channelId: channels[category] || channels.order, extra: notification.data || {}
+              title, body, channelId: channels[category] || channels.update, smallIcon:"ic_express_notification", extra: notification.data || {}
             }] });
           } catch(error) { toast("Confira a permissão de notificações e o volume do Android.", "warn"); }
         }),
-        window.ExpressNativePush.LocalNotifications.addListener("localNotificationActionPerformed", action => {
-          const extra = action.notification?.extra || {};
-          if(extra.type==='announcement'){view='tariffs';if(currentUser)render();return;}
-          if(extra.orderId) { pendingPushOrderId = extra.orderId; view = extra.type === "quote" ? "quotes" : "available"; if(currentUser) mergeOrders(); }
-        }),
-        pushApi.addListener("pushNotificationActionPerformed", action => {
-          const extra = action.notification?.data || {};
-          if(extra.type==='announcement'){view='tariffs';if(currentUser)render();return;}
-          if(extra.orderId) {
-            pendingPushOrderId = extra.orderId;
-            view = role === "courier" ? (extra.type === "quote" ? "quotes" : "available") : "dashboard";
-            if(currentUser) mergeOrders();
-          }
-        })
+        window.ExpressNativePush.LocalNotifications.addListener("localNotificationActionPerformed", action => navigateFromPush(action.notification?.extra||{})),
+        pushApi.addListener("pushNotificationActionPerformed", action => navigateFromPush(action.notification?.data||{}))
       ]);
       nativePushListenersReady = true;
       return true;
@@ -809,6 +801,8 @@
   function checkUrlTracking(){
     let hash = window.location.hash;
     if(hash.startsWith("#order=")) { pendingPushOrderId = hash.slice(7); if(currentUser) mergeOrders(); }
+    if(hash==='#alerts'&&currentUser){view='alerts';render();}
+    if(hash==='#notices'&&currentUser){view='tariffs';render();}
     if(hash.startsWith("#track=")) {
       openPublicTracker(hash.replace("#track=", ""));
     }
@@ -852,19 +846,19 @@
     window.location.hash = "";
   });
 
-  function playBeep() {
-    try {
-      let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      let osc = audioCtx.createOscillator();
-      let gain = audioCtx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.3);
-    } catch(e) {}
+  async function playBeep() {
+    const Audio=window.AudioContext||window.webkitAudioContext;
+    if(!Audio)throw new Error('Este navegador não oferece teste de áudio.');
+    const audio=new Audio();
+    try{
+      await audio.resume();
+      for(const [i,frequency]of [784,988,1175].entries()){
+        const osc=audio.createOscillator(),gain=audio.createGain(),start=audio.currentTime+i*0.35;
+        osc.frequency.value=frequency;gain.gain.setValueAtTime(0,start);gain.gain.linearRampToValueAtTime(0.35,start+0.015);gain.gain.exponentialRampToValueAtTime(0.001,start+0.27);
+        osc.connect(gain);gain.connect(audio.destination);osc.start(start);osc.stop(start+0.3);
+      }
+      setTimeout(()=>audio.close().catch(()=>{}),1400);
+    }catch(error){await audio.close();throw error;}
   }
 
   function saveClientFavorite(clientName, clientPhone, clientStreet, clientNumber, clientNeighborhood) {
@@ -994,7 +988,7 @@
 
   window.logout = async function() {
     stopGpsTracking();
-    if(currentUser && role !== "admin") {
+    if(currentUser) {
       if(role === "courier") await set(ref(db, "courierPresence/" + currentUser.uid + "/availableForWork"), false);
       if(tokenKeyForDevice) await set(ref(db, "fcmTokens/" + currentUser.uid + "/" + tokenKeyForDevice), null);
       if("serviceWorker" in navigator && !window.Capacitor?.isNativePlatform?.()) {
@@ -1004,6 +998,8 @@
       }
       if(presenceSessionRef) await set(presenceSessionRef, null);
     }
+    localStorage.removeItem('express_web_push_enabled');
+    tokenKeyForDevice=null;
     stopDataListeners();
     await signOut(auth);
     currentUser = null; actor = ""; role = "store"; data.orders = []; data.stores = []; data.couriers = [];
@@ -1102,7 +1098,7 @@
       setAuthFeedback("", "info");
       view = role === "courier" ? "available" : "dashboard";
       startDataListeners(); render();
-      if(role !== "admin" && window.Capacitor?.isNativePlatform?.()) {
+      if(window.Capacitor?.isNativePlatform?.()) {
         await setupNativePushListeners();
         const pushApi = window.ExpressNativePush?.PushNotifications;
         try {
@@ -1112,6 +1108,8 @@
       }
       refreshSavedClientsDatalist();
       checkUrlTracking();
+      if(pendingPushNavigation)navigateFromPush(pendingPushNavigation);
+      if(!window.Capacitor?.isNativePlatform?.()&&localStorage.getItem('express_web_push_enabled')==='1'&&window.Notification?.permission==='granted')enablePushNotifications().catch(()=>toast('Abra Notificações e som para sincronizar este navegador.','warn'));
     })();
     try { await sessionInitPromise; } finally { sessionInitPromise = null; }
   }
@@ -1122,6 +1120,7 @@
     startHeroTimers();
     startPresenceTracking();
     startAlertsListener();
+    unsubscribers.push(onValue(ref(db,"pushPreferences/"+currentUser.uid),snap=>{pushPreferences=snap.val()||{};}));
     loadWeather();
     for(const name of ['tariffPlans','tariffCancellations','rainPlans']) unsubscribers.push(onValue(ref(db,'config/'+name),snap=>{tariffConfig[name]=snap.val()||{};render();if(document.getElementById('order-sheet-overlay').classList.contains('active'))recalculateMobileFee();}));
     unsubscribers.push(onValue(ref(db,'systemNotices'),snap=>{systemNotices=Object.values(snap.val()||{});render();}));
@@ -1145,7 +1144,7 @@
       listenOrders("quotes", "quoteBoard");
       listenOrders("courier", "courierOrders/" + actor);
       unsubscribers.push(onValue(ref(db, "courierBids/" + actor), snap => { ownBids = snap.val() || {}; mergeOrders(); }));
-      unsubscribers.push(onValue(ref(db, "pushPreferences/" + actor), snap => { pushPreferences = snap.val() || {}; }));
+
     }
     unsubscribers.push(onValue(ref(db,"config/rates"), snap => {
       let value = snap.val();
@@ -1594,9 +1593,9 @@
     let timer;return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(message)),ms);})]).finally(()=>clearTimeout(timer));
   }
   const callNotificationTools=httpsCallable(functions,'notificationTools');
-  async function notificationTool(action){return (await callNotificationTools({action})).data;}
+  async function notificationTool(action,input={}){return (await callNotificationTools({action,...input})).data;}
   function pushError(error){
-    if(error?.code==='functions/not-found')return 'O servidor de notificações precisa ser atualizado. A ativação ainda não foi concluída.';
+    if(['functions/not-found','functions/unimplemented'].includes(error?.code))return 'O servidor de notificações precisa ser atualizado. A ativação ainda não foi concluída.';
     if(error?.name==='NotAllowedError')return 'Notificações bloqueadas. Abra as permissões deste site no navegador e permita notificações.';
     return error?.message||'Não foi possível concluir. Confira a conexão e tente novamente.';
   }
@@ -1618,14 +1617,14 @@
   async function enablePushNotifications(){
     if(window.Capacitor?.isNativePlatform?.()){
       const pushApi = window.ExpressNativePush?.PushNotifications;
-      if(!pushApi){ toast("Módulo nativo de notificações não foi carregado. Gere novamente o APK.", "warn"); return; }
-      if(role === "admin"){ toast("Entre com uma conta de loja ou motoboy para ativar notificações.", "warn"); return; }
+      if(!pushApi)throw new Error('Módulo nativo não carregado. Atualize o APK.');
+
       if(!currentUser){ toast("Entre na sua conta antes de ativar as notificações.", "warn"); return; }
       const listenersReady = await setupNativePushListeners();
-      if(!listenersReady){ toast("Não foi possível preparar o registro FCM. Gere novamente o APK após corrigir a integração Android.", "warn"); return; }
+      if(!listenersReady)throw new Error("Não foi possível preparar as notificações. Atualize o APK e tente novamente.");
       let permission = await pushApi.checkPermissions();
       if(permission.receive !== "granted") permission = await pushApi.requestPermissions();
-      if(permission.receive !== "granted"){ toast("Permissão de notificações não concedida.", "warn"); return; }
+      if(permission.receive !== "granted")throw new Error("Permissão de notificações não concedida no Android.");
       const localApi=window.ExpressNativePush.LocalNotifications;
       let localPermission=await localApi.checkPermissions();
       if(localPermission.display!=='granted')localPermission=await localApi.requestPermissions();
@@ -1639,9 +1638,9 @@
       return;
     }
     if(!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)){
-      toast("Este aparelho ou navegador não oferece suporte a notificações push.", "warn"); return;
+      throw new Error("Este navegador não oferece push. Abra o endereço diretamente no Chrome ou Edge, fora do ChatGPT ou WhatsApp.");
     }
-    if(role === "admin" || !currentUser) throw new Error("Entre com uma conta de loja ou motoboy para ativar notificações.");
+    if(!currentUser)throw new Error("Entre na sua conta para ativar notificações.");
     const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
     if(permission !== 'granted') throw new Error('Notificações não permitidas. Confira as permissões deste site no navegador.');
     const config = await notificationTool('config').catch(error => {
@@ -1650,7 +1649,7 @@
     });
     const vapidKey = config.vapidPublicKey || firebaseConfig.vapidPublicKey;
     if(!vapidKey){
-      toast("Falta configurar a chave pública VAPID no Firebase de testes. A inscrição ainda não pode ser concluída.", "warn"); return;
+      throw new Error("A chave pública VAPID não está configurada no Firebase.");
     }
     if(!window.isSecureContext) throw new Error('Notificações exigem uma página HTTPS.');
     const registration = await withTimeout(navigator.serviceWorker.register('./service-worker.js').then(()=>navigator.serviceWorker.ready), 15000, 'O serviço de notificações não iniciou. Abra o site diretamente no Chrome ou Edge e tente novamente.');
@@ -1664,13 +1663,14 @@
         applicationServerKey: urlBase64ToUint8Array(vapidKey)
       });
     }
-    const subscriptionId = await digestKey(subscription.endpoint);
-    await set(ref(db, "pushSubscriptions/" + currentUser.uid + "/" + subscriptionId), {
-      endpoint: subscription.endpoint,
-      keys: subscription.toJSON().keys || {},
-      updatedAt: Date.now()
-    });
-    toast("Este aparelho foi inscrito para receber notificações.");
+    const owner=currentUser?.uid;
+    if(!owner)throw new Error('Entre na sua conta antes de ativar.');
+    let deviceId=localStorage.getItem('express_web_device_id');
+    if(!deviceId){deviceId=crypto.randomUUID();localStorage.setItem('express_web_device_id',deviceId);}
+    await command('registerWebDevice',null,{endpoint:subscription.endpoint,keys:subscription.toJSON().keys||{},deviceId});
+    if(currentUser?.uid!==owner)throw new Error('A sessão mudou. Ative na conta atual.');
+    localStorage.setItem('express_web_push_enabled','1');
+    toast("Navegador registrado no servidor. Teste o recebimento.");
   }
 
   function esc(x){ return String(x==null?"":x).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -2299,44 +2299,76 @@
     });
   }
 
+  async function currentPushTarget(){
+    if(window.Capacitor?.isNativePlatform?.()){
+      if(!tokenKeyForDevice)throw new Error('Ative este aparelho antes do teste remoto.');
+      return {platform:'android',id:tokenKeyForDevice};
+    }
+    const registration=await navigator.serviceWorker?.getRegistration();
+    const subscription=await registration?.pushManager?.getSubscription();
+    if(!subscription)throw new Error('Nenhum dispositivo cadastrado neste navegador. Ative antes de testar.');
+    return {platform:'web',id:await digestKey(subscription.endpoint)};
+  }
   async function openPushSettings() {
-    if(role === "admin" || !currentUser) return;
-    const dialog = document.createElement("dialog");
-    dialog.className="express-dialog";dialog.setAttribute("aria-label","Notificações e som");
-    dialog.innerHTML = '<form><h2 style="margin-top:0">Notificações e som</h2><p data-push-status role="status">Conferindo este dispositivo...</p><div class="dialog-actions"><button type="button" class="btn primary" data-push-enable>Ativar neste dispositivo</button><button type="button" class="btn secondary" data-push-test>Testar recebimento</button></div><p>O teste envia uma notificação para os dispositivos cadastrados nesta conta. Confira também com o Express em segundo plano.</p>' +
-      (role === "courier" ? [["enabled","Receber novas ofertas"],["orders","Novos pedidos"],["quotes","Novas cotações"],["reminders","Lembretes a cada 5 minutos"]] : []).map(([key,label]) => '<label style="display:flex;align-items:center;gap:10px;margin:14px 0"><input style="width:auto" type="checkbox" name="'+key+'" '+(pushPreferences[key] !== false ? 'checked' : '')+'>'+label+'</label>').join('') +
-      '<p style="font-size:12px">Atualizações das suas entregas continuam disponíveis quando você pausa novas ofertas.</p>' +
-      (window.Capacitor?.isNativePlatform?.() ? '<button type="button" class="btn secondary full" data-sound-settings>Alterar som no Android</button>' : '<p>O som das notificações é controlado pelo navegador e pelo volume do computador. Permita notificações neste endereço.</p>') +
-      '<p data-feedback role="status"></p><div style="display:flex;gap:8px;margin-top:16px"><button type="button" class="btn secondary" data-close>Fechar</button><button type="submit" class="btn primary">Salvar preferências</button></div></form>';
+    if(!currentUser)return;
+    if(document.querySelector('[data-notification-dialog]'))return;
+    const native=window.Capacitor?.isNativePlatform?.();
+    const dialog=document.createElement('dialog');dialog.className='express-dialog';dialog.dataset.notificationDialog='true';dialog.setAttribute('aria-label','Notificações e som');
+    dialog.innerHTML='<form><h2>Notificações e som</h2><p data-push-status role="status">Conferindo este dispositivo...</p><div data-android-diagnostics></div><button type="button" class="btn primary full" data-push-enable>Ativar neste dispositivo</button><label for="push-category" style="display:block;margin-top:18px">Categoria para testar</label><select id="push-category">'+Object.entries(NotificationPolicy.LABELS).map(([k,v])=>'<option value="'+k+'" '+(k==='update'?'selected':'')+'>'+v+'</option>').join('')+'</select><div class="dialog-actions"><button type="button" class="btn secondary" data-local-test>'+(native?'Testar aviso e som no aparelho':'Testar som nesta tela')+'</button><button type="button" class="btn primary" data-push-test>Testar recebimento</button></div><p>O teste remoto vai somente para este dispositivo. Para testar em segundo plano, toque no botão e minimize o Express. O teste local confere o aparelho sem depender do servidor.</p>'+(native?'<button type="button" class="btn secondary full" data-sound-settings>Som da categoria selecionada</button>':'<p>O navegador controla o som do push em segundo plano. O teste de som nesta tela depende do volume de mídia e não comprova recebimento remoto. Abra o site diretamente no Chrome ou Edge.</p>')+(role==='courier'?[['enabled','Receber novas ofertas'],['orders','Novos pedidos'],['quotes','Novas cotações'],['reminders','Lembretes a cada 5 minutos']].map(([k,v])=>'<label style="display:flex;gap:10px;margin:14px 0"><input style="width:auto" type="checkbox" name="'+k+'" '+(pushPreferences[k]!==false?'checked':'')+'>'+v+'</label>').join(''):'')+'<label style="display:flex;gap:10px;margin:14px 0"><input style="width:auto" type="checkbox" name="alerts" '+(pushPreferences.alerts!==false?'checked':'')+'>Receber alertas operacionais</label><p>Atualizações das entregas continuam quando novas ofertas estão pausadas. O GPS permanece silencioso.</p><p data-feedback role="status" style="white-space:pre-line"></p><div class="dialog-actions"><button type="button" class="btn secondary" data-refresh>Conferir novamente</button><button type="button" class="btn secondary" data-close>Fechar</button><button type="submit" class="btn primary">Salvar preferências</button></div></form>';
     const feedback=dialog.querySelector('[data-feedback]');
-    const status=dialog.querySelector('[data-push-status]');
-    async function refreshStatus(){try{status.textContent=await pushDeviceStatus();}catch(error){status.textContent=error.message;}}
-    dialog.querySelector('[data-push-enable]').onclick=async event=>{
-      event.target.disabled=true;feedback.textContent='Ativando...';
-      try{await enablePushNotifications();feedback.textContent='Ativação solicitada. Confira o status e use Testar recebimento.';}
-      catch(error){feedback.textContent=pushError(error);}
-      finally{event.target.disabled=false;await refreshStatus();}
-    };
-    dialog.querySelector('[data-push-test]').onclick=async event=>{
-      event.target.disabled=true;feedback.textContent='Solicitando teste ao servidor...';
-      try{await notificationTool('test');feedback.textContent='Teste solicitado ao servidor. Aguarde a notificação. Se não chegar, confira permissões, som e conexão.';}
-      catch(error){feedback.textContent=pushError(error);}
-      finally{event.target.disabled=false;}
-    };
-    refreshStatus();
-    dialog.querySelector('[data-close]').onclick = () => dialog.close();
-    dialog.querySelector('[data-sound-settings]')?.addEventListener('click', async () => {
-      try { await window.ExpressNativePush.NativeSettings.openAndroid({ option: "app_notification" }); }
-      catch(error) { dialog.querySelector('[data-feedback]').textContent = "Abra Configurações do Android, Aplicativos, Express Entregas, Notificações e escolha a categoria."; }
+    const owner=currentUser.uid;
+    let closed=false;
+    const category=()=>NotificationPolicy.category(dialog.querySelector('#push-category').value);
+    async function refresh(){
+      try{
+        dialog.querySelector('[data-push-status]').textContent=await pushDeviceStatus();
+        if(native){
+          const status=await window.ExpressNativePush.NotificationSettings.status();
+          const warnings=[];
+          if(!status.permission)warnings.push('Notificações bloqueadas no Android.');
+          if(status.volume===0)warnings.push('Volume de notificações zerado.');
+          if(status.ringerMode!==2)warnings.push(status.ringerMode===1?'Celular no modo vibrar.':'Celular no modo silencioso.');
+          if(status.doNotDisturb)warnings.push('Não perturbe está ativado.');
+          const channels=(status.channels||[]).map(c=>c.name+': '+(!c.exists?'não preparada':c.importance<3?'silenciosa ou bloqueada':!c.sound?'sem toque':'som configurado')).join('\n');
+          dialog.querySelector('[data-android-diagnostics]').textContent=(warnings.length?warnings.join('\n'):'Volume e permissão sem bloqueio detectado.')+'\n'+channels+(status.batteryOptimized?'\nEconomia de bateria ativa: se houver atrasos, confira as restrições do Express no Android.':'');
+          dialog.querySelector('[data-android-diagnostics]').style.cssText='white-space:pre-line;font-size:12px;line-height:1.6;margin:14px 0;padding:12px;background:#f8fafc;border-radius:12px';
+        }
+      }catch(error){feedback.textContent=pushError(error);}
+    }
+    async function run(button,fn){button.disabled=true;try{if(currentUser?.uid!==owner)throw new Error('Entre novamente na sua conta.');await fn();}catch(error){feedback.textContent=pushError(error);}finally{button.disabled=false;}}
+    dialog.querySelector('[data-push-enable]').onclick=event=>run(event.currentTarget,async()=>{feedback.textContent='Ativando...';await enablePushNotifications();feedback.textContent='Registro concluído. Confira o diagnóstico e teste o recebimento.';await refresh();});
+    dialog.querySelector('[data-local-test]').onclick=event=>run(event.currentTarget,async()=>{
+      if(native){
+        const api=window.ExpressNativePush.LocalNotifications;
+        if((await api.checkPermissions()).display!=='granted')throw new Error('Ative a permissão de notificações primeiro.');
+        await prepareNativePushChannels();
+        await api.schedule({notifications:[{id:crypto.getRandomValues(new Uint32Array(1))[0]%2147483647,title:'Teste local · '+NotificationPolicy.LABELS[category()],body:'Este teste verifica o aviso e o som no aparelho, sem envio pela internet.',channelId:NotificationPolicy.CHANNELS[category()],smallIcon:'ic_express_notification',extra:{type:'test'}}]});
+        feedback.textContent='Aviso local solicitado ao Android. Confira o toque e use o diagnóstico se estiver silencioso.';
+      }else{await playBeep();feedback.textContent='Teste de áudio executado nesta tela. Agora teste o recebimento remoto.';}
+      await refresh();
     });
-    dialog.querySelector('form').onsubmit = async event => {
-      event.preventDefault();
-      const prefs = Object.fromEntries(["enabled","orders","quotes","reminders"].map(key => [key, dialog.querySelector('[name="'+key+'"]')?.checked !== false]));
-      try { if(role === "courier") await set(ref(db, "pushPreferences/" + currentUser.uid), prefs); dialog.close(); toast("Preferências salvas."); }
-      catch(error) { dialog.querySelector('[data-feedback]').textContent = "Não foi possível salvar. Verifique sua conexão."; }
-    };
-    dialog.addEventListener('close', () => dialog.remove(), { once: true });
-    document.body.appendChild(dialog); dialog.showModal();
+    dialog.querySelector('[data-push-test]').onclick=event=>run(event.currentTarget,async()=>{
+      const target=await currentPushTarget();feedback.textContent='Solicitando teste ao servidor...';
+      const test=await notificationTool('test',{target,category:category()});
+      feedback.textContent='Teste solicitado. Minimize o Express para conferir o aviso em segundo plano.';
+      if(!test.eventId)return;
+      for(let i=0;i<6&&!closed&&currentUser?.uid===owner;i++){
+        await new Promise(resolve=>setTimeout(resolve,2500));if(closed)return;
+        const result=await notificationTool('status',{eventId:test.eventId});
+        const states=result.devices||[];
+        if(states.some(d=>d.status==='sent')){feedback.textContent='Servidor entregou o teste ao serviço de notificações. Confira se o aviso apareceu e tocou neste dispositivo. Isso ainda não comprova que você ouviu o som.';return;}
+        if(states.some(d=>['failed','invalid','cancelled'].includes(d.status))){feedback.textContent='Envio não concluído: '+states.map(d=>d.status+(d.code?' ('+d.code+')':'')).join(', ')+'. Ative novamente e teste.';return;}
+        if(states.some(d=>d.status==='retry')){feedback.textContent='O serviço recusou temporariamente. O servidor fará nova tentativa limitada.';return;}
+      }
+      if(!closed)feedback.textContent='Teste na fila, sem confirmação do serviço até agora. Confira a publicação das funções e os registros do Firebase.';
+    });
+    dialog.querySelector('[data-sound-settings]')?.addEventListener('click',()=>run(dialog.querySelector('[data-sound-settings]'),()=>window.ExpressNativePush.NotificationSettings.settings({channel:NotificationPolicy.CHANNELS[category()]})));
+    dialog.querySelector('[data-refresh]').onclick=()=>refresh();
+    dialog.querySelector('[data-close]').onclick=()=>dialog.close();
+    dialog.querySelector('form').onsubmit=async event=>{event.preventDefault();try{if(currentUser?.uid!==owner)throw new Error('A sessão mudou.');await set(ref(db,'pushPreferences/'+owner),{...(role==='courier'?Object.fromEntries(['enabled','orders','quotes','reminders'].map(k=>[k,dialog.querySelector('[name="'+k+'"]').checked])):{}),alerts:dialog.querySelector('[name=alerts]').checked});dialog.close();toast('Preferências salvas.');}catch(error){feedback.textContent=pushError(error);}};
+    const onVisible=()=>{if(document.visibilityState==='visible')refresh();};document.addEventListener('visibilitychange',onVisible);
+    dialog.addEventListener('close',()=>{closed=true;document.removeEventListener('visibilitychange',onVisible);dialog.remove();},{once:true});
+    document.body.appendChild(dialog);dialog.showModal();refresh();
   }
 
   window.__express = {
@@ -2415,7 +2447,7 @@
   window.__expressModuleReady = true;
 </script>
 <script>
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && !window.Capacitor?.isNativePlatform?.()) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(err => console.warn('Service Worker:', err)));
 }
 </script>

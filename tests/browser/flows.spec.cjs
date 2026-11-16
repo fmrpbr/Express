@@ -434,3 +434,24 @@ test('notificações da loja mostram ausência de dispositivo sem afirmar entreg
   await page.locator('dialog [data-close]').click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
+
+test('diagnóstico nativo revela canal silencioso e volume zero, e teste local usa a categoria escolhida',async({page})=>{
+ await register(page,'store','native-diagnostic-'+Date.now()+'@example.test');
+ await page.evaluate(()=>{
+  window.__qaLocalNotifications=[];window.__qaSoundSettings=[];
+  window.Capacitor.isNativePlatform=()=>true;
+  window.ExpressNativePush.NotificationSettings={prepare:async()=>{},status:async()=>({permission:true,volume:0,ringerMode:0,doNotDisturb:true,batteryOptimized:true,channels:[{id:'express_orders_sound_v1',name:'Novos pedidos',exists:true,importance:2,sound:false}]}),settings:async value=>window.__qaSoundSettings.push(value)};
+  window.ExpressNativePush.LocalNotifications={checkPermissions:async()=>({display:'granted'}),schedule:async value=>window.__qaLocalNotifications.push(value)};
+ });
+ await page.locator('[data-action=push-settings]').click();
+ await expect(page.locator('[data-android-diagnostics]')).toContainText('Volume de notificações zerado');
+ await expect(page.locator('[data-android-diagnostics]')).toContainText('Não perturbe está ativado');
+ await expect(page.locator('[data-android-diagnostics]')).toContainText('silenciosa ou bloqueada');
+ await page.locator('#push-category').selectOption('order');
+ await page.locator('[data-local-test]').click();
+ await expect(page.locator('dialog [data-feedback]')).toContainText('Aviso local solicitado');
+ expect(await page.evaluate(()=>window.__qaLocalNotifications[0].notifications[0].channelId)).toBe('express_orders_sound_v1');
+ await page.locator('[data-sound-settings]').click();
+ expect(await page.evaluate(()=>window.__qaSoundSettings[0].channel)).toBe('express_orders_sound_v1');
+ await page.locator('[data-close]').click();
+});
