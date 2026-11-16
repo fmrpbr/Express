@@ -275,6 +275,62 @@ test('admin agenda tabela, perfis recebem aviso, preços antigos permanecem e ch
   for(const c of contexts)await c.close();
 });
 
+test('painel admin filtra, pagina, acompanha pagamentos e preserva detalhes sem permitir baixas',async({browser})=>{
+  await db.ref().set(null);
+  const now=Date.now(),email='ops-admin-'+now+'@example.test';
+  const user=await app.auth().createUser({email,password:'test-password-123'});
+  await app.auth().setCustomUserClaims(user.uid,{admin:true});
+  const baseOrder={storeId:'shopA',storeName:'LOJA A',courierId:'riderA',courierName:'MOTO A',serviceType:'delivery',fee:5,created:now,revision:1};
+  const orders={
+    runLate:{...baseOrder,orderCode:'EXP-ATRASO',status:'run',created:now-1800000,accepted:now-1560000,client:'<img src=x onerror="window.__leaked=true">',location:{lat:-19.8,lng:-40.2,updatedAt:now-300000}},
+    pending:{...baseOrder,orderCode:'EXP-PENDENTE',status:'done',created:now-86400000,completed:now-86400000},
+    reported:{...baseOrder,storeId:'shopB',storeName:'LOJA B',courierId:'riderB',orderCode:'EXP-INFORMADO',status:'done',fee:7,created:now-86400000,completed:now-86400000,paymentStatus:'reported'},
+    paid:{...baseOrder,orderCode:'EXP-PAGO',status:'done',fee:9,completed:now,paid:true},
+    cancelled:{...baseOrder,orderCode:'EXP-CANCELADO',status:'cancelled',fee:0},
+    reserve:{...baseOrder,courierId:'riderB',courierName:'MOTO B',orderCode:'COT-RESERVA',status:'cotacao_aceita'}
+  };
+  for(let i=0;i<21;i++)orders['open'+i]={...baseOrder,courierId:i===0?'riderA':null,courierName:i===0?'MOTO A':null,...(i===0?{assignedCourierId:'riderA'}:{}),orderCode:'EXP-ABERTO-'+i,status:'open',created:now-i};
+  await db.ref().set({orders,profiles:{stores:{shopA:{name:'LOJA A'},shopB:{name:'LOJA B'}},couriers:{riderA:{name:'MOTO A'},riderB:{name:'MOTO B'},riderC:{name:'MOTO C'},riderD:{name:'MOTO D'}}},courierPresence:{riderA:{availableForWork:true},riderB:{availableForWork:true},riderC:{availableForWork:false},riderD:{availableForWork:false}},courierConnections:{riderA:{s:{lastSeen:now}},riderB:{s:{lastSeen:now-100000}},riderD:{s:{lastSeen:now}}}});
+  const context=await browser.newContext({viewport:{width:393,height:852}}),page=await context.newPage();
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(base);await page.locator('#auth-email').fill(email);await page.locator('#auth-password').fill('test-password-123');await page.locator('[data-admin-login]').click();
+  await expect(page.locator('[data-admin-stat=orders-total] .stat-value')).toHaveText('27');
+  await expect(page.locator('[data-admin-stat=orders-open] .stat-value')).toHaveText('21');
+  await expect(page.locator('[data-admin-stat=finance-reported] .stat-value')).toContainText('7,00');
+  await expect(page.locator('[data-admin-stat=team-online] .stat-value')).toHaveText('2');
+  await expect(page.locator('[data-admin-stat=team-one] .stat-value')).toHaveText('1');
+  await expect(page.locator('[data-admin-stat=team-two] .stat-value')).toHaveText('1');
+  await expect(page.locator('[data-admin-order]')).toHaveCount(20);
+  await page.locator('[data-action=admin-page][data-id=next]').click();
+  await expect(page.locator('[data-admin-order]')).toHaveCount(7);
+  await page.locator('[data-action=admin-detail][data-id=runLate]').first().click();
+  await expect(page.locator('#admin-order-detail')).toContainText('<img src=x');
+  await expect(page.locator('#admin-order-detail img')).toHaveCount(0);
+  expect(await page.evaluate(()=>window.__leaked)).toBeUndefined();
+  await expect(page.locator('#admin-order-detail [data-action=report-payment],#admin-order-detail [data-action=confirm-payment],#admin-order-detail [data-action=cancel]')).toHaveCount(0);
+  await db.ref('orders/runLate').update({picked:now,location:{lat:-19.8,lng:-40.2,updatedAt:now},revision:2});
+  await expect(page.locator('#admin-order-detail')).toContainText('Retirada registrada');
+  await expect(page.locator('#content')).not.toContainText('Retirada não registrada há 25 minutos ou mais');
+  await page.locator('#admin-store').selectOption('shopB');await page.locator('#admin-payment').selectOption('reported');
+  await page.locator('#admin-filter-form button[type=submit]').click();
+  await expect(page.locator('[data-admin-order]')).toHaveCount(1);
+  await expect(page.locator('[data-admin-order]')).toContainText('EXP-INFORMADO');
+  await db.ref('orders/reported').update({paid:true,paymentStatus:'confirmed',paymentConfirmedAt:now,revision:2});
+  await expect(page.locator('[data-admin-order]')).toHaveCount(0);
+  await expect(page.locator('#admin-payment')).toHaveValue('reported');
+  await page.locator('#admin-search').fill('RASCUNHO');
+  await db.ref('courierConnections/riderD/s').set({lastSeen:Date.now()});
+  await expect(page.locator('#admin-search')).toHaveValue('RASCUNHO');
+  await page.locator('[data-action=admin-reset]').click();
+  await expect(page.locator('[data-admin-stat=finance-reported] .stat-value')).toContainText('0,00');
+  await expect(page.locator('[data-admin-stat=finance-confirmed] .stat-value')).toContainText('16,00');
+  expect((await db.ref('orders/runLate/fee').get()).val()).toBe(5);
+  expect((await db.ref('orders/reported/paymentConfirmedBy').get()).val()).toBeNull();
+  expect(errors).toEqual([]);
+  for(const width of [320,393,480]){await page.setViewportSize({width,height:852});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
+  await context.close();
+});
+
 test('rastreio mantém consulta segura por HTTPS quando WebSocket não está disponível',async({page})=>{
   const token='d'.repeat(64),root='publicTracking/'+token;
   await db.ref(root).set({orderCode:'EXP-FALLBACK',status:'open',expiresAt:Date.now()+600000,revoked:false});

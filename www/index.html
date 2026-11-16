@@ -553,6 +553,7 @@
 <script src="./firebase-config.js"></script>
 <script src="./payments.js"></script>
 <script src="./tariffs.js"></script>
+<script src="./admin-dashboard.js"></script>
 <script src="./vendor/native-push.bundle.js"></script>
 <script src="./vendor/firebase.bundle.js"></script>
 <script type="module">
@@ -581,6 +582,10 @@
   }
   const callOrderCommand = httpsCallable(functions, "orderCommand");
   let tariffConfig = {}, systemNotices = [], rainSignals = {};
+  let adminFilters=window.ExpressAdmin.defaults(),adminPage=0,adminSelectedOrderId=null;
+  let adminHealth={},adminLastDataAt=0,adminConnected=false,adminServerOffset=0;
+  function adminReceived(name){if(role==='admin'){adminHealth[name]='ready';adminLastDataAt=Date.now();}}
+  function adminLoadError(name){if(role==='admin'){adminHealth[name]='error';render();}}
   async function command(action, orderId, input = {}, requestId = crypto.randomUUID()) {
     if (!navigator.onLine) throw new Error("Sem conexão. Reconecte antes de confirmar esta ação.");
     const payload = { action, input, requestId };
@@ -851,7 +856,7 @@
 
   document.addEventListener("input", e => {
     const target = e.target;
-    const rateForm=target?.closest('#tariff-form,#rain-form');if(rateForm)rateForm.dataset.dirty='true';
+    const rateForm=target?.closest('#tariff-form,#rain-form,#admin-filter-form');if(rateForm)rateForm.dataset.dirty='true';
     // Campos de login e criação de conta preservam a digitação original, inclusive nomes e senhas.
     if (target && !target.hasAttribute("data-preserve-case") && !target.closest("#auth-form") && (target.matches('input:not([type="email"]):not([type="password"]):not([type="url"]):not([type="hidden"]):not([type="number"]):not([type="date"]):not([type="time"]), textarea'))) {
       const upper = target.value.toLocaleUpperCase("pt-BR");
@@ -955,6 +960,7 @@
   }
 
   function stopDataListeners() {
+    adminHealth={};adminLastDataAt=0;adminConnected=false;adminServerOffset=0;adminFilters=window.ExpressAdmin.defaults();adminPage=0;adminSelectedOrderId=null;
     tariffConfig={};systemNotices=[];rainSignals={};
     unsubscribers.forEach(fn => { try { fn(); } catch (_) {} }); unsubscribers = [];
     if(presenceTimer) clearInterval(presenceTimer);
@@ -996,8 +1002,9 @@
         if(existing && Number(existing.revision || 0) > Number(value.revision || 0)) incoming.set(id, existing);
       }
       orderSources.set(sourceKey, incoming);
+      if(sourceKey==='admin')adminReceived('orders');
       mergeOrders();
-    }, error => toast("Não foi possível carregar seus pedidos: " + error.message, "warn")));
+    }, error => {if(sourceKey==='admin')adminLoadError('orders');toast("Não foi possível carregar seus pedidos: " + error.message, "warn");}));
   }
 
   async function initializeSession(user) {
@@ -1048,11 +1055,14 @@
     unsubscribers.push(onValue(ref(db,'systemNotices'),snap=>{systemNotices=Object.values(snap.val()||{});render();}));
     if(role==='admin')unsubscribers.push(onValue(ref(db,'rainSignals'),snap=>{rainSignals=snap.val()||{};render();}));
     if (role === "admin") {
-      unsubscribers.push(onValue(ref(db, "profiles/stores"), snap => { let v=snap.val()||{}; data.stores=Object.entries(v).map(([id,x])=>({id,...x})); render(); }));
+      unsubscribers.push(onValue(ref(db,'.info/connected'),snap=>{adminConnected=snap.val()===true;render();}));
+      unsubscribers.push(onValue(ref(db,'.info/serverTimeOffset'),snap=>{adminServerOffset=Number(snap.val())||0;render();}));
+      unsubscribers.push(onValue(ref(db, "profiles/stores"), snap => { let v=snap.val()||{}; data.stores=Object.entries(v).map(([id,x])=>({id,...x}));adminReceived('stores');render(); },()=>adminLoadError('stores')));
       unsubscribers.push(onValue(ref(db, "profiles/couriers"), snap => {
         let v=snap.val()||{}; data.couriers=Object.entries(v).map(([id,x])=>({id,...x}));
+        adminReceived('couriers');
         render();
-      }));
+      },()=>adminLoadError('couriers')));
       listenOrders("admin", "orders");
     } else if (role === "store") {
       unsubscribers.push(onValue(ref(db,"profiles/stores/"+actor), snap => { let v=snap.val(); data.stores = v ? [{id:actor,...v}] : []; render(); }));
@@ -1124,12 +1134,14 @@
     const recalculate = () => {
       data.presence = (data.presence || []).map(p => ({ ...p, online: Object.values(connections[p.id] || {}).some(c => Date.now() - Number(c.lastSeen || 0) < 90000) }));
       renderHero();
+      if(role==='admin'&&['dashboard','all','reports'].includes(view))render();
     };
     unsubscribers.push(onValue(ref(db, "courierPresence"), snap => {
       data.presence = Object.entries(snap.val() || {}).map(([id, value]) => ({ id, ...value }));
+      adminReceived('presence');
       recalculate(); render();
-    }, () => toast("Não foi possível carregar a disponibilidade.", "warn")));
-    unsubscribers.push(onValue(ref(db, "courierConnections"), snap => { connections = snap.val() || {}; recalculate(); }));
+    }, () => {adminLoadError('presence');toast("Não foi possível carregar a disponibilidade.", "warn");}));
+    unsubscribers.push(onValue(ref(db, "courierConnections"), snap => { connections = snap.val() || {};adminReceived('connections');recalculate(); },()=>adminLoadError('connections')));
     presenceTimer = setInterval(() => {
       recalculate();
       if(presenceSessionRef && currentUser && navigator.onLine) update(presenceSessionRef, { lastSeen: serverTimestamp() }).catch(() => {});
@@ -1676,7 +1688,8 @@
   }
 
   function render(){
-    const drafts=Array.from(document.querySelectorAll('#tariff-form[data-dirty],#rain-form[data-dirty]')).map(form=>({id:form.id,version:form.dataset.baseVersion,fields:Array.from(form.querySelectorAll('input,select')).map((el,index)=>({index,value:el.value})),focus:form.contains(document.activeElement)?document.activeElement.id:null}));
+    const adminTeamOpen=document.getElementById('admin-team')?.open===true;
+    const drafts=Array.from(document.querySelectorAll('#tariff-form[data-dirty],#rain-form[data-dirty],#admin-filter-form[data-dirty]')).map(form=>({id:form.id,version:form.dataset.baseVersion,fields:Array.from(form.querySelectorAll('input,select')).map((el,index)=>({index,value:el.value})),focus:form.contains(document.activeElement)?document.activeElement.id:null}));
     let label = role === "store" ? "Lojista" : role === "courier" ? "Motoboy" : "Administrador";
     let people = role === "store" ? data.stores : role === "courier" ? data.couriers : [{id:"admin",name:"Administrador"}];
     if(role === "admin") actor = "admin"; if(people.length && !people.some(p => p.id === actor)) actor = people[0].id;
@@ -1714,10 +1727,12 @@
       if(target) { target.scrollIntoView({ block: "center" }); target.style.outline = "2px solid var(--primary)"; pendingPushOrderId = null; }
     }
     renderHero();
+    if(adminTeamOpen&&document.getElementById('admin-team'))document.getElementById('admin-team').open=true;
     for(const draft of drafts){const form=document.getElementById(draft.id);if(!form||form.dataset.baseVersion!==draft.version)continue;const fields=form.querySelectorAll('input,select');for(const field of draft.fields)if(fields[field.index])fields[field.index].value=field.value;form.dataset.dirty='true';if(draft.focus)document.getElementById(draft.focus)?.focus();}
   }
 
   function show(){
+    if(role==='admin'&&['dashboard','all','reports'].includes(view))return adminDashboard(view);
     if(view==="dashboard") return dashboard();
     if(view==="alerts") return alertsView();
     if(view==="new" && role==="store") { openOrderSheet(); return dashboard(); }
@@ -1820,6 +1835,12 @@
   }
 
   document.addEventListener("submit", async e => {
+    if(e.target.id==='admin-filter-form'){
+      e.preventDefault();if(role!=='admin')return;
+      const form=e.target,values=Object.fromEntries(new FormData(form));
+      if(values.period==='custom'&&(!values.from||!values.to||values.from>values.to)){form.querySelector('#admin-filter-feedback').textContent='Informe o início e o fim do intervalo, com a data final igual ou posterior à inicial.';return;}
+      adminFilters={...window.ExpressAdmin.defaults(),...values};adminPage=0;adminSelectedOrderId=null;delete form.dataset.dirty;render();return;
+    }
     if(['tariff-form','rain-form'].includes(e.target.id)){
       e.preventDefault();if(role!=='admin')return;
       const form=e.target,button=form.querySelector('button[type=submit]'),feedback=form.querySelector('[data-form-feedback]');
@@ -1894,6 +1915,58 @@
     }
   });
 
+  function adminTime(value){return value?new Date(Number(value)).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}):'Não registrado';}
+  function adminStatus(order){return ({open:'Aberto',run:'Em execução',done:'Concluído',cancelled:'Cancelado',cancelado_cotacao:'Cotação cancelada',cotacao:'Aguardando cotação',cotacao_aceita:'Cotação contratada'})[order.status]||'Estado não identificado';}
+
+  function adminFiltersHtml(){
+    const f=adminFilters;
+    const select=(name,label,entries)=>'<div class="field"><label for="admin-'+name+'">'+label+'</label><select id="admin-'+name+'" name="'+name+'">'+entries.map(([value,text])=>'<option value="'+esc(value)+'" '+(f[name]===value?'selected':'')+'>'+esc(text)+'</option>').join('')+'</select></div>';
+    return '<form id="admin-filter-form" class="panel" style="margin-bottom:14px"><h2>Filtros da seleção</h2><div class="grid cols">'+
+      select('store','Loja',[['','Todas as lojas'],...data.stores.map(s=>[s.id,s.name])])+select('courier','Motoboy',[['','Todos os motoboys'],...data.couriers.map(c=>[c.id,c.name])])+
+      select('period','Período de criação',[['all','Todo o histórico'],['today','Hoje em Aracruz'],['7','Últimos 7 dias'],['30','Últimos 30 dias'],['custom','Intervalo de datas']])+
+      select('status','Situação do pedido',[['all','Todas'],['open','Aberto'],['run','Em execução'],['done','Concluído'],['cancelled','Cancelado'],['quotes','Cotações']])+
+      select('payment','Pagamento de concluídos',[['all','Todos'],['pending','Ainda não informado'],['reported','Informado, aguardando confirmação'],['confirmed','Confirmado']])+
+      select('alert','Atenção necessária',[['all','Todos os pedidos'],['any','Qualquer alerta'],['waiting','Aberto há 15 minutos'],['pickup','Retirada após 25 minutos'],['gps','GPS sem atualização'],['payment','Pendência de dia anterior']])+
+      '<div class="field"><label for="admin-from">De (intervalo)</label><input type="date" name="from" id="admin-from" value="'+esc(f.from)+'"></div><div class="field"><label for="admin-to">Até (intervalo)</label><input type="date" name="to" id="admin-to" value="'+esc(f.to)+'"></div></div><div class="field full"><label for="admin-search">Buscar código, nome ou bairro</label><input id="admin-search" name="search" maxlength="120" value="'+esc(f.search)+'"></div><p>Datas pela criação do pedido, no horário de Aracruz. Os indicadores, alertas e valores abaixo seguem os filtros aplicados.</p><div class="buttons"><button class="btn primary" type="submit">Aplicar filtros</button><button class="btn secondary" type="button" data-action="admin-reset">Limpar filtros</button></div><p id="admin-filter-feedback" role="status"></p></form>';
+  }
+
+  function adminDashboard(mode){
+    if(role!=='admin')return '';
+    const required=['orders','stores','couriers','presence','connections'];
+    const ready=required.every(key=>adminHealth[key]==='ready');
+    const errors=required.some(key=>adminHealth[key]==='error');
+    const sync='<div class="info" role="status" data-admin-sync><b>'+(errors?'Falha ao carregar dados':!ready?'Carregando dados da operação':adminConnected?'Conectado ao Firebase':'Sem conexão com o Firebase')+'</b><p>'+(errors?'Algumas leituras falharam. Reabra o painel para tentar novamente.':!ready?'Os indicadores serão exibidos quando todas as leituras necessárias chegarem.':!adminConnected?'Exibindo os últimos dados recebidos. Eles podem estar desatualizados.':'Atualizações recebidas em tempo real. Alertas de tempo são recalculados a cada 15 segundos.')+'</p>'+(adminLastDataAt?'<small>Último recebimento: '+esc(adminTime(adminLastDataAt))+'</small>':'')+'</div>';
+    if(!ready)return '<h1>Painel da operação</h1>'+sync+(errors?'<button class="btn secondary" type="button" data-action="admin-reload">Reabrir painel</button>':'');
+    const model=window.ExpressAdmin,now=Date.now()+adminServerOffset;
+    const selected=model.filterOrders(data.orders,adminFilters,now),summary=model.overview(selected,now),staff=model.team(data.couriers,data.orders,data.presence,connections,now);
+    const metric=(id,label,value,help,filter)=>'<div data-admin-stat="'+id+'">'+stat(label,value,help,'')+(filter?'<button type="button" class="btn secondary tiny" data-action="admin-filter" data-id="'+filter+'">Ver pedidos</button>':'')+'</div>';
+    let html='<div class="head"><div><h1>'+(mode==='reports'?'Financeiro da operação':mode==='all'?'Pedidos da operação':'Painel da operação')+'</h1><p>Dados de todas as lojas e motoboys. Valores e horários registrados no servidor.</p></div></div>'+sync+adminFiltersHtml();
+    if(mode!=='reports')html+='<section class="panel"><h2>Pedidos na seleção</h2><div class="grid stats">'+metric('orders-total','Selecionados',summary.total,'Todos os estados')+metric('orders-open','Abertos',summary.open,'Aguardando aceite','status:open')+metric('orders-run','Em execução',summary.run,'Corridas ativas','status:run')+metric('orders-done','Concluídos',summary.done,'Entregas finalizadas','status:done')+metric('orders-cancelled','Cancelados',summary.cancelled,'Inclui cotações canceladas','status:cancelled')+metric('orders-quotes','Cotações',summary.quotes,'Pendentes ou contratadas','status:quotes')+'</div></section>';
+    if(mode!=='all')html+='<section class="panel" style="margin-top:14px"><h2>Financeiro da seleção</h2><p>Apenas entregas concluídas. Informar pagamento não confirma recebimento.</p><div class="grid stats">'+metric('finance-total','Valor das entregas',cash(summary.finance.total),summary.done+' concluída(s)')+metric('finance-pending','Não informado',cash(summary.unreportedValue),summary.pending+' pagamento(s)','payment:pending')+metric('finance-reported','Para conferir',cash(summary.finance.reported),summary.reported+' informado(s)','payment:reported')+metric('finance-confirmed','Confirmados',cash(summary.finance.received),summary.confirmed+' recebido(s)','payment:confirmed')+metric('finance-receivable','A acertar',cash(summary.finance.pending),'Inclui os informados')+metric('finance-overdue','Dias anteriores',cash(summary.finance.overdue),summary.finance.overdueCount+' pendência(s)')+'</div></section>';
+    if(mode==='dashboard'){
+      html+='<section class="panel" style="margin-top:14px"><h2>Atenção necessária · '+summary.issues.length+'</h2><p>Alertas para conferência. Eles não cancelam corridas nem bloqueiam usuários.</p><div class="list">'+(summary.issues.slice(0,10).map(issue=>'<article class="chip" style="display:block;overflow-wrap:anywhere"><b>'+esc(issue.order.orderCode||issue.order.id)+'</b><p>'+esc(issue.label)+'</p><small>'+esc(issue.order.storeName||'Loja')+' · '+esc(issue.order.courierName||'Sem motoboy')+'</small><div><button type="button" class="btn secondary tiny" data-action="admin-detail" data-id="'+esc(issue.order.id)+'">Conferir pedido</button></div></article>').join('')||empty('Nenhum alerta na seleção','Os critérios são 15 minutos em aberto, 25 sem retirada, mais de 2 sem GPS e pagamentos de dias anteriores.'))+'</div>'+(summary.issues.length>10?'<button class="btn secondary tiny" type="button" data-action="admin-filter" data-id="alert:any">Ver todos os pedidos com alerta</button>':'')+'</section>';
+      html+='<section class="panel" style="margin-top:14px"><h2>Equipe agora</h2><p>Situação atual de todos os motoboys, independente dos filtros dos pedidos. Conexão e ON/OFF são informações diferentes. Vagas contam corridas aceitas e reservas.</p><div class="grid stats">'+metric('team-total','Cadastrados',staff.total,'Equipe completa')+metric('team-online','Online',staff.online,'Sessão vista em menos de 90s')+metric('team-offline','Offline',staff.offline,'Sem sessão recente')+metric('team-zero','Sem vagas ocupadas',staff.zero,'Inclui offline e pausados')+metric('team-one','Uma vaga ocupada',staff.one,'Corrida ou reserva')+metric('team-two','Duas ou mais vagas',staff.two,'Corridas ou reservas')+'</div><details id="admin-team"><summary>Ver equipe e ocupação</summary><div class="list">'+(staff.roster.map(member=>'<article class="chip" style="display:block;overflow-wrap:anywhere"><b>'+esc(member.name)+'</b><p>'+(member.online?'ONLINE':'OFFLINE')+' · '+member.slots+'/2 VAGAS · '+(member.available?'OFERTAS ATIVADAS':'OFERTAS PAUSADAS')+'</p><small>'+member.running+' corrida(s) em execução</small>'+(member.location?'<p>Último GPS: '+esc(adminTime(member.location.updatedAt))+'</p>':'')+'<div><button class="btn secondary tiny" type="button" data-action="admin-courier" data-id="'+esc(member.id)+'">Filtrar pedidos deste motoboy</button></div></article>').join('')||empty('Nenhum motoboy cadastrado','Os cadastros aparecerão aqui.'))+'</div></details></section>';
+    }
+    const pages=Math.max(1,Math.ceil(selected.length/20));adminPage=Math.max(0,Math.min(adminPage,pages-1));
+    const rows=selected.slice(adminPage*20,adminPage*20+20);
+    const selectedOrder=data.orders.find(o=>o.id===adminSelectedOrderId);
+    if(selectedOrder)html+=adminOrderDetail(selectedOrder,!selected.some(o=>o.id===selectedOrder.id));
+    html+='<section class="panel" style="margin-top:14px"><h2>Pedidos encontrados · '+selected.length+'</h2><p>Página '+(adminPage+1)+' de '+pages+' · até 20 por página</p><div class="list">'+(rows.map(order=>{
+      const issues=model.alerts(order,now);
+      const payment=order.status==='done'?({pending:'Pagamento não informado',reported:'Pagamento informado, aguardando confirmação',confirmed:'Pagamento confirmado'})[window.ExpressPayments.paymentState(order)]:'';
+      return '<article class="order" data-admin-order="'+esc(order.id)+'"><b>'+esc(order.orderCode||order.id)+'</b><p>'+esc(adminStatus(order))+' · '+(order.status==='cotacao'?'A definir':cash(order.fee))+'</p><p>'+esc(order.storeName||'Loja sem nome')+' · '+esc(order.courierName||'Sem motoboy')+'</p><small>Criado em '+esc(adminTime(order.created))+'</small>'+(payment?'<p>'+payment+'</p>':'')+issues.map(issue=>'<p style="color:#9A3412">'+esc(issue.label)+'</p>').join('')+'<button type="button" class="btn secondary tiny" data-action="admin-detail" data-id="'+esc(order.id)+'">Ver detalhes</button></article>';
+    }).join('')||empty('Nenhum pedido corresponde aos filtros','Ajuste ou limpe a seleção.'))+'</div><div class="buttons" style="margin-top:12px"><button type="button" class="btn secondary tiny" data-action="admin-page" data-id="previous" '+(adminPage===0?'disabled':'')+'>Anterior</button><button type="button" class="btn secondary tiny" data-action="admin-page" data-id="next" '+(adminPage>=pages-1?'disabled':'')+'>Próxima</button></div></section>';
+    return html;
+  }
+
+  function adminOrderDetail(order,outside){
+    const t=window.ExpressAdmin,p=window.ExpressPayments;
+    const details=[['Loja',order.storeName],['Motoboy',order.courierName||'Não atribuído'],['Cliente',order.client],['Telefone do cliente',order.phone],['Endereço da loja',order.storeAddress],['Destino / coleta',order.address],['Observações',order.notes]];
+    const receiptLabel=order.paymentSchemaVersion===2&&order.paymentConfirmedBy===order.courierId?'Recebimento confirmado pelo motoboy':'Pagamento marcado no histórico anterior';
+    const milestones=[['Criado',order.created],['Aceito',order.accepted],['Retirada registrada',order.picked],['Concluído',order.completed],['Cancelado',order.cancelledAt],['Pagamento informado pela loja',order.paymentReportedAt],[receiptLabel,order.paymentConfirmedAt]];
+    return '<section class="panel" id="admin-order-detail" style="margin-top:14px;border:2px solid #CBD5E1;overflow-wrap:anywhere"><h2>Detalhes · '+esc(order.orderCode||order.id)+'</h2><p>'+esc(adminStatus(order))+' · '+(order.status==='cotacao'?'A definir':cash(order.fee))+'</p>'+(outside?'<p>Este pedido está fora dos filtros atuais. Os detalhes continuam acompanhando as atualizações.</p>':'')+details.filter(([,v])=>v).map(([label,value])=>'<p><b>'+label+':</b> '+esc(value)+'</p>').join('')+milestones.filter(([,v])=>v).map(([label,value])=>'<p><b>'+label+':</b> '+esc(adminTime(value))+'</p>').join('')+(order.cancellationReason?'<p><b>Motivo:</b> '+esc(order.cancellationReason)+'</p>':'')+(order.priceSnapshot?'<p>Tarifa registrada em '+esc(adminTime(order.priceSnapshot.calculatedAt))+'. Adicional de chuva registrado: '+cash(order.priceSnapshot.rainFee||0)+'.</p>':'<p>Registro anterior: valor já gravado preservado.</p>')+(order.status==='done'&&p.paymentState(order)==='confirmed'&&!order.paymentConfirmedAt?'<p>Pagamento já marcado no histórico anterior, sem horário adicional de confirmação registrado.</p>':'')+(order.status==='run'&&t.validLocation(order.location,Date.now())?'<p>GPS recebido em '+esc(adminTime(order.location.updatedAt))+'</p><a class="btn secondary tiny" target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/?mlat='+order.location.lat+'&mlon='+order.location.lng+'#map=16/'+order.location.lat+'/'+order.location.lng+'">Abrir última posição no mapa</a>':'')+'<p>Consulta administrativa. Pagamento continua sendo informado pela loja e confirmado pelo motoboy.</p><button type="button" class="btn secondary tiny" data-action="admin-close-detail">Fechar detalhes</button></section>';
+  }
+
   function dashboard(){
     const os=mine();
     const op=os.filter(o=>o.status==="open");
@@ -1933,6 +2006,7 @@
 
   setInterval(()=>{
     if(!currentUser)return;
+    if(role==='admin'&&['dashboard','all','reports'].includes(view))render();
     if(view==='rates'||view==='tariffs')render();
     if(document.getElementById('order-sheet-overlay').classList.contains('active'))recalculateMobileFee();
   },15000);
@@ -1996,6 +2070,27 @@
     actionsInFlight.add(lock);
     try {
       const order = data.orders.find(o => o.id === id);
+      if(action.startsWith('admin-')){
+        if(role!=='admin')throw Error('Acesso administrativo necessário.');
+        if(action==='admin-reload'){location.reload();return;}
+        if(action==='admin-reset'){adminFilters=window.ExpressAdmin.defaults();adminPage=0;adminSelectedOrderId=null;document.getElementById('admin-filter-form')?.removeAttribute('data-dirty');}
+        else if(action==='admin-detail'){if(!order)throw Error('Pedido não encontrado.');adminSelectedOrderId=id;}
+        else if(action==='admin-close-detail')adminSelectedOrderId=null;
+        else if(action==='admin-page')adminPage+=id==='next'?1:-1;
+        else if(action==='admin-courier'){adminFilters={...window.ExpressAdmin.defaults(),courier:id};adminPage=0;adminSelectedOrderId=null;view='all';document.getElementById('admin-filter-form')?.removeAttribute('data-dirty');}
+        else if(action==='admin-filter'){
+          const [field,value]=id.split(':');
+          if(!['status','payment','alert'].includes(field))throw Error('Filtro inválido.');
+          adminFilters={...adminFilters,[field]:value};
+          if(field==='status'){adminFilters.payment='all';adminFilters.alert='all';}
+          if(field==='payment'){adminFilters.status='done';adminFilters.alert='all';}
+          if(field==='alert'){adminFilters.status='all';adminFilters.payment='all';}
+          adminPage=0;adminSelectedOrderId=null;view='all';document.getElementById('admin-filter-form')?.removeAttribute('data-dirty');
+        }else throw Error('Ação administrativa não reconhecida.');
+        render();
+        if(action==='admin-detail')document.getElementById('admin-order-detail')?.scrollIntoView({block:'start'});
+        return;
+      }
       if(action==='reset-password'){
         const email=document.getElementById('auth-email').value.trim();
         if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('Informe seu e-mail no campo de login.');
