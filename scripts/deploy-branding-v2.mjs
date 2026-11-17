@@ -26,7 +26,7 @@ run(['scripts/check.mjs']);
 const browser=JSON.parse(await readFile('firebase.browser.json','utf8')).hosting;
 const tracking=JSON.parse(await readFile('firebase.json','utf8')).hosting;
 if(browser.site!==sites[0]||tracking.site!==sites[1])throw Error('Sites inesperados. Publicação interrompida.');
-const config=resolve('.browser-backups/firebase-identidade-'+Date.now()+'.json');
+const config=resolve('firebase.browser-release.json');
 // Deliberately omit database and functions: no rules, accounts or orders change.
 await writeFile(config,JSON.stringify({hosting:[browser,tracking]},null,2)+'\n');
 console.log('Referências anteriores preservadas em: '+backup);
