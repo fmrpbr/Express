@@ -1,5 +1,5 @@
 {
-  "version": "2.0.15",
+  "version": "2.0.16",
   "channel": "teste",
-  "notes": "Identidade visual unificada e versão compartilhada entre navegador e Android"
+  "notes": "Migração da distribuição pública para Firebase, preservando a identidade e os fluxos."
 }

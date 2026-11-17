@@ -401,8 +401,8 @@
       <p style="font-size:12px">A senha será definida no link enviado pelo Firebase. Este processo não cria uma conta nem concede acesso de administrador.</p>
       <button type="button" class="btn secondary full" data-action="recovery-back">Voltar para entrar</button>
     </section>
-    <p style="text-align:center;font-size:12px;margin:16px 0"><a href="./cadastro/" style="color:var(--red-dark)">Conheça o Express Entregas</a> · <a href="https://fmrpbr.github.io/Express/download/" style="color:var(--red-dark)">Baixar aplicativo</a></p>
-    <p data-app-version style="text-align:center;font-size:12px;color:#666;margin:14px 0 0">Versão 2.0.15</p>
+    <p style="text-align:center;font-size:12px;margin:16px 0"><a href="./cadastro/" style="color:var(--red-dark)">Conheça o Express Entregas</a> · <a href="https://express-v2-web-fmrpbr.web.app/download/" style="color:var(--red-dark)">Baixar aplicativo</a></p>
+    <p data-app-version style="text-align:center;font-size:12px;color:#666;margin:14px 0 0">Versão 2.0.16</p>
     <button type="button" id="admin-entry-button" class="btn secondary full" style="margin-top:15px; width:100%" data-admin-login>🔒 Entrar como Administrador</button>
   </div>
 </div>
@@ -419,7 +419,7 @@
   var note = document.createElement('p');
   note.id = 'registration-entry-note';
   note.className = 'info';
-  note.textContent = 'Pré-cadastro de ' + selected + '. Após criar a conta, aguarde a aprovação do administrador para usar o sistema.';
+  note.textContent = 'Pré-cadastro de ' + selected + '. Ap��s criar a conta, aguarde a aprovação do administrador para usar o sistema.';
   document.getElementById('auth-form').before(note);
 })();
 </script>
@@ -611,7 +611,7 @@
 <script src="./notice-policy.js"></script>
 <script src="./order-by-phone.js"></script>
 <script type="module">
-  const APP_VERSION="2.0.15";
+  const APP_VERSION="2.0.16";
   window.EXPRESS_APP_VERSION=APP_VERSION;
   document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão "+APP_VERSION);
   const { initializeApp, getDatabase, ref, set, update, push, get, onValue, query, orderByChild, equalTo, limitToLast, startAt, onDisconnect, serverTimestamp,

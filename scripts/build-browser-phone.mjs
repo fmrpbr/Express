@@ -13,4 +13,5 @@ rules.rules.storeCustomers={$uid:{$phone:item}};
 await writeFile('browser/database.rules.json',JSON.stringify(rules,null,2)+'\n');
 // Dedicated browser site: tracking and the APK deployment are not overwritten.
 await writeFile('firebase.browser.json',JSON.stringify({database:{rules:'browser/database.rules.json'},hosting:{site:'express-v2-web-fmrpbr',public:out,ignore:['**/.*'],headers:[{source:'**',headers:[{key:'Cache-Control',value:'no-cache'},{key:'X-Content-Type-Options',value:'nosniff'}]}]}},null,2)+'\n');
-console.log('Navegador 2.0.14 gerado a partir da mesma fonte do Android.');
+const release=JSON.parse(await readFile('release.json','utf8'));
+console.log('Navegador '+release.version+' gerado a partir da mesma fonte do Android.');
