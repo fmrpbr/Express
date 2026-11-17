@@ -405,6 +405,23 @@
   </div>
 </div>
 
+<script id="registration-entry">
+(function(){
+  var selected = new URLSearchParams(window.location.search).get('cadastro');
+  var profile = selected === 'lojista' ? 'store' : selected === 'motoboy' ? 'courier' : null;
+  if (!profile) return;
+  // Opens the existing registration UI. Account creation and approval stay on the server.
+  window.__expressUI.selectLoginRole(profile);
+  window.__expressUI.setAuthTab('register');
+  document.getElementById('field-extra').style.display = 'grid';
+  var note = document.createElement('p');
+  note.id = 'registration-entry-note';
+  note.className = 'info';
+  note.textContent = 'Pré-cadastro de ' + selected + '. Após criar a conta, aguarde a aprovação do administrador para usar o sistema.';
+  document.getElementById('auth-form').before(note);
+})();
+</script>
+
 <!-- Tela de Rastreio Público (#track) -->
 <div id="public-track-screen">
   <div class="track-box">
