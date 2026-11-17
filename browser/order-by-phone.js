@@ -1,8 +1,7 @@
 (function(){
   'use strict';
-  // Loaded only by build:browser. Native builds keep their original form and storage.
+  // Shared by browser and Android. Lookup remains scoped to the signed-in store.
   window.createBrowserPhoneOrders=function(ctx){
-    if(window.Capacitor?.isNativePlatform?.())return null;
     const {phoneKey,fingerprint}=window.ExpressPhoneCustomers;
     const form=document.getElementById('mobile-order-form'),phone=form.elements.phone;
     const owner=()=>ctx.owner();

@@ -255,6 +255,48 @@
       ".indexOn": [
         "until"
       ]
+    },
+    "storeCustomers": {
+      "$uid": {
+        "$phone": {
+          ".read": "auth != null && auth.uid === $uid && root.child('profiles/stores').child(auth.uid).exists() && (!root.child('profiles/stores').child(auth.uid).child('accessStatus').exists() || root.child('profiles/stores').child(auth.uid).child('accessStatus').val() === 'approved')",
+          ".write": "auth != null && auth.uid === $uid && root.child('profiles/stores').child(auth.uid).exists() && (!root.child('profiles/stores').child(auth.uid).child('accessStatus').exists() || root.child('profiles/stores').child(auth.uid).child('accessStatus').val() === 'approved')",
+          ".validate": "newData.hasChildren(['phone','name','street','number','neighborhood','reference','city','zone','revision','updatedAt']) && $phone.matches(/^55[1-9][0-9]{9,10}$/) && ((!data.exists() && newData.child('revision').val() === 1) || (data.exists() && newData.child('revision').val() === data.child('revision').val() + 1))",
+          "name": {
+            ".validate": "newData.isString() && newData.val().length <= 160 && newData.val().length > 0"
+          },
+          "street": {
+            ".validate": "newData.isString() && newData.val().length <= 160 && newData.val().length > 0"
+          },
+          "number": {
+            ".validate": "newData.isString() && newData.val().length <= 160 && newData.val().length > 0"
+          },
+          "neighborhood": {
+            ".validate": "newData.isString() && newData.val().length <= 120 && newData.val().length > 0"
+          },
+          "reference": {
+            ".validate": "newData.isString() && newData.val().length <= 160"
+          },
+          "city": {
+            ".validate": "newData.isString() && newData.val().length <= 120 && newData.val().length > 0"
+          },
+          "zone": {
+            ".validate": "newData.isString() && newData.val().length <= 120"
+          },
+          "phone": {
+            ".validate": "newData.isString() && newData.val() === $phone"
+          },
+          "revision": {
+            ".validate": "newData.isNumber()"
+          },
+          "updatedAt": {
+            ".validate": "newData.isNumber() && newData.val() >= now - 60000 && newData.val() <= now + 60000"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
     }
   }
 }

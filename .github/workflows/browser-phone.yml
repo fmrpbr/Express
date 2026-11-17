@@ -1,9 +1,9 @@
 name: Validar pedido por celular no navegador
 on:
   push:
-    branches: [web/pedido-por-celular]
+    branches: [web/pedido-por-celular, v2.0-testes-reais]
   pull_request:
-    paths: ['browser/**', 'scripts/*browser*', 'scripts/organize-browser.mjs', 'tests/browser-phone/**', 'tests/backend/browser-phone.test.cjs', 'tests/backend/browser-notices.test.cjs', 'tests/firebase-rules/browser-customers.test.mjs', 'playwright.phone.config.cjs', '.github/workflows/browser-phone.yml']
+    paths: ['www/**', 'browser/**', 'scripts/*browser*', 'scripts/organize-browser.mjs', 'tests/browser-phone/**', 'tests/backend/browser-phone.test.cjs', 'tests/backend/browser-notices.test.cjs', 'tests/firebase-rules/browser-customers.test.mjs', 'playwright.phone.config.cjs', '.github/workflows/browser-phone.yml']
 permissions:
   contents: read
 jobs:

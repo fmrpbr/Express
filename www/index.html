@@ -208,7 +208,7 @@
 .care-choice{display:flex;gap:10px;align-items:center;margin-top:12px;font-weight:750}.care-choice input{width:auto;flex-shrink:0}.order-care{border:2px solid #E9A126;background:#FFF7E6;border-radius:12px;padding:12px;margin:10px 0;overflow-wrap:anywhere;white-space:pre-wrap}.order-notes{background:#F2F3F5;border-left:4px solid var(--red);border-radius:8px;padding:12px;margin:10px 0;white-space:pre-wrap;overflow-wrap:anywhere}#field-notes{background:#FFF9EE;padding:14px;border-radius:12px}.registry-entry{display:grid;gap:8px;border-bottom:1px solid #ddd;padding:14px 0;overflow-wrap:anywhere}
  .route-stops{padding-left:20px;display:grid;gap:18px}.route-stops li{border-top:1px solid #ddd;padding-top:12px;overflow-wrap:anywhere}.route-stops p{margin:8px 0}.route-stops .btn{margin:5px 4px 0 0}#quote-price-mobile{font-size:18px;overflow-wrap:anywhere}
 </style>
-</head>
+<style>#mobile-order-form [hidden]{display:none!important}</style><style>.browser-preferences{margin-top:18px}.browser-preferences summary,.browser-notice-history summary{cursor:pointer;font-weight:800;padding:6px 0}.browser-preferences .quick-grid{margin-top:12px}.browser-spotlight{padding:12px 14px;margin-bottom:12px}.browser-spotlight p{margin:6px 0}.browser-spotlight small{font-size:11px}.browser-notice-history{margin:14px 0}.browser-notice-history .registry-entry{margin-top:12px}</style></head>
 <body>
 
 <script>
@@ -400,7 +400,7 @@
       <p style="font-size:12px">A senha será definida no link enviado pelo Firebase. Este processo não cria uma conta nem concede acesso de administrador.</p>
       <button type="button" class="btn secondary full" data-action="recovery-back">Voltar para entrar</button>
     </section>
-    <p data-app-version style="text-align:center;font-size:12px;color:#666;margin:14px 0 0">Versão 2.0.13</p>
+    <p data-app-version style="text-align:center;font-size:12px;color:#666;margin:14px 0 0">Versão 2.0.14</p>
     <button type="button" id="admin-entry-button" class="btn secondary full" style="margin-top:15px; width:100%" data-admin-login>🔒 Entrar como Administrador</button>
   </div>
 </div>
@@ -469,8 +469,8 @@
         </div>
 
         <div class="field full" id="field-client">
-          <label>Nome do Cliente (Com sugestão de favoritos)</label>
-          <input name="client" id="inp-client" list="saved-clients-list" required placeholder="João da Silva">
+          <label>Nome do cliente</label>
+          <input name="client" id="inp-client" required placeholder="João da Silva">
           <datalist id="saved-clients-list"></datalist>
         </div>
         <div class="field full" id="field-phone">
@@ -588,6 +588,9 @@
 <script src="./admin-dashboard.js"></script>
 <script src="./vendor/native-push.bundle.js"></script>
 <script src="./vendor/firebase.bundle.js"></script>
+<script src="./phone-customers.js"></script>
+<script src="./notice-policy.js"></script>
+<script src="./order-by-phone.js"></script>
 <script type="module">
   const APP_VERSION="2.0.13";
   window.EXPRESS_APP_VERSION=APP_VERSION;
@@ -907,7 +910,7 @@
         try { target.setSelectionRange(start, end); } catch (_) {}
       }
     }
-    if(e.target && e.target.id === "inp-client") {
+    if(false && e.target && e.target.id === "inp-client") {
       let val = e.target.value.trim().toLowerCase();
       try {
         let favs = JSON.parse(localStorage.getItem("express_clients_favs_" + currentUser?.uid) || "{}");
@@ -1161,7 +1164,7 @@
     unsubscribers.push(onValue(ref(db,"pushPreferences/"+currentUser.uid),snap=>{pushPreferences=snap.val()||{};}));
     loadWeather();
     for(const name of ['tariffPlans','tariffCancellations','rainPlans']) unsubscribers.push(onValue(ref(db,'config/'+name),snap=>{tariffConfig[name]=snap.val()||{};render();if(document.getElementById('order-sheet-overlay').classList.contains('active'))recalculateMobileFee();}));
-    unsubscribers.push(onValue(ref(db,'systemNotices'),snap=>{systemNotices=Object.values(snap.val()||{});render();}));
+    unsubscribers.push(onValue(ref(db,'systemNotices'),snap=>{systemNotices=Object.entries(snap.val()||{}).map(([id,n])=>({...n,id}));render();}));
     if(role==='admin')unsubscribers.push(onValue(ref(db,'rainSignals'),snap=>{rainSignals=snap.val()||{};render();}));
     if (role === "admin") {
       unsubscribers.push(onValue(ref(db,'.info/connected'),snap=>{adminConnected=snap.val()===true;render();}));
@@ -1194,6 +1197,15 @@
 
   function startHeroTimers() {
     updateHeroClock();
+    if (!window.__browserNoticeTimer)window.__browserNoticeTimer=setInterval(()=>{
+      if(!currentUser||!accountAllowed())return;
+      renderHero();
+      const current=window.ExpressBrowserNotices.select(systemNotices,serverNow()).spotlight;
+      for(const node of document.querySelectorAll("[data-browser-notice]")){
+        const title=node.querySelector("b")?.textContent;
+        if(!current||current.title!==title)node.remove();
+      }
+    },1000);
     if (!heroClockTimer) heroClockTimer = setInterval(updateHeroClock, 30000);
     if (!weatherTimer) weatherTimer = setInterval(loadWeather, 15 * 60 * 1000);
   }
@@ -1321,12 +1333,12 @@
     if (desc) desc.textContent = weather.unavailable ? "CLIMA INDISPONÍVEL" : (weatherLabel(weather.code || 0)[1] + " · MÁX " + weather.max + "° MÍN " + weather.min + "°");
     const track = document.getElementById("hero-alert-track");
     if (track) {
-      const alerts = activeAlerts().slice(0, 6).reverse();
-      if (!alerts.length) track.innerHTML = "<span>SEM AVISOS NO MOMENTO</span><span>SEM AVISOS NO MOMENTO</span>";
-      else {
-        const messages = alerts.map(a => '<span>' + esc((a.senderRole === "courier" ? "MOTOBOY" : "LOJISTA") + " • " + a.message) + '</span>').join("");
-        track.innerHTML = messages + messages;
-      }
+      const notices=window.ExpressBrowserNotices.select(systemNotices,serverNow());
+      const tickerNotices=view==='dashboard'?notices.ticker:[...(notices.spotlight?[notices.spotlight]:[]),...notices.ticker];
+      const messages=[...activeAlerts().slice(0,6).reverse().map(a=>(a.senderRole==="courier"?"MOTOBOY":"LOJISTA")+" • "+a.message),...tickerNotices.map(n=>"SISTEMA • "+n.title+" · "+n.body)];
+      const spans=messages.length?messages.map(message=>"<span>"+esc(message)+"</span>").join(""):"<span>SEM AVISOS NO MOMENTO</span>";
+      const signature=JSON.stringify(messages);
+      if(track.dataset.messages!==signature||track.dataset.rendered!==track.innerHTML){track.dataset.messages=signature;track.innerHTML=spans+spans;track.dataset.rendered=track.innerHTML;}
     }
   }
 
@@ -1401,9 +1413,11 @@
     delete form.dataset.requestId; delete form.dataset.payloadFingerprint;
     prepareSheet(editId, mode || "delivery", confirmedOrder);
     recalculateMobileFee();
+    phoneOrders?.open(form.dataset.mode==='quote',editId);
   };
 
   window.closeOrderSheet = function() {
+    phoneOrders?.close();
     addingRouteDelivery=false;
     document.getElementById("service-type-select").disabled=false;
     document.getElementById("order-sheet-overlay").classList.remove("active");
@@ -1889,18 +1903,21 @@
     const availabilityPanel = role === "courier"
       ? '<section class="panel" style="margin:0 0 14px;border:1px solid '+(workSlots>0?'#FED7AA':presence.availableForWork === true ? '#A7F3D0' : '#E5E7EB')+';background:'+(workSlots>0?'#FFF7ED':presence.availableForWork === true ? '#F0FDF4' : '#F8FAFC')+'"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b data-work-status style="display:block">'+workStatus+'</b><small style="color:var(--muted)">'+(activeRoute?'ROTA EM EXECUÇÃO · NOVAS CORRIDAS BLOQUEADAS':courierOccupiedSlots() >= 2 ? '2/2 VAGAS OCUPADAS · CONCLUA OU DEVOLVA UMA CORRIDA PARA ACEITAR OUTRA' : presence.availableForWork === true ? courierOccupiedSlots() + '/2 VAGAS OCUPADAS · VOCÊ PODE ACEITAR MAIS ' + (2-courierOccupiedSlots()) : courierOccupiedSlots() + '/2 VAGAS OCUPADAS · NOVAS OFERTAS PAUSADAS')+'</small></div><button type="button" class="btn '+(presence.availableForWork === true ? 'danger' : 'primary')+' tiny" data-toggle-availability>'+(presence.availableForWork === true ? 'PAUSAR' : 'FICAR DISPONÍVEL')+'</button></div></section>'
       : '';
+    const preferencesOpen=document.querySelector("[data-browser-preferences]")?.open===true;
     const review = window.ExpressPayments.summary(mine());
     const paymentNotice = role === "courier" && review.reportedCount ? '<div class="info" role="status"><b>'+review.reportedCount+' pagamento(s) para conferir · '+cash(review.reported)+'</b><p>A loja informou o pagamento. Confira sua conta e confirme o recebimento. Você pode continuar aceitando corridas.</p><button type="button" class="btn secondary tiny" data-nav="reports">Conferir pagamentos</button></div>' : '';
     const overdueNotice = role === "store" && review.overdueCount ? '<div class="info" role="status"><b>'+review.overdueCount+' pendência(s) de dias anteriores · '+cash(review.overdue)+'</b><p>Confira o que falta pagar e o que aguarda confirmação do motoboy.</p><button type="button" class="btn secondary tiny" data-nav="reports">Ver pendências</button></div>' : '';
     const t=window.ExpressTariffs;
     const weather=t.rain(tariffConfig);
-    const notices=systemNotices.filter(n=>n.expiresAt>Date.now()).sort((a,b)=>b.createdAt-a.createdAt).slice(0,3);
-    const noticeHtml=notices.map(n=>'<div class="info" role="status"><b>'+esc(n.title)+'</b><p>'+esc(n.body)+'</p></div>').join('');
+    const browserNotices=window.ExpressBrowserNotices.select(systemNotices,serverNow());
+    const notices=view==='dashboard'&&browserNotices.spotlight?[browserNotices.spotlight]:[];
+    const noticeHtml=notices.map(n=>'<div class="info browser-spotlight" data-browser-notice role="status"><b>'+esc(n.title)+'</b><p>'+esc(n.body)+'</p><small>Depois, consulte na barra de avisos ou no histórico.</small></div>').join('');
     const rainCount=Object.values(rainSignals).filter(s=>Date.now()-s.at<1800000).length;
     const rainNotice=role==='admin'&&rainCount?'<div class="info" role="status"><b>CHUVA SINALIZADA POR '+rainCount+' MOTOBOY(S)</b><p>Nos últimos 30 minutos. Confira a condição antes de agendar a taxa.</p><button type="button" class="btn secondary tiny" data-nav="rates">Gerenciar chuva</button></div>':'';
-    const tariffBanner=rainNotice+(weather.enabled?'<div class="info"><b>TAXA DIA DE CHUVA ATIVADA</b><p>Somente novos pedidos da sede. Consulte os valores em Tarifas.</p></div>':'')+noticeHtml;
-    const quickActions = role !== 'admin' ? '<section class="quick-controls" aria-label="Minha operação"><div class="quick-heading"><b>Minha operação</b><small>Preferências e informações</small></div><div class="quick-grid"><button type="button" data-nav="tariffs"><span>R$</span><b>Tarifas e avisos</b><small>Valores em vigor</small></button><button type="button" data-action="push-settings"><span>♬</span><b>Notificações e som</b><small>Ativar e testar</small></button>'+(role==='courier'?'<button type="button" data-nav="profile"><span>◇</span><b>Meu Pix</b><small>Dados para recebimento</small></button><button type="button" data-action="signal-rain"><span>☂</span><b>Sinalizar chuva</b><small>Avisar o administrador</small></button>':'')+'</div></section>' : '';
-    document.getElementById("content").innerHTML = availabilityPanel + quickActions + tariffBanner + paymentNotice + overdueNotice + show();
+    const tariffBanner=rainNotice+noticeHtml;
+    const quickActions = role !== 'admin' ? '<details class="quick-controls browser-preferences" data-browser-preferences><summary>⚙ Preferências e informações</summary><div class="quick-grid"><button type="button" data-nav="tariffs"><span>R$</span><b>Tarifas e avisos</b><small>Valores em vigor</small></button><button type="button" data-action="push-settings"><span>♬</span><b>Notificações e som</b><small>Ativar e testar</small></button>'+(role==='courier'?'<button type="button" data-nav="profile"><span>◇</span><b>Meu Pix</b><small>Dados para recebimento</small></button><button type="button" data-action="signal-rain"><span>☂</span><b>Sinalizar chuva</b><small>Avisar o administrador</small></button>':'')+'</div></details>' : '';
+    document.getElementById("content").innerHTML = availabilityPanel + tariffBanner + paymentNotice + overdueNotice + show() + quickActions;
+    if(preferencesOpen&&document.querySelector("[data-browser-preferences]"))document.querySelector("[data-browser-preferences]").open=true;
     if(pendingPushOrderId) {
       const card = document.querySelector('[data-order-id="' + CSS.escape(pendingPushOrderId) + '"]');
       if(!card && data.orders.some(order => order.id === pendingPushOrderId && order.status === "cotacao")) { view = "quotes"; document.getElementById("content").innerHTML = availabilityPanel + show(); }
@@ -1934,10 +1951,12 @@
 
   function alertsView(){
     const alerts = activeAlerts();
+    const selectedNotices=window.ExpressBrowserNotices.select(systemNotices,serverNow());
+    const systemHistory='<details class="panel browser-notice-history" data-browser-notice-history><summary>Histórico de avisos do sistema ('+selectedNotices.history.length+')</summary>'+selectedNotices.history.slice(0,100).map(n=>'<article class="registry-entry"><b>'+esc(n.title)+'</b><p>'+esc(n.body)+'</p><small>'+date(n.createdAt)+' · '+(selectedNotices.spotlight===n?'Em destaque':selectedNotices.ticker.includes(n)?'Na barra de avisos':'Substituído ou encerrado')+'</small></article>').join('')+'</details>';
     const history=(data.alertHistory||[]).slice(0,100);
     const canSend = role === "store" || role === "courier";
     return '<div class="head"><div><h1>Central de Alertas</h1><p>Avisos rápidos para quem está na operação.</p></div></div>' +
-      (canSend ? '<form id="alert-form" class="panel"><div class="field full"><label for="alert-message">NOVO AVISO</label><textarea id="alert-message" rows="3" maxlength="120" required placeholder="DIGITE UM AVISO CURTO..."></textarea><small style="color:var(--muted)">ATÉ 120 CARACTERES. O AVISO FICA VISÍVEL POR 2 HORAS.</small></div><button type="submit" class="btn primary full">PUBLICAR AVISO</button></form>' : '') +
+      systemHistory + (canSend ? '<form id="alert-form" class="panel"><div class="field full"><label for="alert-message">NOVO AVISO</label><textarea id="alert-message" rows="3" maxlength="120" required placeholder="DIGITE UM AVISO CURTO..."></textarea><small style="color:var(--muted)">ATÉ 120 CARACTERES. O AVISO FICA VISÍVEL POR 2 HORAS.</small></div><button type="submit" class="btn primary full">PUBLICAR AVISO</button></form>' : '') +
       '<section class="panel" style="margin-top:14px"><div class="panel-head"><h2>AVISOS ATIVOS</h2><span class="section-count">'+alerts.length+'</span></div>' +
       (alerts.length ? '<div class="list">'+alerts.map(a => '<article class="chip" style="display:grid;gap:6px;align-items:start"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>'+esc(a.senderRole === "courier" ? "MOTOBOY" : "LOJISTA")+' • '+esc(a.senderName || "USUÁRIO")+'</b><small>'+date(a.createdAt)+'</small></div><p style="margin:0;font-weight:750;color:var(--ink)">'+esc(a.message)+'</p>'+((role==='admin'||a.senderId===currentUser.uid)?'<button type="button" class="btn danger tiny" data-action="cancel-alert" data-id="'+esc(a.id)+'">Cancelar alerta</button>':'')+'</article>').join("")+'</div>' : empty("Nenhum aviso ativo","Quando alguém publicar um alerta, ele aparecerá aqui e na faixa superior.")) +
       '</section><section class="panel" style="margin-top:14px"><h2>Alertas cancelados</h2><p>'+(role==='admin'?'Entre os últimos 100 avisos.':'Seus avisos cancelados.')+'</p>'+history.map(a=>'<article class="registry-entry"><b>CANCELADO · '+esc(a.message)+'</b><small>'+esc(a.senderName)+' · '+date(a.cancelledAt)+'</small></article>').join('')+(history.length?'':'<p>Nenhum alerta cancelado.</p>')+'</section>';
@@ -2182,8 +2201,8 @@
       if(!st||!st.address)storeProfileWarning='<div class="info">⚠️ <b>Atenção:</b> Cadastre o endereço da loja em <a href="#" data-nav="profile">Perfil</a>.</div>';
     }
     const stats=stat("Em execução",run.length,"Corridas ativas","◷")+stat("Em aberto",op.length,"Aguardando motoboy","＋")+stat("Aguardando cotação",quotes.length,"Propostas pendentes","💬")+stat("Não acertados",unpaid.length,cash(unpaid.reduce((n,o)=>n+Number(o.fee||0),0)),"R$");
-    const section=(title,list,emptyTitle,emptyText)=>'<section class="panel dashboard-section"><div class="panel-head"><h2>'+title+'</h2><span class="section-count">'+list.length+'</span></div>'+(list.length?'<div class="list">'+list.map(card).join("")+'</div>':empty(emptyTitle,emptyText))+'</section>';
-    const recent=os.filter(o=>!["awaiting_return","awaiting_quote_return","route_draft"].includes(o.status)).slice().sort((a,b)=>Number(b.completed||b.cancelledAt||b.created||0)-Number(a.completed||a.cancelledAt||a.created||0)).slice(0,5);
+    const section=(title,list,emptyTitle,emptyText)=>!list.length?'':'<section class="panel dashboard-section"><div class="panel-head"><h2>'+title+'</h2><span class="section-count">'+list.length+'</span></div>'+(list.length?'<div class="list">'+list.map(card).join("")+'</div>':empty(emptyTitle,emptyText))+'</section>';
+    const recent=os.filter(o=>["done","cancelled","cancelado_cotacao","route_done","route_cancelled"].includes(o.status)).slice().sort((a,b)=>Number(b.completed||b.cancelledAt||b.created||0)-Number(a.completed||a.cancelledAt||a.created||0)).slice(0,5);
     const actions=role==="store"?'<div class="dashboard-actions"><button type="button" class="btn primary" data-open-sheet data-sheet-mode="delivery">＋ Pedir motoboy</button><button type="button" class="btn secondary" data-open-sheet data-sheet-mode="quote">💬 Pedir cotação</button></div>':"";
     return storeProfileWarning+'<div class="head"><div><h1>Olá, '+esc((person()||{name:"Admin"}).name.split(" ")[0])+'</h1><p>Prioridade para o que precisa de atenção agora.</p></div>'+actions+'</div><div class="grid stats">'+stats+'</div>'+(role==="store"?section("Em execução",run.sort((a,b)=>Number(b.accepted||0)-Number(a.accepted||0)),"Nenhuma corrida em execução","As corridas aceitas aparecerão aqui.")+section("Em aberto",op.sort((a,b)=>Number(a.created||0)-Number(b.created||0)),"Nenhum pedido em aberto","Os pedidos aguardando motoboy aparecerão aqui.")+section("Aguardando devolução",os.filter(o=>["awaiting_return","awaiting_quote_return"].includes(o.status)),"Nenhuma devolução pendente","As devoluções aguardando liberação aparecerão aqui.")+section("Aguardando cotação",quotes.sort((a,b)=>Number(b.created||0)-Number(a.created||0)),"Nenhuma cotação pendente","As propostas especiais aparecerão aqui."):"")+section("Atividade recente",recent,"Sem atividade recente","Os últimos pedidos aparecerão aqui.");
   }
@@ -2628,7 +2647,8 @@
     let k = f.bank.checked;
     let finalFee = isQuote ? 0 : calculateFee(p, false, b, k, selectedZone);
 
-    if(!isQuote && !completingQuote) saveClientFavorite(clientName, clientPhone, clientStreet, clientNumber, clientNeighborhood);
+    if(!phoneOrders?.validate())return;
+    const customerSnapshot=phoneOrders?.snapshot();
 
     let submitButton = f.querySelector('button[type="submit"]');
     submitButton.disabled = true; submitButton.textContent = "Salvando...";
@@ -2657,7 +2677,8 @@
       f.dataset.payloadFingerprint = payloadFingerprint;
       const saved=await command("saveOrder", editId || null, { ...orderPayload, isQuote }, f.dataset.requestId);
       delete f.dataset.requestId; delete f.dataset.payloadFingerprint;
-      toast(completingQuote ? "Pedido encaminhado ao motoboy contratado." : isQuote ? "Cotação publicada!" : "Pedido salvo!");
+      const customerSaved=await phoneOrders?.saved(customerSnapshot);
+      if(customerSaved!==false)toast(completingQuote ? "Pedido encaminhado ao motoboy contratado." : isQuote ? "Cotação publicada!" : "Pedido salvo!");
       const routeSaved=addingRouteDelivery;
       closeOrderSheet(); 
       if(routeSaved){if(!routeSelection.includes(saved.orderId))routeSelection.push(saved.orderId);addingRouteDelivery=false;view='routes';}else view = isQuote ? "quotes" : "open"; render();
@@ -2665,6 +2686,12 @@
     finally { submitButton.disabled = false; submitButton.textContent = "Confirmar e Enviar Pedido →"; }
   });
 
+  const phoneOrders=window.createBrowserPhoneOrders({
+    owner:()=>role==='store'&&accountAllowed()?currentUser?.uid:null,
+    lookup:async(uid,phone)=>(await get(ref(db,'storeCustomers/'+uid+'/'+phone))).val(),
+    save:async s=>{if(currentUser?.uid!==s.uid)throw Error('Sessão alterada');await set(ref(db,'storeCustomers/'+s.uid+'/'+s.key),{...s.data,phone:s.key,revision:s.revision+1,updatedAt:serverTimestamp()});},
+    recalculate:recalculateMobileFee,toast
+  });
   checkUrlTracking();
   window.__expressModuleReady = true;
 </script>

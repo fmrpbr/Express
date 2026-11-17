@@ -32,10 +32,10 @@ test('cliente novo, confirmação obrigatória, persistência em outro aparelho 
  await open(second);await lookup(second,'27998887766');await second.locator('[data-phone-use]').click();await second.locator('#inp-phone').fill('27991112233');await expect(second.locator('[data-phone-status]')).toContainText('Cliente novo');await expect(second.locator('#inp-street')).toHaveValue('');
  await context.close();await c2.close();
 });
-test('cotações e versão original do APK continuam sem a busca por celular',async({page})=>{
+test('cotações continuam reduzidas e fonte compartilhada do app contém busca por celular',async({page})=>{
  await login(page,'quotephone-'+Date.now()+'@example.test');
  await page.evaluate(()=>window.__express.openSheet(null,'quote'));await expect(page.locator('#phone-customer-panel')).toBeHidden();await expect(page.locator('#inp-phone')).not.toHaveAttribute('required','');
- await page.goto('http://127.0.0.1:8080/www/');expect(await page.locator('script[src*="order-by-phone"]').count()).toBe(0);
+ await page.goto('http://127.0.0.1:8080/www/');expect(await page.locator('script[src*="order-by-phone"]').count()).toBe(1);
 });
 test('conflito no cadastro avisa sem duplicar o pedido já enviado',async({page})=>{
  const uid=await login(page,'conflict-'+Date.now()+'@example.test');

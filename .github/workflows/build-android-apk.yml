@@ -57,7 +57,7 @@ jobs:
           path.write_bytes(base64.b64decode(key, validate=True))
           path.chmod(0o600)
           PY
-      - name: Compilar APK 2.0.13 com rotas, duas viagens e preservação do perfil
+      - name: Compilar APK 2.0.14 com pedido por celular e avisos organizados
         working-directory: android
         run: |
           chmod +x gradlew

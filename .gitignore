@@ -29,3 +29,7 @@ firebase.browser-release.json
 firebase.browser-rollback.json
 firebase.phone-test.json
 scripts/.browser-phone-runner.mjs
+
+www/phone-customers.js
+www/order-by-phone.js
+www/notice-policy.js
