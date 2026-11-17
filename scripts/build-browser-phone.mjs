@@ -1,5 +1,6 @@
 import {readFile,writeFile,mkdir,cp,rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
+import {organizeBrowser} from './organize-browser.mjs';
 const out='browser-dist';await rm(out,{recursive:true,force:true});await mkdir(out,{recursive:true});await cp('www',out,{recursive:true});
 let html=await readFile('www/index.html','utf8');
 html=html.replace('</head>','<style>#mobile-order-form [hidden]{display:none!important}</style></head>');
@@ -24,12 +25,13 @@ replace('      delete f.dataset.requestId; delete f.dataset.payloadFingerprint;\
       if(customerSaved!==false)toast(completingQuote`);
 replace('Nome do Cliente (Com sugestão de favoritos)','Nome do cliente');
 replace(' list="saved-clients-list"','');
-replace('Versão 2.0.13</p>','Navegador • Pedido por celular • 2.0.13-web.1</p>');
+replace('Versão 2.0.13</p>','Navegador • Pedido por celular • 2.0.13-web.2</p>');
+html=organizeBrowser(html);
 await writeFile(out+'/index.html',html);
-for(const name of ['phone-customers.js','order-by-phone.js'])await cp('browser/'+name,out+'/'+name);
+for(const name of ['phone-customers.js','order-by-phone.js','notice-policy.js'])await cp('browser/'+name,out+'/'+name);
 let worker=await readFile('www/service-worker.js','utf8');
-const version=createHash('sha256').update(html).update(await readFile('browser/order-by-phone.js')).update(await readFile('browser/phone-customers.js')).digest('hex').slice(0,12);
-worker=worker.replace(/const CACHE_NAME = .*;/,'const CACHE_NAME = "express-browser-phone-'+version+'";').replace("'./index.html',","'./index.html', './phone-customers.js', './order-by-phone.js',");
+const version=createHash('sha256').update(html).update(await readFile('browser/order-by-phone.js')).update(await readFile('browser/phone-customers.js')).update(await readFile('browser/notice-policy.js')).digest('hex').slice(0,12);
+worker=worker.replace(/const CACHE_NAME = .*;/,'const CACHE_NAME = "express-browser-phone-'+version+'";').replace("'./index.html',","'./index.html', './phone-customers.js', './order-by-phone.js', './notice-policy.js',");
 await writeFile(out+'/service-worker.js',worker);
 const config=JSON.parse(await readFile('firebase.json','utf8'));
 const rules=JSON.parse(await readFile('database.rules.json','utf8'));

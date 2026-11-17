@@ -59,3 +59,11 @@ Se já existia uma versão no site novo, restaura aquela versão. Na primeira pu
 ## Estado da entrega
 
 Código e testes preparados. Publicação no Firebase depende da sessão autenticada do proprietário. O endereço publicado não deve ser anunciado como disponível antes de executar o script e conferir uma solicitação no ambiente real.
+
+## Visão geral e avisos • web.2
+
+Somente no navegador: um aviso do sistema em destaque até 3 minutos após a publicação; depois, na barra do topo até completar 4 horas, respeitando expirações menores. Novos avisos do mesmo assunto substituem os anteriores, sem ressuscitar avisos vencidos. Agendamentos futuros continuam na barra até a vigência. O histórico permanece na Central de Alertas; o estado atual das tarifas e da chuva continua em Tarifas e avisos. Avisos operacionais dos usuários mantêm sua validade original de 2 horas, e pendências financeiras continuam visíveis.
+
+Preferências ficam recolhidas após os pedidos. Listas vazias são ocultas somente na visão geral; os contadores e as abas completas continuam disponíveis. A atividade recente mostra encerramentos, sem repetir pedidos ativos.
+
+Backup anterior à organização: branch `backup/antes-organizar-avisos-web-20261116`, commit `3a78011b6457ab0dadc47400dced192e3573ff94`. Publicar com o mesmo script após atualizar esta branch. A publicação e reversão continuam restritas ao site do navegador, sem recompilar APK.

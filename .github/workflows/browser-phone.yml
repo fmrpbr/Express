@@ -3,7 +3,7 @@ on:
   push:
     branches: [web/pedido-por-celular]
   pull_request:
-    paths: ['browser/**', 'scripts/*browser*', 'tests/browser-phone/**', 'tests/backend/browser-phone.test.cjs', 'tests/firebase-rules/browser-customers.test.mjs', 'playwright.phone.config.cjs', '.github/workflows/browser-phone.yml']
+    paths: ['browser/**', 'scripts/*browser*', 'scripts/organize-browser.mjs', 'tests/browser-phone/**', 'tests/backend/browser-phone.test.cjs', 'tests/backend/browser-notices.test.cjs', 'tests/firebase-rules/browser-customers.test.mjs', 'playwright.phone.config.cjs', '.github/workflows/browser-phone.yml']
 permissions:
   contents: read
 jobs:
