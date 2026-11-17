@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover,interactive-widget=resizes-content">
-<meta name="theme-color" content="#EA1D2C">
+<meta name="theme-color" content="#ed1726">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
@@ -15,7 +15,7 @@
 <title>Express Entregas — Rastreio e Cotações</title>
 
 <style>
-:root{--ink:#1A1A1A;--muted:#717171;--line:#F0F0F0;--paper:#F7F7F7;--green:#00A868;--green-dark:#007A4A;--mint:#E8F7EF;--orange:#E85D04;--orangebg:#FFF1E6;--red:#EA1D2C;--red-dark:#C8102E;--redbg:#FDECEC;--blue:#175CD3;--bluebg:#EFF8FF;--purple:#6941C6;--purplebg:#F4F3FF;--black:#1A1A1A;--primary:#EA1D2C;--primary-dark:#C8102E;--yellow:#FFC800;--radius:20px}
+:root{--ink:#1A1A1A;--muted:#717171;--line:#F0F0F0;--paper:#F7F7F7;--green:#00A868;--green-dark:#007A4A;--mint:#E8F7EF;--orange:#E85D04;--orangebg:#FFF1E6;--red:#ed1726;--red-dark:#C8102E;--redbg:#FDECEC;--blue:#175CD3;--bluebg:#EFF8FF;--purple:#6941C6;--purplebg:#F4F3FF;--black:#1A1A1A;--primary:#ed1726;--primary-dark:#C8102E;--yellow:#FFC800;--radius:20px}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}body{margin:0;background:#E9EBEE;color:var(--ink);font:14px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}button,input,select{font:inherit}button{cursor:pointer;border:0}img{max-width:100%}
 .app{min-height:100dvh;display:flex;flex-direction:column;background:#fff;max-width:480px;margin:0 auto;position:relative;box-shadow:0 0 0 1px #E5E7EB,0 20px 60px rgba(0,0,0,.08);overflow:hidden}
 /* Reserva o espaço da barra de status nos aparelhos Android, sem alterar a versão web */
@@ -208,7 +208,8 @@
 .care-choice{display:flex;gap:10px;align-items:center;margin-top:12px;font-weight:750}.care-choice input{width:auto;flex-shrink:0}.order-care{border:2px solid #E9A126;background:#FFF7E6;border-radius:12px;padding:12px;margin:10px 0;overflow-wrap:anywhere;white-space:pre-wrap}.order-notes{background:#F2F3F5;border-left:4px solid var(--red);border-radius:8px;padding:12px;margin:10px 0;white-space:pre-wrap;overflow-wrap:anywhere}#field-notes{background:#FFF9EE;padding:14px;border-radius:12px}.registry-entry{display:grid;gap:8px;border-bottom:1px solid #ddd;padding:14px 0;overflow-wrap:anywhere}
  .route-stops{padding-left:20px;display:grid;gap:18px}.route-stops li{border-top:1px solid #ddd;padding-top:12px;overflow-wrap:anywhere}.route-stops p{margin:8px 0}.route-stops .btn{margin:5px 4px 0 0}#quote-price-mobile{font-size:18px;overflow-wrap:anywhere}
 </style>
-<style>#mobile-order-form [hidden]{display:none!important}</style><style>.browser-preferences{margin-top:18px}.browser-preferences summary,.browser-notice-history summary{cursor:pointer;font-weight:800;padding:6px 0}.browser-preferences .quick-grid{margin-top:12px}.browser-spotlight{padding:12px 14px;margin-bottom:12px}.browser-spotlight p{margin:6px 0}.browser-spotlight small{font-size:11px}.browser-notice-history{margin:14px 0}.browser-notice-history .registry-entry{margin-top:12px}</style></head>
+<style>#mobile-order-form [hidden]{display:none!important}</style><style>.browser-preferences{margin-top:18px}.browser-preferences summary,.browser-notice-history summary{cursor:pointer;font-weight:800;padding:6px 0}.browser-preferences .quick-grid{margin-top:12px}.browser-spotlight{padding:12px 14px;margin-bottom:12px}.browser-spotlight p{margin:6px 0}.browser-spotlight small{font-size:11px}.browser-notice-history{margin:14px 0}.browser-notice-history .registry-entry{margin-top:12px}</style><link rel="stylesheet" href="./brand.css">
+</head>
 <body>
 
 <script>
@@ -400,7 +401,8 @@
       <p style="font-size:12px">A senha será definida no link enviado pelo Firebase. Este processo não cria uma conta nem concede acesso de administrador.</p>
       <button type="button" class="btn secondary full" data-action="recovery-back">Voltar para entrar</button>
     </section>
-    <p data-app-version style="text-align:center;font-size:12px;color:#666;margin:14px 0 0">Versão 2.0.14</p>
+    <p style="text-align:center;font-size:12px;margin:16px 0"><a href="./cadastro/" style="color:var(--red-dark)">Conheça o Express Entregas</a> · <a href="https://fmrpbr.github.io/Express/download/" style="color:var(--red-dark)">Baixar aplicativo</a></p>
+    <p data-app-version style="text-align:center;font-size:12px;color:#666;margin:14px 0 0">Versão 2.0.15</p>
     <button type="button" id="admin-entry-button" class="btn secondary full" style="margin-top:15px; width:100%" data-admin-login>🔒 Entrar como Administrador</button>
   </div>
 </div>
@@ -609,7 +611,7 @@
 <script src="./notice-policy.js"></script>
 <script src="./order-by-phone.js"></script>
 <script type="module">
-  const APP_VERSION="2.0.13";
+  const APP_VERSION="2.0.15";
   window.EXPRESS_APP_VERSION=APP_VERSION;
   document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão "+APP_VERSION);
   const { initializeApp, getDatabase, ref, set, update, push, get, onValue, query, orderByChild, equalTo, limitToLast, startAt, onDisconnect, serverTimestamp,
@@ -783,7 +785,7 @@
           const channels = NotificationPolicy.CHANNELS;
             await window.ExpressNativePush.LocalNotifications.schedule({ notifications: [{
               id: crypto.getRandomValues(new Uint32Array(1))[0] % 2147483647,
-              title, body, channelId: channels[category] || channels.update, smallIcon:"ic_express_notification", largeIcon:"ic_express_brand", iconColor:"#EA1D2C", extra: notification.data || {}
+              title, body, channelId: channels[category] || channels.update, smallIcon:"ic_express_notification", largeIcon:"ic_express_brand", iconColor:"#ed1726", extra: notification.data || {}
             }] });
           } catch(error) { toast("Confira a permissão de notificações e o volume do Android.", "warn"); }
         }),
@@ -2595,7 +2597,7 @@
         const api=window.ExpressNativePush.LocalNotifications;
         if((await api.checkPermissions()).display!=='granted')throw new Error('Ative a permissão de notificações primeiro.');
         await prepareNativePushChannels();
-        await api.schedule({notifications:[{id:crypto.getRandomValues(new Uint32Array(1))[0]%2147483647,title:'Teste local · '+NotificationPolicy.LABELS[category()],body:'Este teste verifica o aviso e o som no aparelho, sem envio pela internet.',channelId:NotificationPolicy.CHANNELS[category()],smallIcon:'ic_express_notification',largeIcon:'ic_express_brand',iconColor:'#EA1D2C',extra:{type:'test'}}]});
+        await api.schedule({notifications:[{id:crypto.getRandomValues(new Uint32Array(1))[0]%2147483647,title:'Teste local · '+NotificationPolicy.LABELS[category()],body:'Este teste verifica o aviso e o som no aparelho, sem envio pela internet.',channelId:NotificationPolicy.CHANNELS[category()],smallIcon:'ic_express_notification',largeIcon:'ic_express_brand',iconColor:'#ed1726',extra:{type:'test'}}]});
         feedback.textContent='Aviso local solicitado ao Android. Confira o toque e use o diagnóstico se estiver silencioso.';
       }else{await playBeep();feedback.textContent='Teste de áudio executado nesta tela. Agora teste o recebimento remoto.';}
       await refresh();

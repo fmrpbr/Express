@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#061d27"><link rel="icon" href="./icon.png" type="image/png">
+  <meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
+  <title>Acompanhe sua entrega | Express</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <main>
+    <header><span class="brand"><img src="./icon.png" alt="" width="48" height="48"><span>EXPRESS<small>ENTREGAS</small></span></span><span class="live" id="connection">Conectando</span></header>
+    <h1>Sua entrega,<br>mais perto.</h1>
+    <p class="intro">Acompanhe as atualizações enviadas pelo motoboy.</p>
+    <section aria-live="polite" aria-atomic="true">
+      <span class="label">SITUAÇÃO DA ENTREGA</span>
+      <h2 id="status">Carregando entrega…</h2>
+      <p id="detail">Aguarde um instante.</p>
+      <div class="code" id="code"></div>
+      <p class="time" id="time"></p>
+      <a id="map" target="_blank" rel="noopener noreferrer" hidden>Ver localização no mapa</a>
+    </section>
+    <p class="privacy">O link é exclusivo desta entrega. Não mostra nomes, telefones, endereços ou valores.</p>
+    <footer>EXPRESS ENTREGAS · ARACRUZ</footer>
+  </main>
+</body>
+</html>
