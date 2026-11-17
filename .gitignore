@@ -33,3 +33,8 @@ scripts/.browser-phone-runner.mjs
 www/phone-customers.js
 www/order-by-phone.js
 www/notice-policy.js
+
+!marketing/assets/
+!marketing/assets/**
+!www/cadastro/assets/
+!www/cadastro/assets/**

@@ -1,5 +1,7 @@
 import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
 import './prepare-branding.mjs';
+const release=JSON.parse(await readFile('release.json','utf8'));
+if(!/^\d+\.\d+\.\d+$/.test(release.version))throw Error('Versão inválida');
 import { patchBackgroundGeolocation } from './patch-background-geolocation.mjs';
 await patchBackgroundGeolocation();
 await mkdir('android/app/src/main/res/drawable', { recursive: true });
@@ -31,7 +33,7 @@ const gradlePath='android/app/build.gradle';
 let gradle=await readFile(gradlePath,'utf8');
 const versionCode=200000+Number(process.env.GITHUB_RUN_NUMBER || 1);
 if(!Number.isSafeInteger(versionCode)||versionCode<=0||versionCode>2100000000) throw new Error('Código de versão inválido');
-gradle=gradle.replace(/versionCode \d+/,`versionCode ${versionCode}`).replace(/versionName "[^"]+"/,'versionName "2.0.14-teste"');
+gradle=gradle.replace(/versionCode \d+/,`versionCode ${versionCode}`).replace(/versionName "[^"]+"/,`versionName "${release.version}-teste"`);
 await writeFile(gradlePath,gradle);
 if(!gradle.includes("apply plugin: 'com.google.gms.google-services'")) throw new Error('Plugin Google Services ausente');
 const google=JSON.parse(await readFile('android/app/google-services.json','utf8'));

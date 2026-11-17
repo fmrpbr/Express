@@ -10,3 +10,9 @@ JSON.parse(readFileSync('database.rules.json', 'utf8'));
 if(/onValue\(ref\(db, "orders"\)/.test(html)) throw new Error('Leitura global no cliente');
 if(/(?:set|update|runTransaction)\(ref\(db, ["`]orders/.test(html)) throw new Error('Gravação direta de pedido');
 console.log('Sintaxe, regras JSON e ausência de acessos globais de pedidos: OK');
+
+const release=JSON.parse(readFileSync("release.json","utf8"));
+if(!html.includes(`const APP_VERSION="${release.version}";`) || !html.includes(`Versão ${release.version}`))throw Error("Versões da interface divergentes");
+if(!readFileSync("scripts/prepare-android.mjs","utf8").includes("release.version"))throw Error("Android sem versão compartilhada");
+if(!readFileSync("scripts/service-worker.template.js","utf8").includes("./brand.css"))throw Error("Tema ausente do cache offline");
+console.log("Versão compartilhada e tema offline: OK");
