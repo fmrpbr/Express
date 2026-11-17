@@ -1,4 +1,4 @@
-name: Publicar APK verificado para download
+name: Publicar Express com web e APK da mesma revisão
 on:
   push:
     branches: [main]
@@ -16,14 +16,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Baixar e verificar o APK aprovado
+      - uses: actions/checkout@v4
+        with:
+          ref: 3f65aa4727b4b20e42b150f6a3a13fa4446722f0
+          path: release-source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: release-source/package-lock.json
+      - name: Gerar navegador da mesma fonte do APK
+        working-directory: release-source
+        run: npm ci && npm run build:web && npm run check
+      - name: Conferir APK e preparar publicação conjunta
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           python3 - <<'PY'
-          import urllib.request,urllib.error,urllib.parse,os,hashlib,zipfile,io,pathlib,json
+          import urllib.request,urllib.error,urllib.parse,os,hashlib,zipfile,io,pathlib,json,shutil
+          source=pathlib.Path('release-source')
+          release=json.loads((source/'release.json').read_text())
+          assert release['version']=='2.0.15'
           repository=os.environ['GITHUB_REPOSITORY']
-          api='https://api.github.com/repos/'+repository+'/actions/artifacts/14290146392/zip'
+          api='https://api.github.com/repos/'+repository+'/actions/artifacts/14326377080/zip'
           headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}
           class NoRedirect(urllib.request.HTTPRedirectHandler):
               def redirect_request(self,*args): return None
@@ -33,25 +48,41 @@ jobs:
               if error.code not in (301,302,303,307,308): raise
               location=error.headers['Location'];url=urllib.parse.urlsplit(location)
               if url.scheme!='https' or not (url.hostname.endswith('.blob.core.windows.net') or url.hostname.endswith('.githubusercontent.com')): raise RuntimeError('Destino de artefato inesperado')
-              # Nunca encaminhar o token GitHub ao servidor do arquivo assinado.
               with urllib.request.urlopen(location,timeout=60) as response: archive=response.read()
-          assert hashlib.sha256(archive).hexdigest()=='5d31bd0a1dd4213c357c0cc59dff4c7eca3577b8145d36133848304f8250cf33','Arquivo ZIP diferente do validado'
+          assert hashlib.sha256(archive).hexdigest()=='52e9b6daf35fb1e85cd713006ecabd2aa0347417fa00516701828dfedc0a31aa','Artefato diferente do conferido'
           with zipfile.ZipFile(io.BytesIO(archive)) as bundle: apk=bundle.read('app-debug.apk')
           digest=hashlib.sha256(apk).hexdigest()
-          assert digest=='1a96b151b215c3d8c2665530cc8b9f56294a4f774733d57517bb7e8003706746','APK diferente do aprovado'
-          path=pathlib.Path('downloads');path.mkdir(exist_ok=True)
-          name='Express-Entregas-V2-2.0.14-Teste.apk';(path/name).write_bytes(apk)
-          (path/'latest.json').write_text(json.dumps({'version':'2.0.14','file':name,'size_bytes':len(apk),'sha256':digest,'source_commit':'d36cf01a9d93fd69d47f80a9bfba908e087ecc24'},indent=2)+'\n')
-          pathlib.Path('version.json').write_text(json.dumps({'version':'2.0.14','apk_version':'2.0.14','apk_sha256':digest,'source_commit':'d36cf01a9d93fd69d47f80a9bfba908e087ecc24'},indent=2)+'\n')
-          print('APK 2.0.14 conferido:',len(apk),'bytes')
+          assert digest=='93425e6447a444e092e1ed6c89879132dfe1e2a63a61e4b93a9ff43357746882','APK diferente do conferido'
+          with zipfile.ZipFile(io.BytesIO(apk)) as bundle:
+              packaged=bundle.read('assets/public/index.html').decode()
+              assert 'const APP_VERSION="2.0.15";' in packaged
+              assert bundle.read('assets/public/brand.css')==(source/'www/brand.css').read_bytes()
+              assert bundle.read('assets/public/icons/icon-512.png')==(source/'www/icons/icon-512.png').read_bytes()
+          for item in (source/'www').iterdir():
+              if item.is_dir(): shutil.copytree(item,pathlib.Path(item.name),dirs_exist_ok=True)
+              else: shutil.copyfile(item,pathlib.Path(item.name))
+          # Public tracking assets are prepared from this release as well.
+          shutil.copytree(source/'public-tracking/rastreio',pathlib.Path('rastreio'),dirs_exist_ok=True)
+          tracking=pathlib.Path('rastreio/index.html')
+          tracking.write_text(tracking.read_text().replace('"/rastreio/','"./'))
+          name='Express-Entregas-V2-2.0.15-Teste.apk'
+          path=pathlib.Path('downloads');path.mkdir(exist_ok=True);(path/name).write_bytes(apk)
+          commit='3f65aa4727b4b20e42b150f6a3a13fa4446722f0'
+          (path/'latest.json').write_text(json.dumps({'version':'2.0.15','file':name,'size_bytes':len(apk),'sha256':digest,'source_commit':commit},indent=2)+'\n')
+          pathlib.Path('version.json').write_text(json.dumps({'version':'2.0.15','apk_version':'2.0.15','apk_sha256':digest,'source_commit':commit},indent=2)+'\n')
+          pathlib.Path('release.json').write_text((source/'release.json').read_text())
+          download=pathlib.Path('download/index.html')
+          download.write_text(download.read_text().replace('2.0.14','2.0.15').replace('../cadastro/assets/favicon.svg','../icons/icon-192.png').replace('type="image/svg+xml"','type="image/png"'))
+          assert pathlib.Path('index.html').read_text()==packaged
+          print('Web e APK 2.0.15 conferidos:',len(apk),'bytes')
           PY
-      - name: Publicar arquivo e versão no repositório
+      - name: Publicar web e APK juntos
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add downloads/ version.json
+          git add index.html brand.css admin-dashboard.js phone-customers.js order-by-phone.js notice-policy.js notification-policy.js payments.js tariffs.js manifest.webmanifest icons/ vendor/ firebase-config.js firebase-config.example.js service-worker.js cadastro/ rastreio/ download/ downloads/ version.json release.json
           if ! git diff --cached --quiet; then
-            git commit -m 'Disponibilizar APK 2.0.14 verificado para download direto'
+            git commit -m 'Publicar Express 2.0.15 com web e APK da mesma fonte'
             git push origin HEAD:main
           fi
       - name: Atualizar GitHub Pages
