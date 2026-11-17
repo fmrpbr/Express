@@ -12,7 +12,8 @@
     "test:rules": "npm test --prefix tests/firebase-rules",
     "test:browser": "npm run build:web && node scripts/run-browser-emulators.mjs",
     "android:prepare": "node scripts/prepare-android.mjs",
-    "build:tracking": "node scripts/build-tracking.mjs"
+    "build:tracking": "node scripts/build-tracking.mjs",
+    "build:browser": "npm run build:web && node scripts/build-browser-phone.mjs"
   },
   "dependencies": {
     "@capacitor-community/background-geolocation": "1.3.1",

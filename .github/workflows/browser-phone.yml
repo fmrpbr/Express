@@ -1,0 +1,30 @@
+name: Validar pedido por celular no navegador
+on:
+  push:
+    branches: [web/pedido-por-celular]
+  pull_request:
+    paths: ['browser/**', 'scripts/*browser*', 'tests/browser-phone/**', 'tests/backend/browser-phone.test.cjs', 'tests/firebase-rules/browser-customers.test.mjs', 'playwright.phone.config.cjs', '.github/workflows/browser-phone.yml']
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci && npm ci --prefix functions && npm ci --prefix tests/firebase-rules
+      - run: npm run check && npm test && npm run build:browser
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/test-browser-phone.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Express-Navegador-Pedido-Celular
+          path: browser-dist/
+          retention-days: 14

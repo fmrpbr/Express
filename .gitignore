@@ -19,3 +19,13 @@ public-tracking/
 functions/.env*
 
 www/notification-policy.js
+
+# Browser-only generated release
+browser-dist/
+firebase.browser.json
+browser/database.rules.json
+.browser-backups/
+firebase.browser-release.json
+firebase.browser-rollback.json
+firebase.phone-test.json
+scripts/.browser-phone-runner.mjs
