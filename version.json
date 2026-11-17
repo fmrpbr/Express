@@ -1,6 +1,6 @@
 {
   "version": "2.0.14",
-  "source_commit": "d36cf01a9d93fd69d47f80a9bfba908e087ecc24",
-  "apk_version": "2.0.13",
-  "apk_sha256": "6a990dfbea5ac4ff43a6159635a86bd69c1800d8c97b96dab86205d2f952c5cf"
+  "apk_version": "2.0.14",
+  "apk_sha256": "1a96b151b215c3d8c2665530cc8b9f56294a4f774733d57517bb7e8003706746",
+  "source_commit": "d36cf01a9d93fd69d47f80a9bfba908e087ecc24"
 }
