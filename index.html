@@ -1282,9 +1282,21 @@
       recalculate(); render();
     }, () => {adminLoadError('presence');toast("Não foi possível carregar a disponibilidade.", "warn");}));
     unsubscribers.push(onValue(ref(db, "courierConnections"), snap => { connections = snap.val() || {};adminReceived('connections');recalculate(); },()=>adminLoadError('connections')));
+    // O Chrome pode suspender intervalos quando fica em segundo plano.
+    // Ao voltar à tela ou recuperar a rede, renovamos a presença imediatamente.
+    const refreshPresence = () => {
+      if (document.visibilityState === "hidden" || !presenceSessionRef || !currentUser || !navigator.onLine) return;
+      update(presenceSessionRef, { lastSeen: serverTimestamp() }).catch(() => {});
+    };
+    document.addEventListener("visibilitychange", refreshPresence);
+    window.addEventListener("online", refreshPresence);
+    unsubscribers.push(() => {
+      document.removeEventListener("visibilitychange", refreshPresence);
+      window.removeEventListener("online", refreshPresence);
+    });
     presenceTimer = setInterval(() => {
       recalculate();
-      if(presenceSessionRef && currentUser && navigator.onLine) update(presenceSessionRef, { lastSeen: serverTimestamp() }).catch(() => {});
+      refreshPresence();
     }, 30000);
     if(role !== "courier") return;
     const uid = currentUser.uid;
@@ -1302,7 +1314,7 @@
     if(role !== "courier" || !currentUser) return;
     const presence = data.presence.find(p => p.id === currentUser.uid) || {};
     await set(ref(db, "courierPresence/" + currentUser.uid + "/availableForWork"), presence.availableForWork !== true);
-    toast(presence.availableForWork === true ? "Recebimento de novas ofertas pausado." : "Você pode receber novas ofertas, inclusive em segundo plano.");
+    toast(presence.availableForWork === true ? "Recebimento de novas ofertas pausado." : "Disponibilidade ativada. No Chrome, notificações em segundo plano dependem das permissões do aparelho.");
   }
 
   function startAlertsListener() {
