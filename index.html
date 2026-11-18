@@ -1782,6 +1782,25 @@
   function cash(x){ return (Number(x)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
   function date(x){ return x ? new Date(x).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "—"; }
   function elapsedLabel(ms){ let total=Math.max(0,Math.floor(Number(ms||0)/1000)); let h=Math.floor(total/3600), m=Math.floor((total%3600)/60), sec=total%60; return (h?String(h).padStart(2,"0")+":":"")+String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0"); }
+  function orderTimelineHtml(o) {
+    if (role !== "store" || !Number(o.created)) return "";
+    const created = Number(o.created), accepted = Number(o.accepted || 0);
+    const completed = o.status === "done" ? Number(o.completed || 0) : 0;
+    const clock = t => new Date(t).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+    return '<div class="order-timeline" style="display:grid;gap:4px;margin:8px 0;padding:9px 11px;border-radius:10px;background:#F3F4F6;font-size:12px">'
+      +'<span><b>Ordem criada:</b> '+clock(created)+'</span>'
+      +'<span><b>Em execução:</b> '+(accepted ? clock(accepted) : "Aguardando aceite")+'</span>'
+      +'<span><b>Finalizado em:</b> '+(completed ? clock(completed) : "Aguardando conclusão")+'</span>'
+      +'<span><b>Tempo total desde a criação:</b> <strong data-order-elapsed data-created="'+created+'" data-completed="'+completed+'">'+elapsedLabel(Math.max(0,(completed || Date.now())-created))+'</strong></span>'
+      +'</div>';
+  }
+  function refreshOrderElapsed() {
+    if (role !== "store" || document.visibilityState === "hidden") return;
+    document.querySelectorAll("[data-order-elapsed]").forEach(node => {
+      const created = Number(node.dataset.created || 0), completed = Number(node.dataset.completed || 0);
+      if (created) node.textContent = elapsedLabel(Math.max(0,(completed || Date.now()) - created));
+    });
+  }
   function localDateInputValue(){ let d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
   function formatServiceDate(value){ if(!value) return "Não informada"; let p=String(value).split("-"); return p.length===3 ? `${p[2]}/${p[1]}/${p[0]}` : value; }
   function serviceTypeLabel(type){ if(type==="route")return "Rota múltipla"; return type==="collection" ? "Recolha (Cliente → Loja)" : type==="roundtrip" ? "Recolha e entrega (2 viagens)" : "Entrega (Loja → Cliente)"; }
@@ -1905,7 +1924,7 @@
     let serviceBadge = o.serviceType === "collection" ? '<span class="tag orange">🔄 RECOLHA</span>' : o.serviceType === "roundtrip" ? '<span class="tag purpletag">🔁 2 VIAGENS</span>' : '<span class="tag bluetag">🚚 ENTREGA</span>';
 
     const returnHtml=returnControls(o);
-    return '<article data-order-id="'+esc(o.id)+'" class="order '+queueClass+'"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+locationLine+'</h3><div class="order-store">'+clientLine+'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>'+queueBadge+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+' '+pickupTimerHtml+' '+runDurationHtml+'</div>'+returnHtml+careDetails(o)+trackingShareHtml+bidsHtml+gpsTrackingInfo+(o.status === "done" ? paymentDetails(o) : '')+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
+    return '<article data-order-id="'+esc(o.id)+'" class="order '+queueClass+'"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+locationLine+'</h3><div class="order-store">'+clientLine+'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>'+queueBadge+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+' '+pickupTimerHtml+' '+runDurationHtml+'</div>'+orderTimelineHtml(o)+returnHtml+careDetails(o)+trackingShareHtml+bidsHtml+gpsTrackingInfo+(o.status === "done" ? paymentDetails(o) : '')+'<div class="footer"><div class="buttons">'+action+'</div></div></article>';
   }
 
   function render(){
@@ -2259,6 +2278,7 @@
   }, 1000);
 
   setInterval(()=>{if(currentUser&&role==='courier'&&view==='available')render();},60000);
+  setInterval(refreshOrderElapsed, 1000);
   setInterval(()=>{if(currentUser&&!logisticsReady)loadLogisticsCapabilities();},60000);
 
   // Recalcula dias anteriores mesmo sem novas escritas no banco, na virada do dia.
