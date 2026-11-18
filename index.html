@@ -1034,6 +1034,8 @@
 
   window.logout = async function() {
     stopGpsTracking();
+    document.getElementById('express-guide-replay')?.remove();
+    document.getElementById('express-guide-dialog')?.remove();
     if(currentUser && accountAllowed()) {
       if(role === "courier" && accountAllowed()) await set(ref(db, "courierPresence/" + currentUser.uid + "/availableForWork"), false);
       if(tokenKeyForDevice) await set(ref(db, "fcmTokens/" + currentUser.uid + "/" + tokenKeyForDevice), null);
@@ -1129,6 +1131,54 @@
     }, error => {if(sourceKey==='admin')adminLoadError('orders');toast("Não foi possível carregar seus pedidos: " + error.message, "warn");}));
   }
 
+  function showFirstUseGuide(force = false) {
+    if (!currentUser || !accountAllowed() || !["store","courier"].includes(role)) return;
+    const key = "express_guide_v1_" + role + "_" + currentUser.uid;
+    if (!force && localStorage.getItem(key) === "seen") return;
+    document.getElementById("express-guide-dialog")?.remove();
+    const steps = role === "store" ? [
+      ["Bem-vindo ao Express", "Aqui você solicita entregas e acompanha o andamento dos pedidos."],
+      ["Solicitar motoboy", "Use Pedir motoboy para informar o cliente, endereço e tipo de serviço."],
+      ["Em execução", "Acompanhe os pedidos aceitos, os horários e o tempo da entrega."],
+      ["Rastreamento", "Compartilhe o link de acompanhamento com o cliente enquanto a entrega estiver ativa."],
+      ["Concluídos e relatórios", "Consulte entregas finalizadas e confirme os pagamentos."]
+    ] : [
+      ["Bem-vindo ao Express", "Aqui você encontra entregas disponíveis e acompanha seus atendimentos."],
+      ["Ficar disponível", "Ative sua disponibilidade quando puder receber pedidos. Sem conexão, o sistema não consegue confirmar que você está online."],
+      ["Aceitar corridas", "Confira os detalhes da oferta antes de aceitar."],
+      ["Em execução e GPS", "Acompanhe suas entregas em andamento e autorize a localização para o rastreamento."],
+      ["Notificações", "Ative as notificações e confira as permissões do Android para receber novos pedidos."]
+    ];
+    let index = 0;
+    const dialog = document.createElement("dialog");
+    dialog.id = "express-guide-dialog";
+    dialog.setAttribute("aria-label", "Tutorial inicial Express Entregas");
+    dialog.style.cssText = "border:0;border-radius:18px;padding:22px;max-width:min(400px,calc(100vw - 32px));width:100%;box-shadow:0 15px 50px #0005;color:#222";
+    const finish = () => { localStorage.setItem(key,"seen"); dialog.close(); dialog.remove(); };
+    const draw = () => {
+      dialog.innerHTML = '<p style="font-size:12px;color:#777;margin:0 0 10px">PASSO '+(index+1)+' DE '+steps.length+'</p><h2 style="font-size:21px;margin:0 0 12px"></h2><p class="guide-description" style="line-height:1.6;min-height:72px"></p><div style="display:flex;justify-content:space-between;gap:8px;margin-top:20px"><button type="button" data-guide-skip class="btn secondary tiny">Pular</button><button type="button" data-guide-next class="btn primary tiny">'+(index===steps.length-1?"Concluir":"Próximo")+'</button></div>';
+      dialog.querySelector("h2").textContent = steps[index][0];
+      dialog.querySelector(".guide-description").textContent = steps[index][1];
+      dialog.querySelector("[data-guide-skip]").onclick = finish;
+      dialog.querySelector("[data-guide-next]").onclick = () => { if (++index >= steps.length) finish(); else draw(); };
+    };
+    dialog.addEventListener("cancel", e => { e.preventDefault(); finish(); });
+    document.body.appendChild(dialog);
+    draw();
+    dialog.showModal();
+  }
+  function ensureGuideReplayButton() {
+    if (!currentUser || !accountAllowed() || !["store","courier"].includes(role)) return;
+    if (document.getElementById("express-guide-replay")) return;
+    const button = document.createElement("button");
+    button.id = "express-guide-replay";
+    button.type = "button";
+    button.textContent = "Ajuda";
+    button.setAttribute("aria-label", "Rever tutorial do Express");
+    button.style.cssText = "position:fixed;right:12px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:95;border-radius:24px;background:#ed1726;color:white;padding:8px 12px;font-weight:700;box-shadow:0 3px 12px #0003";
+    button.onclick = () => showFirstUseGuide(true);
+    document.body.appendChild(button);
+  }
   async function initializeSession(user) {
     if (!user) return;
     if (sessionInitPromise) return sessionInitPromise;
@@ -1154,6 +1204,7 @@
       setAuthFeedback("", "info");
       view = role === "courier" ? "available" : "dashboard";
       startDataListeners(); render();
+      if(accountAllowed()) { ensureGuideReplayButton(); showFirstUseGuide(); }
       if(accessUnsubscribe)accessUnsubscribe();
       if(role!=='admin')accessUnsubscribe=onValue(ref(db,'profiles/'+(role==='store'?'stores/':'couriers/')+user.uid),snap=>{
         const wasAllowed=accountAllowed();accountProfile=snap.val();
