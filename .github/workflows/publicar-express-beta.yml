@@ -1,0 +1,48 @@
+name: Publicar Express Beta no Firebase
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: express-beta-hosting
+  cancel-in-progress: false
+jobs:
+  deploy-beta:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obter codigo
+        uses: actions/checkout@v4
+      - name: Autenticar no Google Cloud sem chave privada
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/292745200666/locations/global/workloadIdentityPools/express-github-beta/providers/github-express-beta
+          service_account: express-beta-deploy@express-entregas-2-testes.iam.gserviceaccount.com
+      - name: Montar site Beta sem arquivos privados
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p beta-dist
+          cp teste/index.html beta-dist/index.html
+          sed -i '/<base href="\.\.\/">/d' beta-dist/index.html
+          for file in firebase-config.js notification-policy.js payments.js tariffs.js admin-dashboard.js phone-customers.js notice-policy.js order-by-phone.js brand.css manifest.webmanifest; do
+            test -f "$file" || { echo "Arquivo necessario ausente: $file"; exit 1; }
+            cp "$file" beta-dist/
+          done
+          for folder in icons vendor cadastro download; do
+            if [ -d "$folder" ]; then cp -R "$folder" beta-dist/; fi
+          done
+          cat > firebase.beta.json <<'EOF'
+          {
+            "hosting": {
+              "site": "express-v2-beta-fmrpbr",
+              "public": "beta-dist",
+              "ignore": ["firebase.beta.json", "**/.*", "**/node_modules/**"],
+              "headers": [
+                {"source": "**", "headers": [{"key": "Cache-Control", "value": "no-cache"}]}
+              ]
+            }
+          }
+          EOF
+      - name: Publicar somente no site Beta
+        run: npx --yes firebase-tools@14 deploy --only hosting --project express-entregas-2-testes --config firebase.beta.json --non-interactive
