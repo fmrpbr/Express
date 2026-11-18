@@ -1211,7 +1211,15 @@
         const allowed=accountAllowed();
         if(wasAllowed!==allowed){
           closeOrderSheet();document.querySelectorAll('dialog').forEach(d=>d.close());
-          if(allowed)startDataListeners();else stopDataListeners();
+          if(allowed) {
+            startDataListeners();
+            ensureGuideReplayButton();
+            showFirstUseGuide();
+          } else {
+            stopDataListeners();
+            document.getElementById("express-guide-replay")?.remove();
+            document.getElementById("express-guide-dialog")?.remove();
+          }
         }
         render();
       });
@@ -1487,6 +1495,8 @@
 
   onAuthStateChanged(auth, async user => {
     if (!user) {
+      document.getElementById("express-guide-replay")?.remove();
+      document.getElementById("express-guide-dialog")?.remove();
       if(accessUnsubscribe)accessUnsubscribe();accessUnsubscribe=null;accountProfile=null;
       currentUser = null; activeSessionUid = null;
       stopDataListeners();
