@@ -858,7 +858,16 @@
       const o = snap.val();
       if(o.revoked || Number(o.expiresAt || 0) <= Date.now()) { box.textContent = "Rastreamento encerrado ou expirado."; return; }
       const st = o.status === "open" ? "Aguardando motoboy" : o.status === "run" ? (Number(o.queuePosition) === 2 ? "Próxima entrega do motoboy" : "Em atendimento") : o.status === "done" ? "Entrega concluída" : o.status === "cancelado_cotacao" ? "Solicitação cancelada" : "Em cotação";
-      const gpsInfo = (o.location && o.status === "run") ? `<a href="https://www.openstreetmap.org/?mlat=${Number(o.location.lat)}&mlon=${Number(o.location.lng)}#map=16/${Number(o.location.lat)}/${Number(o.location.lng)}" target="_blank" rel="noopener noreferrer" class="btn primary full" style="margin-top:10px;">🗺️ Acompanhar localização</a>` : '<p style="color:var(--muted);text-align:center;">A localização será exibida quando o motoboy iniciar o trajeto.</p>';
+      const gpsLat = Number(o.location?.lat), gpsLng = Number(o.location?.lng);
+      const gpsAt = Number(o.location?.updatedAt || 0);
+      const validGps = Number.isFinite(gpsLat) && Number.isFinite(gpsLng) && Math.abs(gpsLat) <= 90 && Math.abs(gpsLng) <= 180 && gpsAt > 0;
+      const gpsAge = validGps ? Date.now() - gpsAt : Infinity;
+      const freshGps = validGps && gpsAge >= -60000 && gpsAge <= 120000;
+      const gpsInfo = o.status !== "run"
+        ? '<p style="color:var(--muted);text-align:center;">Compartilhamento de localização encerrado.</p>'
+        : freshGps
+          ? '<a href="https://www.openstreetmap.org/?mlat='+gpsLat+'&mlon='+gpsLng+'#map=16/'+gpsLat+'/'+gpsLng+'" target="_blank" rel="noopener noreferrer" class="btn primary full" style="margin-top:10px;">Acompanhar posição do motoboy</a><p style="font-size:11px;text-align:center;">GPS atualizado às '+new Date(gpsAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})+'</p>'
+          : '<p style="color:var(--muted);text-align:center;">'+(validGps ? 'Sem atualização recente do GPS. Última posição recebida às '+new Date(gpsAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})+'.' : 'Aguardando localização do motoboy.')+'</p>';
       box.innerHTML = `
         <div style="background:#F2F3F5;padding:12px;border-radius:12px;">
           <div style="font-size:10px;color:var(--muted);">CÓDIGO DE ACOMPANHAMENTO</div>
