@@ -1,7 +1,7 @@
 {
-  "notes": "Cadastro por cidade, distribuição de ofertas, favoritos e avaliações.",
-  "version": "2.1.0",
-  "display_version": "2.1 Beta",
+  "notes": "Correção dos links de download e apresentação no login do Android.",
+  "version": "2.1.1",
+  "display_version": "2.1.1 Beta",
   "name": "Express Entregas",
   "channel": "beta"
 }

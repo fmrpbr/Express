@@ -649,8 +649,8 @@
       <button type="button" class="btn secondary full" data-action="recovery-back">Voltar para entrar</button>
     </section>
     <div class="login-links">
-      <a href="./cadastro/">Conhecer a plataforma</a>
-      <a href="./download/">Baixar aplicativo</a>
+      <a href="https://www.expressentregas.com.br/cadastro/">Conhecer a plataforma</a>
+      <a href="https://www.expressentregas.com.br/download/">Baixar aplicativo</a>
       <details id="login-help"><summary>Ajuda</summary>
         <button type="button" class="login-link" data-action="open-first-password">Definir minha primeira senha</button>
         <button type="button" class="login-link" id="admin-entry-button" data-admin-login>Acesso administrativo</button>
@@ -663,7 +663,7 @@
         </label>
       </details>
     </div>
-    <div class="login-install"><small class="login-version" data-app-version>Versão 2.1 Beta</small><button type="button" data-express-install hidden>Instalar Express</button></div>
+    <div class="login-install"><small class="login-version" data-app-version>Versão 2.1.1 Beta</small><button type="button" data-express-install hidden>Instalar Express</button></div>
   </div>
   </div>
 </div>
@@ -947,7 +947,7 @@
   <p role="status" data-install-status></p>
   <form method="dialog" class="dialog-actions">
     <button type="submit" class="btn secondary">Fechar</button>
-    <a href="./download/" data-install-apk class="btn secondary" hidden>Ver aplicativo Android</a>
+    <a href="https://www.expressentregas.com.br/download/" data-install-apk class="btn secondary" hidden>Ver aplicativo Android</a>
     <button type="button" class="btn primary" data-install-pwa hidden>Instalar versão web</button>
   </form>
 </dialog>
@@ -965,9 +965,9 @@
 <script src="./order-request.js"></script>
 <script src="./platform-order-alerts.js"></script>
 <script type="module">
-  const APP_VERSION="2.1.0";
+  const APP_VERSION="2.1.1";
   window.EXPRESS_APP_VERSION=APP_VERSION;
-  document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão 2.1 Beta");
+  document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão 2.1.1 Beta");
   const { initializeApp, getDatabase, ref, set, update, push, get, onValue, query, orderByChild, equalTo, limitToLast, startAt, onDisconnect, serverTimestamp,
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult, sendPasswordResetEmail,
     getFunctions, httpsCallable, connectDatabaseEmulator, connectAuthEmulator, connectFunctionsEmulator } = window.ExpressFirebase;

@@ -2,6 +2,11 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { execFileSync } from 'node:child_process';
 const html = readFileSync('www/index.html', 'utf8');
+for (const [path,label] of [['cadastro','Conhecer a plataforma'],['download','Baixar aplicativo']]) {
+  if (!html.includes(`<a href="https://www.expressentregas.com.br/${path}/">${label}</a>`)) {
+    throw new Error(`O link ${label} precisa abrir a página pública fora do aplicativo.`);
+  }
+}
 execFileSync(process.execPath,['scripts/check-branding.mjs'],{stdio:'inherit'});
 execFileSync(process.execPath,['--check','www/admin-dashboard.js']);
 for(const script of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)) new vm.Script(script[1]);
