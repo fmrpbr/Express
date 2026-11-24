@@ -124,6 +124,7 @@
 .store-source-filters button[aria-pressed="true"], .store-source-filters button:hover { background: var(--store-soft); color: var(--store-teal); }
 .store-queue-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(116px, .35fr); align-items: center; gap: 7px 12px; padding-block: 8px; }
 .store-queue-row + .store-queue-row { border-top: 1px solid var(--store-border); }
+.store-queue-row > .info { grid-column: 1 / -1; margin: 0; }
 .store-queue-order { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 7px; overflow-wrap: anywhere; }
 .store-source-badge { padding: 2px 6px; border-radius: 7px; background: var(--store-soft); color: var(--store-teal); font-size: 11px; font-weight: 650; }
 .store-pin-badge { background: var(--store-payment-bg); color: var(--store-payment-text); }

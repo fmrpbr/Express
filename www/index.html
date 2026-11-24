@@ -663,7 +663,7 @@
         </label>
       </details>
     </div>
-    <div class="login-install"><small class="login-version" data-app-version>Versão 2.1.1 Beta</small><button type="button" data-express-install hidden>Instalar Express</button></div>
+    <div class="login-install"><small class="login-version" data-app-version>Versão 2.1.2 Beta</small><button type="button" data-express-install hidden>Instalar Express</button></div>
   </div>
   </div>
 </div>
@@ -965,9 +965,9 @@
 <script src="./order-request.js"></script>
 <script src="./platform-order-alerts.js"></script>
 <script type="module">
-  const APP_VERSION="2.1.1";
+  const APP_VERSION="2.1.2";
   window.EXPRESS_APP_VERSION=APP_VERSION;
-  document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão 2.1.1 Beta");
+  document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão 2.1.2 Beta");
   const { initializeApp, getDatabase, ref, set, update, push, get, onValue, query, orderByChild, equalTo, limitToLast, startAt, onDisconnect, serverTimestamp,
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult, sendPasswordResetEmail,
     getFunctions, httpsCallable, connectDatabaseEmulator, connectAuthEmulator, connectFunctionsEmulator } = window.ExpressFirebase;
@@ -994,7 +994,7 @@
     registrationCities.replaceChildren(new Option(options.length ? 'Selecione a cidade' : 'Nenhuma cidade disponível', ''),
       ...options.map(city => new Option([city.name, city.uf].filter(Boolean).join(' – '), city.id)));
     if (options.some(city => city.id === value)) registrationCities.value = value;
-    if (currentUser) render();
+      if (currentUser) render();
   }, () => { registrationCities.replaceChildren(new Option('Não foi possível carregar as cidades', '')); });
   const auth = getAuth(app);
   const functions = getFunctions(app, "southamerica-east1");
@@ -1090,7 +1090,8 @@
     catch { return {}; }
   }
   function saveDevicePushPreference(owner, changes){
-    localStorage.setItem('express_push_device:'+owner, JSON.stringify({...devicePushPreference(owner), ...changes}));
+    try { localStorage.setItem('express_push_device:'+owner, JSON.stringify({...devicePushPreference(owner), ...changes})); }
+    catch { throw new Error('Este dispositivo precisa permitir o armazenamento local para salvar suas preferências.'); }
   }
   function rememberPushPreferences(owner, preferences){
     pushPreferences = preferences;
@@ -2031,7 +2032,7 @@
       let zones = resolvedOrderRates().zones;
       select.innerHTML = '<option value="">Sede e bairros (padrão)</option>' +
         Object.keys(zones).filter(z => z !== "Sede e Bairros (Padrão)").map(z => `<option value="${esc(z)}">${esc(z)} — ${cash(zones[z])}</option>`).join("");
-      select.value = selected;
+      select.value = Object.hasOwn(zones,selected) ? selected : '';
     }
   }
 
@@ -2058,6 +2059,7 @@
     if(isQuote) {
       priceBox.style.display = "none";
       btnSubmit.textContent = editId ? "Salvar cotação" : "Publicar cotação";
+      if(!form.dataset.requestSubmitting)btnSubmit.disabled=false;
     } else {
       priceBox.style.display = "flex";
       btnSubmit.textContent = form.dataset.completingQuote === "true" ? "Encaminhar ao motoboy" : editId ? "Salvar alterações" : "Enviar pedido";
@@ -2066,10 +2068,15 @@
       let k = document.getElementById("chk-bank-mob").checked;
       let zoneVal = document.getElementById("zone-select-mobile").value;
       const prior = data.orders.find(o => o.id === editId);
-      let total = prior && prior.status!=='cotacao' ? prior.fee : Number(document.getElementById("mobile-order-form").dataset.agreedFee || 0) || calculateFee(p, false, b, k, zoneVal);
+      const city=storeUnits[form.elements.storeUnitId.value]?.cityId || activeCity();
+      const waitingRates=city!=='aracruz'&&!localCityRates[city];
+      let total = waitingRates ? 0 : prior && prior.status!=='cotacao' ? prior.fee : Number(form.dataset.agreedFee || 0) || calculateFee(p, false, b, k, zoneVal);
       const dual=document.getElementById('service-type-select').value==='roundtrip';
       if(dual){const sum=prior?.roundtripTotalFee||((prior?.status==='cotacao_aceita'||document.getElementById('mobile-order-form').dataset.completingQuote==='true')?total:total*2);const first=prior?.roundtripSchema?prior.fee:Math.floor(sum*100/2)/100;document.getElementById('quote-price-mobile').textContent=cash(first)+' + '+cash(Math.round((sum-first)*100)/100)+' = '+cash(sum);}
       else document.getElementById("quote-price-mobile").textContent = cash(total);
+      form.dataset.expectedFee=String(total);
+      if(waitingRates)document.getElementById('quote-price-mobile').textContent='Consultando tarifa…';
+      if(!form.dataset.requestSubmitting)btnSubmit.disabled=waitingRates;
       const roundOption=document.querySelector('#service-type-select option[value=roundtrip]');roundOption.disabled=!logisticsReady;
       if(addingRouteDelivery){document.getElementById('service-type-select').value='delivery';document.getElementById('service-type-select').disabled=true;btnSubmit.textContent='Salvar entrega no rascunho da rota';}else document.getElementById('service-type-select').disabled=false;
     }
@@ -2079,12 +2086,12 @@
 
   function calculateFee(paymentMethod, isRain, isBag, isBank, selectedZone) {
     const t=window.ExpressTariffs;
-    return t.price({paymentMethod,bag:isBag,bank:isBank,selectedZone},resolvedOrderRates(),t.rain(tariffConfig),Date.now()).fee;
+    const now=serverNow();
+    return t.price({paymentMethod,bag:isBag,bank:isBank,selectedZone},resolvedOrderRates(),t.rain(tariffConfig,now),now).fee;
   }
 
-  function resolvedOrderRates(){
-    const now=Date.now();
-    const city=storeUnits[document.getElementById('order-store-unit').value]?.cityId || activeCity();
+  function resolvedOrderRates(city=storeUnits[document.getElementById('order-store-unit').value]?.cityId || activeCity()){
+    const now=serverNow();
     const config=localCityRates[city]||{};
     const active=Object.values(config.plans||{}).filter(plan=>plan.effectiveAt<=now).sort((a,b)=>b.effectiveAt-a.effectiveAt)[0];
     return active?.rates || config.base || window.ExpressTariffs.resolve(tariffConfig,now,defaultRates);
@@ -2094,7 +2101,9 @@
     const unit=storeUnits[event.target.value];
     const city=unit?.cityId || activeCity();
     document.getElementById('quote-city').value = cityDirectory[city]?.name || unit?.city || accountProfile?.city || '';
-    if(unit && !localCityRates[city]) {
+    if(unit) {
+      if(city!==activeCity())delete localCityRates[city];
+      recalculateMobileFee();
       try { localCityRates[city]=(await get(ref(db,'cityPricing/'+city))).val()||{}; }
       catch(error) { toast('Não foi possível consultar a tarifa desta unidade.','warn'); }
     }
@@ -2542,6 +2551,7 @@
   }
 
   function runningOrderStage(order){
+    if(order.externalOrder?.returnRequestedAt) return 'iFood cancelado · devolver à loja';
     if(Number(order.queuePosition) === 2) return "Próxima entrega do motoboy";
     if(order.kind === "route") return "Rota em andamento";
     if(order.serviceType === "roundtrip") {
@@ -2564,9 +2574,9 @@
     const active = orders.filter(order => ["run", "route_run"].includes(order.status));
     if(!active.length) return "";
     const rows = active.slice(0, 3).map(order => {
-      const towardsStore = order.serviceType === "collection" || order.serviceType === "roundtrip" && Number(order.tripStage) === 1;
+      const towardsStore = order.externalOrder?.returnRequestedAt || order.serviceType === "collection" || order.serviceType === "roundtrip" && Number(order.tripStage) === 1;
       const destination = order.kind === "route" ? "Rota múltipla" : towardsStore ? order.storeNeighborhood || "Loja" : order.clientNeighborhood || order.city || "Destino a confirmar";
-      const tracking = order.status === "run"
+      const tracking = order.status === "run" && !order.externalOrder?.returnRequestedAt
         ? '<button type="button" class="store-text-button store-track-button" data-action="open-store-tracking" data-id="' + esc(order.id) + '">' + storeIcon("direction") + 'Rastrear</button>'
         : '<button type="button" class="store-text-button store-track-button" data-nav="run">Acompanhar rota</button>';
       const channel = order.externalOrder?.provider ? ' · ' + esc(storeOrderChannel(order)) : '';
@@ -2589,9 +2599,9 @@
     const handling = terminal ? "" : ownStages[order.status] || (platform?.dispatchMode === "sandbox" ? "Chamada simulada no sandbox" : platform?.dispatchId ? "Motoboy solicitado" : platform?.fulfillment === "platform" ? "Entrega da plataforma" : platform?.fulfillment === "pickup" ? "Retirada no estabelecimento" : readyForCourier ? "Aguardando chamada do motoboy" : platform?.fulfillment === "unknown" ? "Modalidade de entrega pendente" : "Aguardando liberação para entrega");
     return '<article class="store-queue-row" data-store-order-id="' + esc(order.id) + '"><div class="store-queue-order"><strong>' + esc(order.orderCode || platform?.id || order.id) + '</strong><span class="store-source-badge">' + esc(storeOrderChannel(order)) + '</span>' +
       (platform?.codeRequired === true ? '<span class="store-source-badge store-pin-badge">PIN na entrega</span>' : '') +
-      '</div><div class="store-queue-stage">' + (platform?.provider ? '<span>' + esc(externalStages[platform.stage] || "Etapa em sincronização") + '</span>' + (handling ? '<small>' + esc(handling) + '</small>' : '') : '<span>' + esc(handling) + '</span>') +
+      '</div><div class="store-queue-stage">' + (platform?.provider ? '<span>' + esc(storeOrderChannel(order)) + ' · ' + esc(externalStages[platform.stage] || "Etapa em sincronização") + '</span>' + (handling ? '<small>Express · ' + esc(handling) + '</small>' : '') : '<span>' + esc(handling) + '</span>') +
       '</div>' + (canReview ? '<div class="store-queue-call"><button type="button" class="btn secondary tiny" data-action="dispatch-ihub-order" data-id="' + esc(order.id) + '"' +
-        (highlight ? ' data-platform-ready' : '') + '>' + (readyForCourier ? "Chamar motoboy" : "Ver entrega") + '</button></div>' : readyForCourier ? '<div class="store-queue-call"><button type="button" class="btn secondary tiny" disabled>Chamar motoboy</button><small>Aguardando integração de despacho</small></div>' : '') + '</article>';
+        (highlight ? ' data-platform-ready' : '') + '>' + (readyForCourier ? "Chamar motoboy" : "Ver entrega") + '</button></div>' : readyForCourier ? '<div class="store-queue-call"><button type="button" class="btn secondary tiny" disabled>Chamar motoboy</button><small>Aguardando integração de despacho</small></div>' : '') + orderSearchStatus(order) + favoriteOfferStatus(order) + '</article>';
   }
 
   function storeOrderQueue(orders){
@@ -2671,6 +2681,13 @@
     if(role!=='store'||order.status!=='open'||!offer||offer.status==='released')return '';
     if(offer.status==='pending'&&offer.expiresAt>serverNow())return '<div class="info">Aguardando '+esc(storeFavorites[offer.courierId]?.name||'motoboy favorito')+' · <strong '+offerCountdown(offer.expiresAt)+'</strong></div>';
     return '<div class="info"><b>'+(offer.status==='declined'?'Oferta recusada':'Prazo da oferta encerrado')+'</b> <button type="button" class="btn secondary tiny" data-action="release-favorite" data-id="'+esc(order.id)+'">Liberar para os motoboys da cidade</button></div>';
+  }
+  function orderSearchStatus(order){
+    if(role!=='store'||!['open','route_open'].includes(order.status)||order.assignedCourierId||order.favoriteOffer&&order.favoriteOffer.status!=='released')return '';
+    const waiting = serverNow()-Number(order.searchRenewedAt||order.offerCreatedAt||order.created||serverNow());
+    const cityStatus = order.openToCity ? '<strong>Busca aberta na cidade.</strong> ' : '';
+    if(waiting<15*60000||order.kind==='route') return cityStatus ? '<div class="info">'+cityStatus+'Aguardando aceite.</div>' : '';
+    return '<div class="info">'+cityStatus+'Ainda sem aceite. <button type="button" class="btn secondary tiny" data-action="renewOrderSearch" data-id="'+esc(order.id)+'">Avisar motoboys novamente</button></div>';
   }
   function courierRatingLabel(order){
     const rating=order.courierRating;
@@ -2791,7 +2808,8 @@
     let action = "";
     let runNavigation = "", runCancel = "", arrival = "", nextAtStore = false;
     const codePending = role === "courier" && o.courierId === actor && o.status === "run" && o.externalOrder?.codeRequired === true && o.externalOrder.codeConfirmed !== true;
-    const finishButton = label => codePending ? '<button type="button" class="btn primary tiny" disabled>Confirmar PIN</button>'
+    const returningIfood = o.status==='run' && Boolean(o.externalOrder?.returnRequestedAt);
+    const finishButton = label => codePending ? '<button type="button" class="btn primary tiny" data-action="confirm-ihub-pin" data-id="'+esc(o.id)+'">Validar PIN do iFood</button>'
       : '<button type="button" class="btn primary tiny" data-action="finish" data-id="' + esc(o.id) + '">' + label + '</button>';
 
     const logisticsClock = (timestamp) => Number(timestamp) > 0 ? Number(timestamp) : null;
@@ -2815,7 +2833,7 @@
 
     if (role === "store" && (o.status === "open" || o.status === "cotacao" || o.status === "cotacao_aceita")) {
       if (!o.externalOrder?.sourceKey) action += o.status === "cotacao_aceita" ? `<button type="button" class="btn primary tiny" data-open-sheet data-edit-id="${o.id}">📋 Completar pedido</button>` : `<button type="button" class="btn secondary tiny" data-open-sheet data-edit-id="${o.id}">✏️ Editar</button>`;
-      if(!(o.roundtripSchema&&o.legNumber===2))action += `<button type="button" class="btn danger tiny" data-action="cancel-quote" data-id="${o.id}">🗑️ Cancelar</button>`;
+      if(!o.externalOrder?.sourceKey&&!(o.roundtripSchema&&o.legNumber===2))action += `<button type="button" class="btn danger tiny" data-action="cancel-quote" data-id="${o.id}">🗑️ Cancelar</button>`;
     }
 
     if(role === "courier" && isOffer(o)) action += courierAcceptButton(o);
@@ -2837,10 +2855,10 @@
     }
 
     if(role === "courier" && o.status === "run") {
-      nextAtStore = o.serviceType === "roundtrip" ? tripStage === 1 : o.serviceType === "collection" ? Boolean(o.picked) : !o.picked;
+      nextAtStore = returningIfood || (o.serviceType === "roundtrip" ? tripStage === 1 : o.serviceType === "collection" ? Boolean(o.picked) : !o.picked);
       const mapUrl = motorcycleNavigation(courierDestination(o, nextAtStore));
       runNavigation = mapUrl ? '<a href="' + esc(mapUrl) + '" target="_blank" rel="noopener noreferrer" class="btn secondary courier-map-link">' +
-        storeIcon("direction") + (o.serviceType === "roundtrip" ? nextAtStore ? "Ir à loja" : "Ir ao cliente" : o.picked ? "Navegar até o destino" : "Navegar até a coleta") + '</a>' : "";
+        storeIcon("direction") + (returningIfood ? "Voltar à loja" : o.serviceType === "roundtrip" ? nextAtStore ? "Ir à loja" : "Ir ao cliente" : o.picked ? "Navegar até o destino" : "Navegar até a coleta") + '</a>' : "";
       const cancel = '<button type="button" class="btn danger tiny" data-action="cancel" data-id="'+esc(o.id)+'">Cancelar corrida</button>';
       if (o.serviceType === "roundtrip") {
         const steps = ["Confirmar recolha no cliente", "Confirmar entrega na loja", "Iniciar 2ª viagem"];
@@ -2858,16 +2876,17 @@
       if(!first) action = '<button type="button" class="btn purple tiny" data-action="focus" data-id="'+esc(o.id)+'">Atender agora</button>' + action;
       const onCustomerLeg = !nextAtStore && !(o.serviceType === "roundtrip" && tripStage === 2);
       if(first && onCustomerLeg) arrival = arrivalButton(o, o.serviceType === "collection" || o.serviceType === "roundtrip" && tripStage === 0 ? "to-pickup" : "to-delivery");
+      if(returningIfood) action = '<button type="button" class="btn primary tiny" data-action="confirmIhubReturn" data-id="'+esc(o.id)+'">Confirmar devolução à loja</button>';
     }
 
     if (o.status === "done") {
       action = paymentActions(o);
     }
     
-    if (role === "store" && o.status === "run" && !o.picked && canCancelFree) action += ` <button type="button" class="btn danger tiny" data-action="cancel-free" data-id="${o.id}">⚠️ Cancelar sem custo</button>`;
+    if (role === "store" && o.status === "run" && !o.picked && canCancelFree && !o.externalOrder?.sourceKey) action += ` <button type="button" class="btn danger tiny" data-action="cancel-free" data-id="${o.id}">⚠️ Cancelar sem custo</button>`;
 
     if(role==='store'&&o.storeId===actor)action+=' <button type="button" class="btn secondary tiny" data-action="print-order" data-id="'+esc(o.id)+'">🖨️ Imprimir pedido</button>';
-    let trackingShareHtml = role === "store" && ["open", "run"].includes(o.status) ? `<div style="margin-top:8px;background:#F2F3F5;padding:8px 10px;border-radius:10px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;"><span style="font-size:11px;">🔗 <b>Rastreio do cliente</b></span><button type="button" class="btn secondary tiny" data-action="share-whatsapp" data-id="${o.id}" style="background:#fff;">Compartilhar WhatsApp</button><button type="button" class="btn secondary tiny" data-action="copy-tracking" data-id="${o.id}">Copiar link</button></div>` : "";
+    let trackingShareHtml = role === "store" && ["open", "run"].includes(o.status) && !returningIfood ? `<div style="margin-top:8px;background:#F2F3F5;padding:8px 10px;border-radius:10px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;"><span style="font-size:11px;">🔗 <b>Rastreio do cliente</b></span><button type="button" class="btn secondary tiny" data-action="share-whatsapp" data-id="${o.id}" style="background:#fff;">Compartilhar WhatsApp</button><button type="button" class="btn secondary tiny" data-action="copy-tracking" data-id="${o.id}">Copiar link</button></div>` : "";
     if(role === "store" && o.status === "run" && Number(o.queuePosition) === 2) trackingShareHtml = '<div class="info">Motoboy com duas corridas. Sua entrega está na próxima posição.</div>' + trackingShareHtml;
     let gpsTrackingInfo = (canLoc(o) && o.location && o.status === "run") ? `<div class="gps" style="margin-top:6px; background:var(--mint); padding:8px; border-radius:10px;">📍 <b>Motoboy em trânsito:</b> <a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" style="color:var(--green-dark); font-weight:bold;">Acompanhar Mapa</a> · Última posição: ${date(o.location.updatedAt)}</div>` : "";
     let isSpecialQuote = o.status === "cotacao" || o.status === "cotacao_aceita";
@@ -2883,11 +2902,11 @@
       const client = { name: o.client || "Cliente", address: [o.clientStreet, o.clientNumber, o.clientNeighborhood, o.city].filter(Boolean).join(", ") || o.address || "Endereço a confirmar", current: !atStore };
       const collection = o.serviceType === "collection" || o.serviceType === "roundtrip" && tripStage < 2;
       const stops = collection ? [client, store] : [store, client];
-      return '<article class="order courier-run" data-order-id="'+esc(o.id)+'"><header class="courier-run-heading"><div><small>'+esc([o.orderCode || o.id, o.externalOrder?.provider ? storeOrderChannel(o) : "", serviceTypeLabel(o.serviceType)].filter(Boolean).join(" · "))+'</small><h2>'+esc(st)+'</h2></div><strong class="courier-run-price">'+cash(o.fee)+'</strong></header>' +
+      return '<article class="order courier-run" data-order-id="'+esc(o.id)+'"><header class="courier-run-heading"><div><small>'+esc([o.orderCode || o.id, o.externalOrder?.provider ? storeOrderChannel(o) : "", serviceTypeLabel(o.serviceType)].filter(Boolean).join(" · "))+'</small><h2>'+esc(returningIfood ? runningOrderStage(o) : st)+'</h2></div><strong class="courier-run-price">'+cash(o.fee)+'</strong></header>' +
         '<div class="courier-run-progress">'+queueBadge+pickupTimerHtml+'</div><ol class="courier-run-stops">'+stops.map(({name,address,current}, index)=>
           '<li'+(current?' aria-current="step"':'')+'><span class="courier-stop-dot" aria-hidden="true"></span><div><small>'+(index===0?'Coleta':'Destino')+'</small><strong>'+esc(name)+'</strong><span>'+esc(address)+'</span></div></li>').join('')+'</ol>' +
         (o.clientReference ? '<p class="courier-reference"><b>Ponto de referência</b> '+esc(o.clientReference)+'</p>' : '') +
-        careDetails(o) + (codePending ? '<p class="courier-reference"><b>PIN exigido na entrega.</b> Solicite o código ao cliente. A conclusão depende da validação pela plataforma.</p>' : '') +
+        careDetails(o) + (returningIfood ? '<p class="info">O pedido foi cancelado no iFood. Devolva o pedido à loja e confirme quando entregar.</p>' : codePending ? '<p class="courier-reference"><b>PIN exigido na entrega.</b> Solicite o código ao cliente. A conclusão depende da validação pela plataforma.</p>' : '') +
         '<div class="courier-run-actions">'+action+runNavigation+'</div>'+arrival+returnHtml+
         '<details class="courier-run-details" data-recent-id="'+esc(o.id)+'"><summary>Contatos e ações da corrida</summary><div class="courier-run-details-body">' +
         (o.phone ? '<p>Telefone do cliente · '+esc(o.phone)+'</p>' : '')+'<div class="meta"><span>Data: '+esc(formatServiceDate(o.serviceDate))+'</span>'+runDurationHtml+times+'</div><div class="buttons">'+callButtons(o)+runCancel+'</div>'+recordActions(o)+
@@ -3613,7 +3632,7 @@
     const exclusive = order.status==='open' && order.favoriteOffer && order.favoriteOffer.status!=='released' ? order.favoriteOffer : null;
     const waiting = exclusive?.status==='pending' && exclusive.expiresAt>serverNow();
     const status = waiting ? 'Oferta exclusiva' : exclusive ? exclusive.status==='declined' ? 'Oferta recusada' : 'Prazo da oferta encerrado' : isRunning ? runningOrderStage(order) : stages[order.status] || adminStatus(order);
-    const towardsStore = isRunning && (order.serviceType === "collection" && order.picked || order.serviceType === "roundtrip" && [1, 2].includes(Number(order.tripStage)));
+    const towardsStore = isRunning && (order.externalOrder?.returnRequestedAt || order.serviceType === "collection" && order.picked || order.serviceType === "roundtrip" && [1, 2].includes(Number(order.tripStage)));
     const destination = route ? "Rota múltipla" : towardsStore ? order.storeNeighborhood || "Loja" : order.clientNeighborhood || order.city || "Destino a confirmar";
     const address = route ? (order.completedStops || 0) + " de " + (order.deliveryCount || 0) + " entregas concluídas"
       : towardsStore ? order.storeAddress || ""
@@ -3621,8 +3640,8 @@
       : [order.clientStreet, order.clientNumber].filter(Boolean).join(", ") || order.address || "";
     const price = order.status === "cotacao" ? "A definir" : order.status === "cancelado_cotacao" && !order.fee ? "" : cash(order.fee);
     const paymentLabel = ({pending:"Pagamento pendente", reported:"Pagamento a confirmar", confirmed:"Pagamento confirmado"})[payment];
-    const tracking = isRunning && !route ? '<button type="button" class="store-text-button store-track-button" data-action="open-store-tracking" data-id="' + esc(order.id) + '">' + storeIcon("direction") + 'Rastrear</button>' : '';
-    const time = page === "done" ? order.completed || order.created : order.created;
+    const tracking = isRunning && !route && !order.externalOrder?.returnRequestedAt ? '<button type="button" class="store-text-button store-track-button" data-action="open-store-tracking" data-id="' + esc(order.id) + '">' + storeIcon("direction") + 'Rastrear</button>' : '';
+    const time = page === "done" ? order.completed || order.cancelledAt || order.created : order.created;
     const metadata = [order.orderCode || order.id, route ? "" : storeOrderChannel(order), time ? date(time) : ""].filter(Boolean).join(" · ");
     return '<article class="store-order-row"><details class="store-order-entry" data-recent-id="' + esc(page + ":" + order.id) + '"><summary>' +
       '<span class="store-order-location"><strong>' + esc(destination) + '</strong>' + (address ? '<small>' + esc(address) + '</small>' : '') +
@@ -3631,12 +3650,12 @@
       (isRunning && order.courierName ? '<small>' + esc(order.courierName) + ' · ' + esc(courierRatingLabel(order)) + '</small>' : '') +
       (paymentLabel ? '<small class="store-order-payment" data-payment="' + payment + '">' + paymentLabel + '</small>' : '') + '</span>' +
       '<strong class="store-order-price">' + price + '</strong>' + storeIcon("next") + '</summary>' +
-      '<div class="store-order-detail">' + card(order) + '</div></details>' + favoriteOfferStatus(order) + tracking +
+      '<div class="store-order-detail">' + card(order) + (order.cancellationReason ? '<p class="info">'+esc(order.cancellationReason)+'</p>' : '') + '</div></details>' + favoriteOfferStatus(order) + orderSearchStatus(order) + tracking +
       (page==='done'&&order.status==='done'&&order.courierId&&order.kind!=='route'&&!order.ratingStatus?.storeSubmitted?'<button class="store-text-button" type="button" data-action="rate-delivery" data-id="'+esc(order.id)+'">Avaliar entrega</button>':'')+'</article>';
   }
 
   function storeOrdersView(orders, page){
-    const titles = {quotes:"Cotações", open:"Pedidos em aberto", run:"Em execução", done:"Concluídos"};
+    const titles = {quotes:"Cotações", open:"Pedidos em aberto", run:"Em execução", done:"Histórico de entregas"};
     const emptyMessages = {
       quotes:["Nenhuma cotação registrada", "As propostas dos motoboys aparecem nas suas cotações."],
       open:["Nenhum pedido em aberto", "Pedidos aguardando motoboy aparecem aqui."],
@@ -3660,7 +3679,7 @@
     } else if(role === "courier" && status === "run") arr = courierRunningOrders();
     else arr.sort((a,b) => Number(b.created||0)-Number(a.created||0));
     if(role === "store") {
-      if(status === "done") arr.sort((a,b) => Number(b.completed || b.created || 0) - Number(a.completed || a.created || 0));
+      if(status === "done") arr=mine().filter(o=>operational(o)&&['done','cancelled'].includes(o.status)).sort((a,b) => Number(b.completed || b.cancelledAt || b.created || 0) - Number(a.completed || a.cancelledAt || a.created || 0));
       return storeOrdersView(arr, status);
     }
     const courier = role === "courier";
@@ -3691,7 +3710,7 @@
 
   function offerDistributionView(){
     const s={enabled:false,couriersPerRound:3,responseSeconds:30,maxRounds:3,...offerSettings};
-    return '<div class="head"><div><h1>Distribuição de ofertas</h1><p>Convites privados para motoboys conectados e disponíveis. Uma aceitação fecha a corrida para os demais.</p></div></div><section class="panel"><form id="offer-settings-form"><label style="display:flex;gap:10px;align-items:center"><input id="offers-enabled" type="checkbox" style="width:auto" '+(s.enabled?'checked':'')+'>Ativar rodadas de ofertas na homologação</label><div class="field full" style="margin-top:14px"><label for="offers-couriers">Motoboys por rodada (máximo 3)</label><input id="offers-couriers" type="number" min="1" max="3" step="1" required value="'+Number(s.couriersPerRound)+'"></div><div class="field full" style="margin-top:12px"><label for="offers-seconds">Tempo para responder (15 a 120 segundos)</label><input id="offers-seconds" type="number" min="15" max="120" step="1" required value="'+Number(s.responseSeconds)+'"></div><div class="field full" style="margin-top:12px"><label for="offers-rounds">Rodadas por pedido (máximo 3)</label><input id="offers-rounds" type="number" min="1" max="3" step="1" required value="'+Number(s.maxRounds)+'"></div><p>O motoboy pode aceitar ou recusar antes de receber outra oferta. O motivo é opcional e a recusa não gera punição automática. Não há escala, controle de jornada nem exclusividade.</p><button type="submit" class="btn primary full">Salvar parâmetros</button><p data-form-feedback role="status"></p></form></section>';
+    return '<div class="head"><div><h1>Distribuição de ofertas</h1><p>Piloto em Aracruz. Convites privados para motoboys disponíveis, inclusive com o app em segundo plano.</p></div></div><section class="panel"><form id="offer-settings-form"><label style="display:flex;gap:10px;align-items:center"><input id="offers-enabled" type="checkbox" style="width:auto" '+(s.enabled?'checked':'')+'>Ativar rodadas de ofertas em Aracruz</label><div class="field full" style="margin-top:14px"><label for="offers-couriers">Motoboys por rodada (máximo 3)</label><input id="offers-couriers" type="number" min="1" max="3" step="1" required value="'+Number(s.couriersPerRound)+'"></div><div class="field full" style="margin-top:12px"><label for="offers-seconds">Tempo para responder (15 a 120 segundos)</label><input id="offers-seconds" type="number" min="15" max="120" step="1" required value="'+Number(s.responseSeconds)+'"></div><div class="field full" style="margin-top:12px"><label for="offers-rounds">Rodadas por pedido (máximo 3)</label><input id="offers-rounds" type="number" min="1" max="3" step="1" required value="'+Number(s.maxRounds)+'"></div><p>Uma aceitação fecha a corrida para os demais. Sem aceite após as rodadas, o mesmo pedido fica disponível para os motoboys da cidade.</p><button type="submit" class="btn primary full">Salvar parâmetros</button><p data-form-feedback role="status"></p></form></section>';
   }
   const externalProviders=[
     {id:'ifood',name:'iFood',adapterImplemented:false,needs:'Credenciais oficiais, webhook autorizado e mapeamento da loja.'},
@@ -3962,7 +3981,7 @@
     const owner = currentUser?.uid;
     const enabled = accountProfile?.externalAutoCall?.ifood === true;
     const destination = accountProfile?.externalAutoDestination?.ifood;
-    const rates = window.ExpressTariffs.resolve(tariffConfig, Date.now(), defaultRates);
+    const rates = resolvedOrderRates(activeCity());
     const dialog = document.createElement("dialog");
     dialog.className = "express-dialog";
     dialog.dataset.ihubCallMode = "true";
@@ -4257,6 +4276,20 @@
       }
       if(action==='release-favorite'){
         await command('releaseFavoriteOffer',id);toast('Pedido liberado para os motoboys da cidade.');return;
+      }
+      if(action==='renewOrderSearch'){
+        await command(action,id);toast('Busca renovada para o mesmo pedido.');return;
+      }
+      if(action==='confirm-ihub-pin'){
+        const code=window.prompt('Informe o PIN de quatro dígitos que o cliente apresentou.','');
+        if(code===null)return;
+        if(!/^\d{4}$/.test(code.trim()))throw Error('Informe os quatro dígitos do PIN.');
+        await callIhubCourier({action:'verifyPin',orderId:id,code:code.trim()});
+        toast('PIN validado pelo iFood. Confirme a entrega para concluir a corrida.');return;
+      }
+      if(action==='confirmIhubReturn'){
+        if(!await confirmInApp('Confirmar devolução','O pedido foi devolvido à loja? A corrida será encerrada no histórico como cancelada.'))return;
+        await command(action,id);if(trackingOrderId===id)stopGpsTracking();toast('Devolução confirmada. Corrida registrada no histórico.');return;
       }
       if(action==='city-switch'||action==='city-request'){
         await command(action==='city-switch'?'switchCourierCity':'requestCourierCity',null,{cityId:id});
@@ -4717,12 +4750,14 @@
     let p = f.paymentMethod.value;
     let b = f.bag.checked;
     let k = f.bank.checked;
-    let finalFee = isQuote ? 0 : calculateFee(p, false, b, k, selectedZone);
+    let finalFee = isQuote ? 0 : Number(f.dataset.expectedFee);
+    if(!isQuote&&(!Number.isFinite(finalFee)||finalFee<=0)){toast('Aguarde a cotação da tarifa antes de enviar.','warn');return;}
 
     if(!phoneOrders?.validate())return;
     const customerSnapshot=phoneOrders?.snapshot();
 
     let submitButton = f.querySelector('button[type="submit"]');
+    f.dataset.requestSubmitting='true';
     submitButton.disabled = true; submitButton.textContent = "Salvando...";
     
     let editId = document.getElementById("edit-order-id").value;
@@ -4741,7 +4776,8 @@
         favoriteCourierId: !isQuote&&!editId&&!addingRouteDelivery ? f.elements.favoriteCourierId.value : '',
         storeUnitId: !editId&&!addingRouteDelivery ? f.elements.storeUnitId.value : '',
         fragile: !isQuote && f.fragile.checked, importantNotes: !isQuote && f.importantNotes.checked,
-        rain: false, bag: isQuote ? false : b, bank: isQuote ? false : k, fee: completingQuote ? Number(data.orders.find(o=>o.id===editId)?.agreedFee||0) : finalFee, status: isQuote ? "cotacao" : "open"
+        rain: false, bag: isQuote ? false : b, bank: isQuote ? false : k, fee: completingQuote ? Number(data.orders.find(o=>o.id===editId)?.agreedFee||0) : finalFee,
+        ...(!isQuote&&!editId?{expectedFee:finalFee}:{}), status: isQuote ? "cotacao" : "open"
       };
 
       const requestId = f.dataset.requestId || crypto.randomUUID();
@@ -4758,6 +4794,7 @@
       if(routeSaved){if(!routeSelection.includes(saved.orderId))routeSelection.push(saved.orderId);addingRouteDelivery=false;view='routes';}else view = isQuote ? "quotes" : "open"; render();
     } catch(err) { toast("Erro ao enviar: " + err.message, "warn"); }
     finally {
+      delete f.dataset.requestSubmitting;
       submitButton.disabled = false;
       if (document.getElementById("order-sheet-overlay").classList.contains("active")) recalculateMobileFee();
     }
