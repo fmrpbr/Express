@@ -459,7 +459,7 @@
       popup.classList.toggle("store-menu-popover", anchored);
       if(anchored){
         var anchor = trigger.getBoundingClientRect();
-        var right = Math.max(12, window.innerWidth - anchor.right);
+        var right = Math.min(Math.max(12, window.innerWidth - anchor.right), Math.max(12, window.innerWidth - 316));
         popup.style.setProperty("--store-menu-right", right + "px");
         popup.style.setProperty("--store-menu-bottom", (window.innerHeight - anchor.top + 9) + "px");
         popup.style.setProperty("--store-menu-arrow", Math.max(18, window.innerWidth - anchor.left - anchor.width / 2 - right) + "px");

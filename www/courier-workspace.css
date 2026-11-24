@@ -90,6 +90,7 @@
 .courier-run-details-body > p { margin: 0 0 7px; overflow-wrap: anywhere; }
 .courier-workspace .btn.primary { background: var(--store-accent); color: white; }
 .courier-workspace .btn.primary:not(:disabled):hover { background: var(--store-accent-hover); }
+.courier-workspace .btn.primary:disabled { border-color: var(--store-border); background: var(--store-bg); color: var(--store-muted); cursor: default; }
 .courier-workspace .btn.secondary { background: var(--store-surface); color: var(--store-text); border-color: var(--store-border); }
 
 @media (max-width: 899px) {
