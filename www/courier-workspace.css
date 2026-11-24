@@ -1,0 +1,114 @@
+.courier-workspace.app {
+  --courier-nav-height: 68px;
+  width: 100%;
+  max-width: none;
+  background: var(--store-bg);
+  color: var(--store-text);
+  box-shadow: none;
+  font: 14px/1.5 var(--store-font);
+}
+
+.courier-workspace .main { background: var(--store-bg); }
+.courier-workspace.compact-web .main > .content {
+  width: min(100%, 1130px);
+  max-width: none;
+  margin-inline: auto;
+  padding: 18px clamp(14px, 3vw, 34px) 30px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.courier-workspace.compact-web .map-hero {
+  padding: 8px clamp(14px, 3vw, 34px);
+  border-bottom: 1px solid var(--store-border);
+  background: var(--store-surface);
+  color: var(--store-text);
+}
+.courier-workspace .hero-dashboard { max-width: 1062px; margin-inline: auto; gap: 6px; }
+.courier-workspace .hero-stats, .courier-workspace .hero-top { display: none; }
+.courier-workspace.compact-web .store-brand-row { min-height: 44px; margin: 0; }
+.courier-workspace .store-brand-row strong { display: inline-flex; align-items: center; gap: 8px; font-size: clamp(14px, 4vw, 19px); letter-spacing: -.025em; }
+.courier-workspace .store-brand-row strong::before { content: ''; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 8px; background: url('./icons/icon-192.png') center / cover no-repeat; }
+.courier-workspace .store-header-actions button { width: 40px; height: 40px; color: var(--store-teal); background: var(--store-soft); }
+.courier-workspace .hero-alerts { border-radius: 9px; }
+
+.courier-workspace .side { background: var(--store-surface); border-color: var(--store-border); }
+.courier-workspace.compact-web #nav button { min-height: 50px; color: var(--store-muted); font-weight: 700; }
+.courier-workspace.compact-web #nav button.active { color: var(--store-link); background: var(--store-soft); box-shadow: none; }
+.courier-workspace #nav button .nav-pulse { animation: none; color: inherit; }
+.courier-workspace #nav button .nav-count { min-width: 15px; height: 15px; }
+.courier-workspace .head { align-items: center; }
+.courier-workspace .head h1 { margin: 0; color: var(--store-text); font-size: clamp(23px, 4vw, 32px); letter-spacing: -.045em; }
+.courier-workspace .head p { margin-top: 4px; color: var(--store-muted); }
+.courier-workspace .empty, .courier-workspace .panel, .courier-workspace .order { border-color: var(--store-border); background: var(--store-surface); color: var(--store-text); box-shadow: none; }
+.courier-workspace .order { border-radius: 14px; }
+
+.courier-workspace .courier-availability { margin-bottom: 16px; padding: 10px 12px; background: var(--store-surface); border-color: var(--store-border); }
+.courier-workspace .courier-availability[data-availability='available'] { border-inline-start: 4px solid #207458; }
+.courier-workspace .courier-availability[data-availability='busy'] { border-inline-start: 4px solid #ad611b; }
+.courier-workspace .courier-availability[data-availability='paused'] { border-inline-start: 4px solid #899994; }
+.courier-workspace .courier-availability b { color: var(--store-text); font-size: 16px; }
+.courier-workspace .courier-availability small { color: var(--store-muted); font-size: 12px; }
+.courier-workspace .courier-payment { background: var(--store-payment-bg); border-color: var(--store-border); color: var(--store-payment-text); }
+.courier-result-count { color: var(--store-muted); font-size: 12px; font-weight: 650; white-space: nowrap; }
+
+.courier-workspace .courier-offer { padding: clamp(12px, 2vw, 19px); }
+.courier-workspace .courier-offer-price .offer-fee { color: var(--store-teal); }
+.courier-workspace .offer-fee strong, .courier-run-price { font-size: clamp(19px, 4.9vw, 26px); font-variant-numeric: tabular-nums; letter-spacing: -.035em; }
+.courier-workspace .courier-offer-price small, .courier-workspace .courier-offer-top .id { color: var(--store-muted); }
+.courier-workspace .courier-offer-route { background: var(--store-soft); color: var(--store-text); border-radius: 11px; }
+.courier-workspace .courier-offer-stops small, .courier-workspace .courier-offer-estimate small, .courier-workspace .courier-offer-route .store-icon { color: var(--store-muted); }
+.courier-workspace .courier-offer-estimate { border-color: var(--store-border); }
+.courier-workspace .courier-offer-details dl, .courier-workspace .queue-legend { background: var(--store-bg); border-color: var(--store-border); color: var(--store-muted); }
+.courier-workspace .courier-queue-info { color: var(--store-muted); }
+.courier-workspace .courier-offer-details summary, .courier-workspace .courier-offer-accept .btn { border-radius: 9px; }
+.courier-workspace .courier-offer-details summary { border-color: var(--store-border); }
+.courier-workspace .courier-offer-accept .btn + .btn { margin-top: 6px; }
+
+.courier-run { display: grid; gap: 12px; padding: clamp(14px, 2vw, 22px); }
+.courier-run-heading { display: flex; justify-content: space-between; align-items: start; gap: 10px; }
+.courier-run-heading small { display: block; color: var(--store-muted); font-size: 12px; }
+.courier-run-heading h2 { margin: 3px 0 0; font-size: clamp(20px, 5vw, 27px); line-height: 1.12; letter-spacing: -.035em; }
+.courier-run-price { flex-shrink: 0; color: var(--store-teal); white-space: nowrap; }
+.courier-run-progress { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
+.courier-run-stops { display: grid; gap: 10px; list-style: none; padding: 0; margin: 0; }
+.courier-run-stops li { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 9px; align-items: start; padding: 8px 10px; border: 1px solid var(--store-border); border-radius: 9px; }
+.courier-run-stops li[aria-current='step'] { border-color: var(--store-teal); background: var(--store-soft); }
+.courier-stop-dot { width: 8px; height: 8px; margin-top: 6px; border: 1px solid var(--store-muted); border-radius: 50%; }
+[aria-current='step'] > .courier-stop-dot { background: var(--store-teal); border-color: var(--store-teal); }
+.courier-run-stops li div { display: grid; gap: 1px; overflow-wrap: anywhere; }
+.courier-run-stops li small { color: var(--store-muted); font-size: 11px; font-weight: 700; }
+.courier-run-stops li div span { color: var(--store-muted); }
+.courier-reference { margin: 0; font-size: 13px; color: var(--store-muted); overflow-wrap: anywhere; }
+.courier-reference b { color: var(--store-text); }
+.courier-run-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.courier-run-actions .btn { min-height: 45px; text-align: center; line-height: 1.25; white-space: normal; padding-inline: 7px; }
+.courier-run-actions [data-action='focus'], .courier-run-actions .btn:only-child { grid-column: 1 / -1; }
+.courier-map-link .store-icon { width: 16px; height: 16px; }
+.courier-run-details { border-top: 1px solid var(--store-border); padding-top: 7px; }
+.courier-run-details summary { min-height: 36px; padding: 6px 0; cursor: pointer; font-weight: 650; color: var(--store-teal); }
+.courier-run-details-body > p { margin: 0 0 7px; overflow-wrap: anywhere; }
+.courier-workspace .btn.primary { background: var(--store-accent); color: white; }
+.courier-workspace .btn.primary:not(:disabled):hover { background: var(--store-accent-hover); }
+.courier-workspace .btn.secondary { background: var(--store-surface); color: var(--store-text); border-color: var(--store-border); }
+
+@media (max-width: 899px) {
+  .courier-workspace.compact-web .side { left: 0; right: 0; width: 100%; transform: none; }
+  .courier-workspace.compact-web .main { padding-bottom: calc(var(--courier-nav-height) + env(safe-area-inset-bottom)); }
+  .courier-workspace .main > .content { max-width: 720px; }
+}
+
+@media (min-width: 900px) {
+  .courier-workspace .side { width: clamp(188px, 18vw, 235px); padding: 18px 12px; background: var(--store-navigation); }
+  .courier-workspace .side .brand b { color: white; }
+  .courier-workspace .side :is(.nav-title, .brand small) { color: #b4c6bf; }
+  .courier-workspace .side-note { display: none; }
+  .courier-workspace.compact-web #nav button { padding-inline: 10px; color: #d5e2dc; }
+  .courier-workspace.compact-web #nav button:is(:hover, .active) { color: white; background: var(--store-navigation-hover); }
+  .courier-workspace .courier-offer-list, .courier-workspace .courier-run-list { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .courier-workspace .courier-run-list > :only-child { max-width: 640px; grid-column: 1 / -1; }
+}
+
+@media (max-width: 360px) {
+  .courier-run-actions { grid-template-columns: minmax(0, 1fr); }
+}

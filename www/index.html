@@ -351,6 +351,7 @@
 <link rel="stylesheet" href="./store-alerts.css">
 <link rel="stylesheet" href="./store-pages.css">
 <link rel="stylesheet" href="./ihub.css">
+<link rel="stylesheet" href="./courier-workspace.css">
 </head>
 <body>
 
@@ -618,7 +619,7 @@
         </label>
       </details>
     </div>
-    <div class="login-install"><small class="login-version" data-app-version>Versão 2.0.18</small><button type="button" data-express-install hidden>Instalar Express</button></div>
+    <div class="login-install"><small class="login-version" data-app-version>Versão 2.0.19</small><button type="button" data-express-install hidden>Instalar Express</button></div>
   </div>
   </div>
 </div>
@@ -905,7 +906,7 @@
 <script src="./order-request.js"></script>
 <script src="./platform-order-alerts.js"></script>
 <script type="module">
-  const APP_VERSION="2.0.18";
+  const APP_VERSION="2.0.19";
   window.EXPRESS_APP_VERSION=APP_VERSION;
   document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão "+APP_VERSION);
   const { initializeApp, getDatabase, ref, set, update, push, get, onValue, query, orderByChild, equalTo, limitToLast, startAt, onDisconnect, serverTimestamp,
@@ -2303,10 +2304,8 @@
     document.querySelector('.store-header-actions [data-store-dialog="store-account"]').innerHTML = storeIcon("profile");
   }
 
-  function renderCompactNavigation(availableCount){
-    const courier = role === "courier";
-    const first = courier ? ["available", "Disponíveis"] : ["dashboard", "Visão geral"];
-    const entries = [first, ["quotes", "Cotação"], ["run", "Em execução"], ["done", "Concluído"]];
+  function renderCourierNavigation(availableCount){
+    const entries = [["available", "Ofertas"], ["quotes", "Cotações"], ["run", "Em execução"], ["done", "Concluídos"]];
     const otherEntries = items().filter(([id]) => !entries.some(([mainId]) => id === mainId));
     const current = (id) => view === id ? ' class="active" aria-current="page"' : '';
     const nav = document.getElementById("nav");
@@ -2315,18 +2314,15 @@
         ? '<small class="nav-count" aria-label="' + availableCount + ' ofertas">' + availableCount + '</small>' : '';
       const icon = badge ? '<span class="nav-pulse">' + storeIcon(id) + '</span>' : storeIcon(id);
       return '<button type="button" data-nav="' + id + '"' + current(id) + '>' + icon + label + badge + '</button>';
-    }).join("") + '<button type="button" data-store-dialog="store-menu" aria-haspopup="dialog">' + storeIcon("menu") + 'Menu</button>';
+    }).join("") + '<button type="button" data-store-dialog="store-menu" data-store-menu-anchor aria-haspopup="dialog" aria-controls="store-menu">' + storeIcon("menu") + 'Menu</button>';
     if (nav.innerHTML !== buttons) nav.innerHTML = buttons;
     const menu = document.getElementById("store-menu-links");
     if (menu.dataset.role !== role) {
       menu.dataset.role = role;
-      document.querySelector('#store-account [data-nav="profile"]').textContent = courier ? "Meu Pix" : "Perfil da loja";
+      document.querySelector('#store-account [data-nav="profile"]').textContent = "Meu Pix";
       menu.innerHTML = otherEntries.map(([id, icon, label]) => {
-        const action = id === "new" ? 'data-open-sheet data-sheet-mode="delivery"' : 'data-nav="' + id + '"';
-        return '<button type="button" class="btn secondary" ' + action + '><span aria-hidden="true">' + icon + '</span>' + label + '</button>';
-      }).join("") + (courier
-        ? '<button type="button" class="btn secondary" data-nav="profile">Meu Pix</button><button type="button" class="btn secondary" data-action="signal-rain">Sinalizar chuva</button>'
-        : '<button type="button" class="btn secondary" data-nav="open">Pedidos em aberto</button>') +
+        return '<button type="button" class="btn secondary" data-nav="' + id + '"><span aria-hidden="true">' + icon + '</span>' + label + '</button>';
+      }).join("") + '<button type="button" class="btn secondary" data-nav="profile">Meu Pix</button><button type="button" class="btn secondary" data-action="push-settings">Notificações e som</button><button type="button" class="btn secondary" data-action="signal-rain">Sinalizar chuva</button>' +
         '<button type="button" class="btn secondary" data-nav="tariffs">Tarifas e avisos</button>';
       document.querySelector('.store-header-actions [data-nav="alerts"]').innerHTML = storeIcon("alerts");
       document.querySelector('.store-header-actions [data-store-dialog="store-account"]').innerHTML = storeIcon("profile");
@@ -2334,12 +2330,11 @@
   }
 
   function courierAvailabilityPanel(available, workSlots, activeRoute){
-    const state = workSlots > 0 ? "busy" : available ? "available" : "paused";
-    const label = {busy:"Ocupado", available:"Disponível", paused:"Pausado"}[state];
-    const capacity = workSlots + "/2 vagas ocupadas";
+    const state = !available ? "paused" : activeRoute || workSlots >= 2 ? "busy" : "available";
+    const label = {busy:"Em atendimento", available:"Disponível", paused:"Pausado"}[state];
+    const slots = `${workSlots}/2 vagas ocupadas`;
     const hint = activeRoute ? "Rota em execução · novas corridas bloqueadas"
-      : workSlots >= 2 ? capacity + " · conclua ou devolva uma corrida"
-      : available ? capacity : capacity + " · novas ofertas pausadas";
+      : available ? slots : `${slots} · Novas ofertas pausadas`;
     return '<section class="courier-availability" data-availability="' + state + '" aria-label="Disponibilidade">' +
       '<div><b data-work-status>' + label + '</b><small>' + hint + '</small></div>' +
       '<button type="button" class="btn ' + (available ? "secondary" : "primary") +
@@ -2562,7 +2557,7 @@
       '<span class="queue-priority ' + queue.level + '">' + label + ' · ' + queue.waitingMinutes + ' min</span></div>' +
       '<details class="courier-offer-details" data-recent-id="' + esc(order.id) + '"><summary>Ver detalhes' + storeIcon("next") + '</summary><dl>' +
       details.map(([name, value]) => '<dt>' + name + '</dt><dd>' + esc(value) + '</dd>').join("") +
-      '</dl></details><div class="courier-offer-accept">' + courierAcceptButton(order) + '</div></article>';
+      '</dl></details>' + returnControls(order) + '<div class="courier-offer-accept">' + courierAcceptButton(order) + '</div></article>';
   }
 
   function card(o){
@@ -2578,6 +2573,7 @@
     let st = o.status === "return_priority" ? (Number(o.priorityUntil)>serverNow()?"Devolução prioritária":"Aguardando motoboy") : o.status === "awaiting_return" ? "Aguardando liberação da loja" : o.status === "awaiting_quote_return" ? "Aguardando nova cotação" : o.status === "open" ? "Aguardando motoboy" : o.status === "cotacao" ? "Em Cotação" : o.status === "cotacao_aceita" ? "Cotação aceita · Completar dados" : o.status === "cancelado_cotacao" || o.status === "cancelled" ? "Cancelado" : o.status === "run" ? (o.serviceType === "roundtrip" ? (tripStage===0 ? "A caminho do cliente" : tripStage===1 ? "A caminho da loja" : tripStage===2 ? "Na loja · 2ª viagem" : "A caminho do cliente") : (o.picked ? "Coletado · em trânsito" : "Aguardando coleta")) : "Entregue";
     let tag = o.status === "open" ? "orange" : o.status === "cotacao" || o.status === "cotacao_aceita" ? "purpletag" : o.status === "cancelado_cotacao" || o.status === "cancelled" ? "gray" : o.status === "run" ? "bluetag" : "green";
     let action = "";
+    let runNavigation = "", runCancel = "", nextAtStore = false;
     const codePending = role === "courier" && o.courierId === actor && o.status === "run" && o.externalOrder?.codeRequired === true && o.externalOrder.codeConfirmed !== true;
     const finishButton = label => codePending ? '<button type="button" class="btn primary tiny" disabled>Confirmar PIN</button>'
       : '<button type="button" class="btn primary tiny" data-action="finish" data-id="' + esc(o.id) + '">' + label + '</button>';
@@ -2625,26 +2621,26 @@
     }
 
     if(role === "courier" && o.status === "run") {
+      const clientAddress = [o.clientStreet, o.clientNumber, o.clientNeighborhood, o.city].filter(Boolean).join(", ") || o.address;
+      nextAtStore = o.serviceType === "roundtrip" ? tripStage === 1 : o.serviceType === "collection" ? Boolean(o.picked) : !o.picked;
+      const destination = nextAtStore ? o.storeAddress || [o.storeName, o.storeNeighborhood, o.city].filter(Boolean).join(", ") : clientAddress;
+      const mapUrl = "https://www.google.com/maps/dir/?api=1&destination=" + encodeURIComponent(destination || "") + "&travelmode=bicycling";
+      runNavigation = destination ? '<a href="' + esc(mapUrl) + '" target="_blank" rel="noopener noreferrer" class="btn secondary courier-map-link">' +
+        storeIcon("direction") + (o.serviceType === "roundtrip" ? nextAtStore ? "Ir à loja" : "Ir ao cliente" : o.picked ? "Navegar até o destino" : "Navegar até a coleta") + '</a>' : "";
+      const cancel = '<button type="button" class="btn danger tiny" data-action="cancel" data-id="'+esc(o.id)+'">Cancelar corrida</button>';
       if (o.serviceType === "roundtrip") {
-        let destination = tripStage === 1 ? (o.storeAddress || "Loja") : `${o.clientStreet}, ${o.clientNumber} - ${o.clientNeighborhood}`;
-        let mapUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=bicycling`;
-        let stepAction = tripStage === 0
-          ? '<button type="button" class="btn soft tiny" data-action="roundtrip-step" data-step="1" data-id="'+o.id+'">Confirmar recolha no cliente</button>'
-          : tripStage === 1
-          ? '<button type="button" class="btn soft tiny" data-action="roundtrip-step" data-step="2" data-id="'+o.id+'">Confirmar entrega na loja</button>'
-          : tripStage === 2
-          ? '<button type="button" class="btn primary tiny" data-action="roundtrip-step" data-step="3" data-id="'+o.id+'">Iniciar 2ª viagem</button>'
+        const steps = ["Confirmar recolha no cliente", "Confirmar entrega na loja", "Iniciar 2ª viagem"];
+        action = tripStage < steps.length
+          ? '<button type="button" class="btn primary tiny" data-action="roundtrip-step" data-step="'+(tripStage+1)+'" data-id="'+esc(o.id)+'">'+steps[tripStage]+'</button>'
           : finishButton("Confirmar entrega ao cliente");
-        action = stepAction + '<button type="button" class="btn danger tiny" data-action="cancel" data-id="'+o.id+'">Cancelar</button>' +
-          ` <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny gps-start-pulse" style="background:var(--mint);">🗺️ GPS: ${tripStage===1 ? "Ir à Loja" : "Ir ao Cliente"}</a>`;
+        runCancel = cancel;
       } else {
-        let mapUrl = !o.picked ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(o.serviceType === "collection" ? `${o.clientStreet}, ${o.clientNumber}` : (o.storeAddress || "Loja"))}&travelmode=bicycling` : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(o.serviceType === "collection" ? (o.storeAddress || "Loja") : `${o.clientStreet}, ${o.clientNumber}`)}&travelmode=bicycling`;
-        let gpsBtnText = !o.picked ? "🗺️ GPS: Ir à Coleta" : "🗺️ GPS: Ir ao Destino";
-        action = (o.picked ? finishButton(o.roundtripSchema && o.legNumber === 1 ? "Confirmar entrega na loja" : "Confirmar Entrega") : '<button type="button" class="btn soft tiny" data-action="picked" data-id="'+o.id+'">Confirmei Retirada</button><button type="button" class="btn danger tiny" data-action="cancel" data-id="'+o.id+'">Cancelar</button>') +
-                 ` <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn secondary tiny gps-start-pulse" style="background:var(--mint);">${gpsBtnText}</a>`;
+        action = o.picked ? finishButton(o.roundtripSchema && o.legNumber === 1 ? "Confirmar entrega na loja" : "Confirmar entrega")
+          : '<button type="button" class="btn primary tiny" data-action="picked" data-id="'+esc(o.id)+'">Confirmar coleta</button>';
+        if (!o.picked) runCancel = cancel;
       }
       const first = courierRunningOrders()[0]?.id === o.id;
-      queueBadge = '<div style="margin:8px 0"><span class="tag '+(first ? 'green' : 'orange')+'">'+(first ? '1 · EM ATENDIMENTO' : '2 · PRÓXIMA ENTREGA')+'</span></div>';
+      queueBadge = '<span class="tag '+(first ? 'green' : 'orange')+'">'+(first ? 'Em atendimento' : 'Próxima entrega')+'</span>';
       if(!first) action = '<button type="button" class="btn purple tiny" data-action="focus" data-id="'+esc(o.id)+'">Atender agora</button>' + action;
     }
 
@@ -2664,18 +2660,24 @@
     let serviceBadge = o.serviceType === "collection" ? '<span class="tag orange">🔄 RECOLHA</span>' : o.serviceType === "roundtrip" ? '<span class="tag purpletag">🔁 2 VIAGENS</span>' : '<span class="tag bluetag">🚚 ENTREGA</span>';
 
     const showPickup = role === "courier" && o.status === "run" && o.courierId === actor;
-    const pickupAtClient = o.serviceType === "collection" || o.serviceType === "roundtrip";
-    const pickupPlace = showPickup
-      ? (pickupAtClient
-        ? [o.clientStreet, o.clientNumber ? "nº "+o.clientNumber : "", o.clientNeighborhood].filter(Boolean).join(", ")
-        : [o.storeName,o.storeAddress].filter(Boolean).join(" · "))
-      : "";
-    const pickupInfo = (pickupPlace ? '<p class="info"><b>Local de retirada</b><br>'+esc(pickupPlace)+'</p>' : "") +
-      (showPickup && o.city ? '<p class="info"><b>Cidade da entrega</b><br>'+esc(o.city)+'</p>' : "") +
-      (showPickup && o.clientReference ? '<p class="info"><b>Ponto de referência</b><br>'+esc(o.clientReference)+'</p>' : "") +
-      (codePending ? '<p class="info"><b>PIN exigido na entrega</b><br>Solicite o código ao cliente. A validação depende da conexão com a plataforma.</p>' : "");
     const returnHtml=returnControls(o);
-    return '<article data-order-id="'+esc(o.id)+'" class="order '+queueClass+'"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+locationLine+'</h3><div class="order-store">'+clientLine+'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>'+queueBadge+pickupInfo+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+' '+pickupTimerHtml+' '+runDurationHtml+times+'</div>'+returnHtml+careDetails(o)+trackingShareHtml+bidsHtml+gpsTrackingInfo+(o.status === "done" ? paymentDetails(o) : '')+recordActions(o)+'<div class="footer"><div class="buttons">'+action+callButtons(o)+'</div></div></article>';
+    if (showPickup) {
+      const atStore = nextAtStore || o.serviceType === "roundtrip" && tripStage === 2;
+      const store = { name: o.storeName || "Loja", address: o.storeAddress || "Endereço a confirmar", current: atStore };
+      const client = { name: o.client || "Cliente", address: [o.clientStreet, o.clientNumber, o.clientNeighborhood, o.city].filter(Boolean).join(", ") || o.address || "Endereço a confirmar", current: !atStore };
+      const collection = o.serviceType === "collection" || o.serviceType === "roundtrip" && tripStage < 2;
+      const stops = collection ? [client, store] : [store, client];
+      return '<article class="order courier-run" data-order-id="'+esc(o.id)+'"><header class="courier-run-heading"><div><small>'+esc([o.orderCode || o.id, o.externalOrder?.provider ? storeOrderChannel(o) : "", serviceTypeLabel(o.serviceType)].filter(Boolean).join(" · "))+'</small><h2>'+esc(st)+'</h2></div><strong class="courier-run-price">'+cash(o.fee)+'</strong></header>' +
+        '<div class="courier-run-progress">'+queueBadge+pickupTimerHtml+'</div><ol class="courier-run-stops">'+stops.map(({name,address,current}, index)=>
+          '<li'+(current?' aria-current="step"':'')+'><span class="courier-stop-dot" aria-hidden="true"></span><div><small>'+(index===0?'Coleta':'Destino')+'</small><strong>'+esc(name)+'</strong><span>'+esc(address)+'</span></div></li>').join('')+'</ol>' +
+        (o.clientReference ? '<p class="courier-reference"><b>Ponto de referência</b> '+esc(o.clientReference)+'</p>' : '') +
+        careDetails(o) + (codePending ? '<p class="courier-reference"><b>PIN exigido na entrega.</b> Solicite o código ao cliente. A conclusão depende da validação pela plataforma.</p>' : '') +
+        '<div class="courier-run-actions">'+action+runNavigation+'</div>'+returnHtml+
+        '<details class="courier-run-details" data-recent-id="'+esc(o.id)+'"><summary>Contatos e ações da corrida</summary><div class="courier-run-details-body">' +
+        (o.phone ? '<p>Telefone do cliente · '+esc(o.phone)+'</p>' : '')+'<div class="meta"><span>Data: '+esc(formatServiceDate(o.serviceDate))+'</span>'+runDurationHtml+times+'</div><div class="buttons">'+callButtons(o)+runCancel+'</div>'+recordActions(o)+
+        '<div class="meta">'+runDurationHtml+times+'</div></div></details></article>';
+    }
+    return '<article data-order-id="'+esc(o.id)+'" class="order '+queueClass+'"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+locationLine+'</h3><div class="order-store">'+clientLine+'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>'+queueBadge+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+' '+pickupTimerHtml+' '+runDurationHtml+times+'</div>'+returnHtml+careDetails(o)+trackingShareHtml+bidsHtml+gpsTrackingInfo+(o.status === "done" ? paymentDetails(o) : '')+recordActions(o)+'<div class="footer"><div class="buttons">'+action+callButtons(o)+'</div></div></article>';
   }
 
   function render(){
@@ -2685,10 +2687,10 @@
       devicePushPreference(currentUser.uid).enabled === false;
     const appLayout = document.querySelector(".app");
     const storeWorkspace = role === "store" && !!currentUser && accountAllowed();
-    const compactWeb = storeWorkspace || (role === "courier" && !window.Capacitor?.isNativePlatform?.() && !!currentUser && accountAllowed());
-    const courierWeb = compactWeb && role === "courier";
-    appLayout.classList.toggle("compact-web", compactWeb);
+    const courierWorkspace = role === "courier" && !!currentUser && accountAllowed();
+    appLayout.classList.toggle("compact-web", storeWorkspace || courierWorkspace);
     appLayout.classList.toggle("store-workspace", storeWorkspace);
+    appLayout.classList.toggle("courier-workspace", courierWorkspace);
 
     if(currentUser&&!accountAllowed()){
       document.getElementById("hero-alert-track").closest(".hero-alerts").hidden = false;
@@ -2706,14 +2708,14 @@
     if(role === "admin") actor = "admin"; if(people.length && !people.some(p => p.id === actor)) actor = people[0].id;
 
     let availableCount = role === "courier" ? data.orders.filter(isOffer).length : 0;
-    const detailsSelector = "details.store-recent, details.store-order-entry, details.courier-offer-details";
+    const detailsSelector = "details.store-recent, details.store-order-entry, details.courier-offer-details, details.courier-run-details";
     const openRecent = new Set(Array.from(document.querySelectorAll(detailsSelector), el => el.open ? el.dataset.recentId : null));
     const focusedOrder = document.activeElement?.matches(".store-order-entry > summary") ? document.activeElement.parentElement.dataset.recentId : null;
     const focusedRoute = document.activeElement?.dataset.routeSelect;
     const openTariffHistory = new Set(Array.from(document.querySelectorAll(".store-tariff-history[open], .store-tariff-history details[id][open]"), el => el.id));
     const queueInfoOpen = document.querySelector(".courier-queue-info")?.open === true;
     if(storeWorkspace) renderStoreNavigation();
-    else if(compactWeb) renderCompactNavigation(availableCount);
+    else if(courierWorkspace) renderCourierNavigation(availableCount);
     else document.getElementById("nav").innerHTML = items().map(n => {
       let alert = n[0] === "available" && availableCount > 0;
       return '<button type="button" class="'+(view===n[0]?"active":"")+'" data-nav="'+n[0]+'"><span class="'+(alert?"nav-pulse":"")+'">'+n[1]+'</span>'+n[2]+(alert?'<small class="nav-count">'+availableCount+'</small>':"")+'</button>';
@@ -2727,19 +2729,15 @@
     const presence = role === "courier" ? (data.presence || []).find(p => p.id === currentUser?.uid) || {} : {};
     const workSlots=role==='courier'?courierOccupiedSlots():0;
     const activeRoute=courierRunningOrders().some(o=>o.kind==='route');
-    const workStatus=workSlots>0?'OCUPADO':presence.availableForWork===true?'DISPONÍVEL':'PAUSADO';
-    const availabilityPanel = courierWeb ? courierAvailabilityPanel(presence.availableForWork === true, workSlots, activeRoute)
-      : role === "courier"
-      ? '<section class="panel" style="margin:0 0 14px;border:1px solid '+(workSlots>0?'#FED7AA':presence.availableForWork === true ? '#A7F3D0' : '#E5E7EB')+';background:'+(workSlots>0?'#FFF7ED':presence.availableForWork === true ? '#F0FDF4' : '#F8FAFC')+'"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b data-work-status style="display:block">'+workStatus+'</b><small style="color:var(--muted)">'+(activeRoute?'ROTA EM EXECUÇÃO · NOVAS CORRIDAS BLOQUEADAS':courierOccupiedSlots() >= 2 ? '2/2 VAGAS OCUPADAS · CONCLUA OU DEVOLVA UMA CORRIDA PARA ACEITAR OUTRA' : presence.availableForWork === true ? courierOccupiedSlots() + '/2 VAGAS OCUPADAS · VOCÊ PODE ACEITAR MAIS ' + (2-courierOccupiedSlots()) : courierOccupiedSlots() + '/2 VAGAS OCUPADAS · NOVAS OFERTAS PAUSADAS')+'</small></div><button type="button" class="btn '+(presence.availableForWork === true ? 'danger' : 'primary')+' tiny" data-toggle-availability>'+(presence.availableForWork === true ? 'PAUSAR' : 'FICAR DISPONÍVEL')+'</button></div></section>'
-      : '';
+    const availabilityPanel = courierWorkspace ? courierAvailabilityPanel(presence.availableForWork === true, workSlots, activeRoute) : '';
     const preferencesOpen=document.querySelector("[data-browser-preferences]")?.open===true;
     const ihubFinishedOpen = document.getElementById("ihub-finished")?.open === true;
     const review = window.ExpressPayments.summary(mine());
-    const paymentNotice = courierWeb && review.reportedCount
+    const paymentNotice = courierWorkspace && review.reportedCount
       ? '<button type="button" class="courier-payment" data-nav="reports"><b>' + review.reportedCount +
         (review.reportedCount === 1 ? ' pagamento para conferir' : ' pagamentos para conferir') +
         '</b><strong>' + cash(review.reported) + '</strong>' + storeIcon("next") + '</button>'
-      : role === "courier" && review.reportedCount ? '<div class="info" role="status"><b>'+review.reportedCount+' pagamento(s) para conferir · '+cash(review.reported)+'</b><p>A loja informou o pagamento. Confira sua conta e confirme o recebimento. Você pode continuar aceitando corridas.</p><button type="button" class="btn secondary tiny" data-nav="reports">Conferir pagamentos</button></div>' : '';
+      : '';
     const overdueNotice = role === "store" && review.overdueCount ? '<div class="store-report-overdue" role="status"><b>' + review.overdueCount +
       (review.overdueCount === 1 ? ' pendência de dias anteriores' : ' pendências de dias anteriores') + ' · ' + cash(review.overdue) +
       '</b><button type="button" class="btn secondary tiny" data-action="open-report-pending">Ver pendências</button></div>' : '';
@@ -2751,7 +2749,7 @@
     const rainCount=Object.values(rainSignals).filter(s=>Date.now()-s.at<1800000).length;
     const rainNotice=role==='admin'&&rainCount?'<div class="info" role="status"><b>CHUVA SINALIZADA POR '+rainCount+' MOTOBOY(S)</b><p>Nos últimos 30 minutos. Confira a condição antes de agendar a taxa.</p><button type="button" class="btn secondary tiny" data-nav="rates">Gerenciar chuva</button></div>':'';
     const tariffBanner=rainNotice+noticeHtml;
-    const quickActions = role !== 'admin' ? '<details class="quick-controls browser-preferences" data-browser-preferences><summary>⚙ Preferências e informações</summary><div class="quick-grid"><button type="button" data-nav="tariffs"><span>R$</span><b>Tarifas e avisos</b><small>Valores em vigor</small></button><button type="button" data-action="push-settings"><span>♬</span><b>Notificações e som</b><small>Ativar e testar</small></button>'+(role==='courier'?'<button type="button" data-nav="profile"><span>◇</span><b>Meu Pix</b><small>Dados para recebimento</small></button><button type="button" data-action="signal-rain"><span>☂</span><b>Sinalizar chuva</b><small>Avisar o administrador</small></button>':'')+'</div></details>' : '';
+    const quickActions = role === 'store' ? '<details class="quick-controls browser-preferences" data-browser-preferences><summary>⚙ Preferências e informações</summary><div class="quick-grid"><button type="button" data-nav="tariffs"><span>R$</span><b>Tarifas e avisos</b><small>Valores em vigor</small></button><button type="button" data-action="push-settings"><span>♬</span><b>Notificações e som</b><small>Ativar e testar</small></button></div></details>' : '';
     const content = document.getElementById("content");
     const storeOverview = storeWorkspace && view === "dashboard";
     const storeAlerts = storeWorkspace && view === "alerts";
@@ -3324,14 +3322,17 @@
       if(status === "done") arr.sort((a,b) => Number(b.completed || b.created || 0) - Number(a.completed || a.created || 0));
       return storeOrdersView(arr, status);
     }
-    let t = status === "open" ? "Disponíveis" : status === "run" ? "Em Execução" : "Concluídos";
-    const compactOffers = role === "courier" && status === "open" && document.querySelector(".app").classList.contains("compact-web");
+    const courier = role === "courier";
+    const t = status === "open" ? courier ? "Ofertas de corrida" : "Disponíveis" : status === "run" ? "Em execução" : "Concluídos";
+    const courierOffers = courier && status === "open";
     const legend = role === "courier" && status === "open" ? '<div class="queue-legend"><span><i class="queue-dot green"></i> Verde: até 5 min</span><span><i class="queue-dot yellow"></i> Amarelo: 5 a 14 min</span><span><i class="queue-dot red"></i> Vermelho: 15 min ou mais</span><b>Ordem automática: maior espera primeiro</b></div>' : "";
     const gpsNotice = role === "courier" && status === "run" && arr.some(o => o.id === gpsBlockedOrderId) ? '<div class="info">GPS pausado. Confira as permissões de localização e notificações no Android. <button type="button" class="btn secondary tiny" data-action="retry-gps" data-id="'+esc(gpsBlockedOrderId)+'">Tentar GPS</button></div>' : "";
-    const itinerary = role === "courier" && status === "run" && arr.length ? '<section class="panel" style="padding:16px;margin-bottom:16px"><b>'+(arr.some(o=>o.kind==='route')?'ROTA MÚLTIPLA · '+arr[0].deliveryCount+' ENTREGAS':'SUAS ENTREGAS · '+arr.length+'/2')+'</b><ol style="padding:0;list-style:none;margin:12px 0 0;display:grid;gap:12px">'+arr.map((o,i)=>'<li style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:10px"><div style="min-width:0"><b style="font-size:12px;color:'+(i===0?'var(--green-dark)':'#A45B00')+'">'+(i===0?'1 · EM ATENDIMENTO':'2 · PRÓXIMA ENTREGA')+'</b><small style="display:block;font-weight:700;margin-top:3px">'+esc(o.orderCode||o.id)+'</small><small style="display:block;color:var(--muted)">'+esc(o.clientNeighborhood||o.city||'Entrega local')+'</small></div><button type="button" class="btn secondary tiny" data-action="show-order" data-id="'+esc(o.id)+'">Ver detalhes</button></li>').join('')+'</ol></section>' : '';
-    const queueInfo = compactOffers && arr.length ? '<details class="courier-queue-info"><summary>Prioridade da fila</summary>' + legend + '</details>' : compactOffers ? '' : legend;
-    const renderCard = (order) => compactOffers && order.kind !== "route" ? courierOfferCard(order) : card(order);
-    return '<div class="head"><div><h1>'+t+'</h1></div></div>'+queueInfo+itinerary+gpsNotice+(arr.length?'<div class="list">'+arr.map(renderCard).join("")+'</div>':empty("Nenhum pedido","Nenhuma corrida nesta etapa"));
+    const queueInfo = courierOffers && arr.length ? '<details class="courier-queue-info"><summary>Prioridade da fila</summary>' + legend + '</details>' : '';
+    const renderCard = (order) => courierOffers && order.kind !== "route" ? courierOfferCard(order) : card(order);
+    const blank = courierOffers ? empty("Nenhuma oferta disponível", "As novas corridas aparecem aqui quando são liberadas.")
+      : courier ? empty("Nenhuma corrida", "As corridas desta etapa aparecem aqui.") : empty("Nenhum pedido", "Nenhuma corrida nesta etapa");
+    return '<div class="head'+(courier?' courier-page-heading':'')+'"><div><h1>'+t+'</h1></div>'+(courier && arr.length ? '<span class="courier-result-count">'+arr.length+(arr.length===1?' corrida':' corridas')+'</span>':'')+'</div>'+
+      queueInfo+gpsNotice+(arr.length?'<div class="list'+(courierOffers?' courier-offer-list':courier&&status==='run'?' courier-run-list':'')+'">'+arr.map(renderCard).join("")+'</div>':blank);
   }
 
   function quotesView(){

@@ -1,6 +1,6 @@
 {
-  "version": "2.0.18",
+  "version": "2.0.19",
   "name": "Express Entregas Beta",
   "channel": "beta",
-  "notes": "Instalação web, atalho Express e notificações persistentes."
+  "notes": "Painel do motoboy atualizado, com ofertas e entregas em execução no mesmo layout para web e Android."
 }
