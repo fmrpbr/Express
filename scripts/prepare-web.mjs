@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 const release=JSON.parse(await readFile('release.json','utf8'));
 if(!/^\d+\.\d+\.\d+$/.test(release.version))throw Error('Versão inválida');
 let html=await readFile('www/index.html','utf8');
-html=html.replace(/const APP_VERSION="[0-9.]+";/,'const APP_VERSION="'+release.version+'";').replace(/Versão [0-9.]+/g,'Versão '+release.version);
+html=html.replace(/const APP_VERSION="[0-9.]+";/,'const APP_VERSION="'+release.version+'";').replace(/Versão [0-9.]+(?: Beta)?/g,'Versão '+(release.display_version || release.version));
 await writeFile('www/index.html',html);
 await cp('marketing','www/cadastro',{recursive:true});
 await mkdir('www/icons', { recursive: true });
