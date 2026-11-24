@@ -352,6 +352,7 @@
 <link rel="stylesheet" href="./store-pages.css">
 <link rel="stylesheet" href="./ihub.css">
 <link rel="stylesheet" href="./courier-workspace.css">
+<link rel="stylesheet" href="./admin-workspace.css">
 </head>
 <body>
 
@@ -439,7 +440,7 @@
   document.addEventListener("click", function(e){
     var sidebarToggle = e.target.closest?.("[data-store-sidebar-toggle]");
     if(sidebarToggle){
-      var workspace = sidebarToggle.closest(".store-workspace, .courier-workspace");
+      var workspace = sidebarToggle.closest(".express-workspace");
       if (!workspace) return;
       var collapsed = workspace.classList.toggle("store-sidebar-collapsed");
       var sidebar = sidebarToggle.closest(".side");
@@ -623,7 +624,7 @@
         </label>
       </details>
     </div>
-    <div class="login-install"><small class="login-version" data-app-version>Versão 2.0.20</small><button type="button" data-express-install hidden>Instalar Express</button></div>
+    <div class="login-install"><small class="login-version" data-app-version>Versão 2.0.21</small><button type="button" data-express-install hidden>Instalar Express</button></div>
   </div>
   </div>
 </div>
@@ -866,6 +867,18 @@
     </aside>
     <main id="content" class="content"></main>
   </div>
+  <main id="account-status" class="account-status" aria-labelledby="account-status-title" hidden>
+    <header class="account-status-brand"><img src="./icons/icon-192.png" width="42" height="42" alt=""><span>Express Entregas</span></header>
+    <div class="account-status-content">
+      <div aria-live="polite" aria-atomic="true">
+        <p id="account-status-label" class="account-status-label"></p>
+        <h1 id="account-status-title" tabindex="-1"></h1>
+        <p id="account-status-message"></p>
+        <p id="account-status-reason" hidden></p>
+      </div>
+      <button type="button" class="btn secondary" data-action="account-logout">Sair da conta</button>
+    </div>
+  </main>
 </div>
 <div id="toasts" class="toastbox"></div>
 <dialog id="store-menu" class="express-dialog store-shortcut-dialog" aria-labelledby="store-menu-title">
@@ -876,6 +889,7 @@
 <dialog id="store-account" class="express-dialog store-shortcut-dialog" aria-labelledby="store-account-title">
   <h2 id="store-account-title">Minha conta</h2>
   <div class="store-shortcuts">
+    <p id="admin-account-role" hidden>Administrador</p>
     <button type="button" class="btn secondary" data-nav="profile">Perfil da loja</button>
     <button type="button" class="btn secondary" data-action="push-settings">Notificações e som</button>
     <button type="button" class="btn secondary" data-express-install hidden>Instalar Express</button>
@@ -910,7 +924,7 @@
 <script src="./order-request.js"></script>
 <script src="./platform-order-alerts.js"></script>
 <script type="module">
-  const APP_VERSION="2.0.20";
+  const APP_VERSION="2.0.21";
   window.EXPRESS_APP_VERSION=APP_VERSION;
   document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão "+APP_VERSION);
   const { initializeApp, getDatabase, ref, set, update, push, get, onValue, query, orderByChild, equalTo, limitToLast, startAt, onDisconnect, serverTimestamp,
@@ -2271,6 +2285,8 @@
     routes: '<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h5a3 3 0 0 0 0-6h-2a3 3 0 0 1 0-6h5"/>',
     reports: '<path d="M4 19h16M7 15v-3m5 3V7m5 8v-5"/>',
     tariffs: '<path d="M4 7V4h3l13 13-3 3L4 7z"/><circle cx="7.5" cy="7.5" r=".8"/>',
+    registry: '<path d="M16 21H3v-2a6.5 4.5 0 0 1 13 0zM17 8h5m-2.5-2.5v5"/><circle cx="9.5" cy="8" r="3.5"/>',
+    integrations: '<path d="M8 13a4 4 0 0 0 6 .4l4-4a4 4 0 0 0-5.7-5.7l-2.1 2.1m5.8 5.2a4 4 0 0 0-6-.4l-4 4a4 4 0 0 0 5.7 5.7l2.1-2.1"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     minus: '<path d="M5 12h14"/>',
     next: '<path d="m9 5 7 7-7 7"/>'
@@ -2290,12 +2306,13 @@
       storeIcon("delivery") + '<span class="store-nav-label">Pedir motoboy</span></button>';
     const menuButton = '<button type="button" data-store-dialog="store-menu" data-store-menu-anchor aria-haspopup="dialog" aria-controls="store-menu">' + storeIcon("menu") + '<span class="store-nav-label">Menu</span></button>';
     const nav = document.getElementById("nav");
-    if(nav.dataset.storeView !== view || !nav.querySelector('.store-nav-desktop')){
+    if(nav.dataset.role !== role || nav.dataset.storeView !== view || !nav.querySelector('.store-nav-desktop')){
       const selectedNav = nav.contains(document.activeElement) ? document.activeElement.closest('[data-nav]') : null;
       const selectedGroup = selectedNav?.closest('.store-nav-desktop') ? '.store-nav-desktop' : '.store-nav-mobile';
       nav.innerHTML = '<div class="store-nav-desktop">' + main.map(button).join("") + extra.map(button).join("") + request + '</div>' +
         '<div class="store-nav-mobile">' + main.map(button).join("") + menuButton + '</div>';
       nav.dataset.storeView = view;
+      nav.dataset.role = role;
       if(selectedNav) nav.querySelector(selectedGroup + ' [data-nav="' + CSS.escape(selectedNav.dataset.nav) + '"]')?.focus({ preventScroll: true });
     }
 
@@ -2327,13 +2344,14 @@
     const markup = '<div class="store-nav-desktop">' + buttons + extra.map(button).join("") + shortcuts + '</div>' +
       '<div class="store-nav-mobile">' + buttons + menuButton + '</div>';
     const key = view + ':' + availableCount;
-    if (nav.dataset.courierView !== key || !nav.querySelector('[data-nav="available"]')) {
+    if (nav.dataset.role !== role || nav.dataset.courierView !== key || !nav.querySelector('[data-nav="available"]')) {
       const selectedNav = nav.contains(document.activeElement) ? document.activeElement.closest('[data-nav],[data-action]') : null;
       const group = selectedNav?.closest('.store-nav-desktop') ? '.store-nav-desktop' : '.store-nav-mobile';
       const attribute = selectedNav?.hasAttribute('data-nav') ? 'data-nav' : 'data-action';
       const selectedValue = selectedNav?.getAttribute(attribute);
       nav.innerHTML = markup;
       nav.dataset.courierView = key;
+      nav.dataset.role = role;
       if (selectedValue) nav.querySelector(group + ' [' + attribute + '="' + CSS.escape(selectedValue) + '"]')?.focus({ preventScroll: true });
     }
     const menu = document.getElementById("store-menu-links");
@@ -2342,6 +2360,35 @@
       menu.dataset.courierView = view;
       document.querySelector('#store-account [data-nav="profile"]').textContent = "Meu Pix";
       menu.innerHTML = extra.map(button).join("") + shortcuts;
+      document.querySelector('.store-header-actions [data-nav="alerts"]').innerHTML = storeIcon("alerts");
+      document.querySelector('.store-header-actions [data-store-dialog="store-account"]').innerHTML = storeIcon("profile");
+    }
+  }
+
+  function renderAdminNavigation(){
+    const main = [["dashboard", "Visão geral"], ["all", "Pedidos", "open"], ["registry", "Cadastros"], ["reports", "Relatórios"]];
+    const extra = [["quotes", "Cotações"], ["alerts", "Alertas"], ["offers", "Ofertas", "delivery"],
+      ["integrations", "Integrações"], ["rates", "Taxas", "tariffs"]];
+    const button = ([id, label, icon = id]) => '<button type="button" data-nav="' + id + '" aria-label="' + label + '"' +
+      (view === id ? ' class="active" aria-current="page"' : '') + '>' + storeIcon(icon) + '<span class="store-nav-label">' + label + '</span></button>';
+    const nav = document.getElementById("nav");
+    if (nav.dataset.role !== role || nav.dataset.adminView !== view || !nav.querySelector('.store-nav-desktop')) {
+      const selected = nav.contains(document.activeElement) ? document.activeElement.closest('[data-nav]') : null;
+      const group = selected?.closest('.store-nav-desktop') ? '.store-nav-desktop' : '.store-nav-mobile';
+      const entries = main.map(button).join("");
+      const menuActive = extra.some(([id]) => id === view) ? ' class="active"' : '';
+      const menuButton = '<button type="button" data-store-dialog="store-menu" data-store-menu-anchor aria-haspopup="dialog" aria-controls="store-menu"' + menuActive + '>' + storeIcon("menu") + '<span class="store-nav-label">Menu</span></button>';
+      nav.innerHTML = '<div class="store-nav-desktop">' + entries + extra.map(button).join("") + '</div>' +
+        '<div class="store-nav-mobile">' + entries + menuButton + '</div>';
+      nav.dataset.adminView = view;
+      nav.dataset.role = role;
+      if (selected) nav.querySelector(group + ' [data-nav="' + CSS.escape(selected.dataset.nav) + '"]')?.focus({preventScroll:true});
+    }
+    const menu = document.getElementById("store-menu-links");
+    if (menu.dataset.role !== role || menu.dataset.adminView !== view) {
+      menu.innerHTML = extra.map(button).join("");
+      menu.dataset.role = role;
+      menu.dataset.adminView = view;
       document.querySelector('.store-header-actions [data-nav="alerts"]').innerHTML = storeIcon("alerts");
       document.querySelector('.store-header-actions [data-store-dialog="store-account"]').innerHTML = storeIcon("profile");
     }
@@ -2718,27 +2765,52 @@
     return '<article data-order-id="'+esc(o.id)+'" class="order '+queueClass+'"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+locationLine+'</h3><div class="order-store">'+clientLine+'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>'+queueBadge+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+' '+pickupTimerHtml+' '+runDurationHtml+times+'</div>'+returnHtml+careDetails(o)+trackingShareHtml+bidsHtml+gpsTrackingInfo+(o.status === "done" ? paymentDetails(o) : '')+recordActions(o)+'<div class="footer"><div class="buttons">'+action+callButtons(o)+'</div></div></article>';
   }
 
+  function renderAccountStatus(panel, entering){
+    const access = accountProfile?.accessStatus;
+    const messages = {
+      pending: ["Em análise", "Cadastro aguardando aprovação", "Seu cadastro foi recebido e está em análise pela equipe do Express. Assim que for aprovado, o painel será liberado automaticamente."],
+      rejected: ["Cadastro reprovado", "Seu cadastro não foi aprovado", "Entre em contato com a equipe do Express para revisar seu cadastro."],
+      blocked: ["Acesso bloqueado", "Seu acesso está bloqueado", "Entre em contato com a equipe do Express para revisar seu acesso."],
+    };
+    const [label, title, message] = messages[access] || ["Acesso indisponível", "Seu acesso está indisponível", "Entre em contato com a equipe do Express para verificar seu cadastro."];
+    const reason = accountProfile?.accessReason;
+    panel.dataset.access = access || "unavailable";
+    document.getElementById("account-status-label").textContent = label;
+    const heading = document.getElementById("account-status-title");
+    heading.textContent = title;
+    document.getElementById("account-status-message").textContent = message;
+    const reasonElement = document.getElementById("account-status-reason");
+    reasonElement.textContent = reason ? "Motivo informado: " + reason : "";
+    reasonElement.hidden = !reason;
+    if (entering) heading.focus({preventScroll:true});
+  }
+
   function render(){
     const pushPrompt = document.getElementById('push-permission-prompt');
     pushPrompt.hidden = !currentUser || !accountAllowed() || window.Capacitor?.isNativePlatform?.() ||
       window.Notification?.permission !== 'default' || !('PushManager' in window) ||
       devicePushPreference(currentUser.uid).enabled === false;
     const appLayout = document.querySelector(".app");
-    const storeWorkspace = role === "store" && !!currentUser && accountAllowed();
-    const courierWorkspace = role === "courier" && !!currentUser && accountAllowed();
-    appLayout.classList.toggle("compact-web", storeWorkspace || courierWorkspace);
+    const allowed = !!currentUser && accountAllowed();
+    const storeWorkspace = role === "store" && allowed;
+    const courierWorkspace = role === "courier" && allowed;
+    const adminWorkspace = role === "admin" && allowed;
+    const restricted = !!currentUser && !allowed;
+    appLayout.classList.toggle("compact-web", allowed);
+    appLayout.classList.toggle("express-workspace", allowed);
     appLayout.classList.toggle("store-workspace", storeWorkspace);
     appLayout.classList.toggle("courier-workspace", courierWorkspace);
-
-    if(currentUser&&!accountAllowed()){
-      document.getElementById("hero-alert-track").closest(".hero-alerts").hidden = false;
-      const status=accountProfile?.accessStatus||'blocked';
-      const labels={pending:'Cadastro aguardando aprovação',rejected:'Cadastro reprovado',blocked:'Acesso bloqueado'};
-      document.getElementById('nav').innerHTML='';
-      document.getElementById('content').innerHTML='<section class="panel" role="status"><h1>'+esc(labels[status]||'Acesso indisponível')+'</h1><p>'+(status==='pending'?'Sua conta foi criada. Aguarde a aprovação do administrador para começar a usar o Express Entregas.':'Procure o administrador para revisar seu acesso.')+'</p>'+(accountProfile?.accessReason?'<p><b>Motivo: </b>'+esc(accountProfile.accessReason)+'</p>':'')+'<button type="button" class="btn secondary" data-action="account-logout">Sair da conta</button></section>';
-      document.getElementById('hero-alert-track').innerHTML='<span>ACESSO '+esc(status==='pending'?'PENDENTE':status==='rejected'?'REPROVADO':'BLOQUEADO')+'</span>';
+    appLayout.classList.toggle("admin-workspace", adminWorkspace);
+    appLayout.classList.toggle("has-account-status", restricted);
+    const accountStatus = document.getElementById("account-status");
+    const entering = accountStatus.hidden;
+    accountStatus.hidden = !restricted;
+    if (restricted) {
+      renderAccountStatus(accountStatus, entering);
       return;
     }
+    document.querySelector('#store-account [data-nav="profile"]').hidden = adminWorkspace;
+    document.getElementById('admin-account-role').hidden = !adminWorkspace;
     const adminTeamOpen=document.getElementById('admin-team')?.open===true;
     const drafts=Array.from(document.querySelectorAll('#tariff-form[data-dirty],#rain-form[data-dirty],#admin-filter-form[data-dirty],#store-profile-form[data-dirty],#pix-profile-form[data-dirty],#ihub-link-form[data-dirty],#ihub-authorization-form[data-dirty]')).map(form=>({id:form.id,version:form.dataset.baseVersion,fields:Array.from(form.querySelectorAll('input,select')).map((el,index)=>({index,value:el.value})),focus:form.contains(document.activeElement)?document.activeElement.id:null}));
     let label = role === "store" ? "Lojista" : role === "courier" ? "Motoboy" : "Administrador";
@@ -2754,6 +2826,7 @@
     const queueInfoOpen = document.querySelector(".courier-queue-info")?.open === true;
     if(storeWorkspace) renderStoreNavigation();
     else if(courierWorkspace) renderCourierNavigation(availableCount);
+    else if(adminWorkspace) renderAdminNavigation();
     else document.getElementById("nav").innerHTML = items().map(n => {
       let alert = n[0] === "available" && availableCount > 0;
       return '<button type="button" class="'+(view===n[0]?"active":"")+'" data-nav="'+n[0]+'"><span class="'+(alert?"nav-pulse":"")+'">'+n[1]+'</span>'+n[2]+(alert?'<small class="nav-count">'+availableCount+'</small>':"")+'</button>';
@@ -3194,7 +3267,7 @@
   function adminFiltersHtml(){
     const f=adminFilters;
     const select=(name,label,entries)=>'<div class="field"><label for="admin-'+name+'">'+label+'</label><select id="admin-'+name+'" name="'+name+'">'+entries.map(([value,text])=>'<option value="'+esc(value)+'" '+(f[name]===value?'selected':'')+'>'+esc(text)+'</option>').join('')+'</select></div>';
-    return '<form id="admin-filter-form" class="panel" style="margin-bottom:14px"><h2>Filtros da seleção</h2><div class="grid cols">'+
+    return '<form id="admin-filter-form" class="panel admin-filters"><h2>Filtros</h2><div class="admin-filter-fields">'+
       select('store','Loja',[['','Todas as lojas'],...data.stores.map(s=>[s.id,s.name])])+select('courier','Motoboy',[['','Todos os motoboys'],...data.couriers.map(c=>[c.id,c.name])])+
       select('period','Período de criação',[['all','Todo o histórico'],['today','Hoje em Aracruz'],['7','Últimos 7 dias'],['30','Últimos 30 dias'],['custom','Intervalo de datas']])+
       select('status','Situação do pedido',[['all','Todas'],['open','Aberto'],['run','Em execução'],['done','Concluído'],['cancelled','Cancelado'],['quotes','Cotações']])+
@@ -3208,15 +3281,23 @@
     const required=['orders','stores','couriers','presence','connections'];
     const ready=required.every(key=>adminHealth[key]==='ready');
     const errors=required.some(key=>adminHealth[key]==='error');
-    const sync='<div class="info" role="status" data-admin-sync><b>'+(errors?'Falha ao carregar dados':!ready?'Carregando dados da operação':adminConnected?'Conectado ao Firebase':'Sem conexão com o Firebase')+'</b><p>'+(errors?'Algumas leituras falharam. Reabra o painel para tentar novamente.':!ready?'Os indicadores serão exibidos quando todas as leituras necessárias chegarem.':!adminConnected?'Exibindo os últimos dados recebidos. Eles podem estar desatualizados.':'Atualizações recebidas em tempo real. Alertas de tempo são recalculados a cada 15 segundos.')+'</p>'+(adminLastDataAt?'<small>Último recebimento: '+esc(adminTime(adminLastDataAt))+'</small>':'')+'</div>';
-    if(!ready)return '<h1>Painel da operação</h1>'+sync+(errors?'<button class="btn secondary" type="button" data-action="admin-reload">Reabrir painel</button>':'');
+    const syncLabel=errors?'Falha ao carregar dados':!ready?'Carregando dados da operação':adminConnected?'Atualização em tempo real':'Sem conexão';
+    const syncDescription=errors?'Reabra o painel para tentar carregar os dados.':ready&&!adminConnected?'Os dados exibidos podem estar desatualizados.':'';
+    const syncState=errors||ready&&!adminConnected?'error':ready?'live':'loading';
+    const heading='<header class="admin-page-heading"><div><h1>'+(mode==='reports'?'Financeiro da operação':mode==='all'?'Pedidos da operação':'Painel da operação')+'</h1></div>'+
+      '<div class="admin-sync" role="status" data-admin-sync data-state="'+syncState+'"><b>'+syncLabel+'</b>'+(syncDescription?'<p>'+syncDescription+'</p>':'')+
+      (adminLastDataAt?'<small>Último recebimento: '+esc(adminTime(adminLastDataAt))+'</small>':'')+'</div></header>';
+    if(!ready)return '<div class="admin-operation">'+heading+(errors?'<div><button class="btn secondary" type="button" data-action="admin-reload">Reabrir painel</button></div>':'')+'</div>';
     const model=window.ExpressAdmin,now=Date.now()+adminServerOffset;
     const selected=model.filterOrders(data.orders,adminFilters,now),summary=model.overview(selected,now),staff=model.team(data.couriers,data.orders,data.presence,connections,now);
-    const metric=(id,label,value,help,filter)=>'<div data-admin-stat="'+id+'">'+stat(label,value,help,'')+(filter?'<button type="button" class="btn secondary tiny" data-action="admin-filter" data-id="'+filter+'">Ver pedidos</button>':'')+'</div>';
+    const metric=(id,label,value,help,filter)=>'<div data-admin-stat="'+id+'">'+stat(label,value,help,'')+(filter?'<button type="button" class="store-text-button" data-action="admin-filter" data-id="'+filter+'" aria-label="Ver pedidos: '+esc(label)+'">Ver pedidos</button>':'')+'</div>';
     const pendingAccounts=[...data.stores,...data.couriers].filter(p=>p.accessStatus==='pending').length;
-    const approvals='<section class="panel" style="margin-bottom:14px"><h2>Cadastros aguardando aprovação: '+pendingAccounts+'</h2><button type="button" class="btn primary" data-nav="registry">Aprovar e gerenciar acessos</button></section>';
-    let html=approvals+'<div class="head"><div><h1>'+(mode==='reports'?'Financeiro da operação':mode==='all'?'Pedidos da operação':'Painel da operação')+'</h1><p>Dados de todas as lojas e motoboys. Valores e horários registrados no servidor.</p></div></div>'+sync+adminFiltersHtml();
+    const approvals='<section class="admin-approvals" data-pending="'+(pendingAccounts>0)+'" aria-labelledby="admin-approvals-title"><div>'+storeIcon('registry')+'</div>'+
+      '<div><h2 id="admin-approvals-title">Cadastros e acessos</h2><p>'+(pendingAccounts===0?'Nenhum cadastro aguardando aprovação':pendingAccounts===1?'1 cadastro aguardando aprovação':pendingAccounts+' cadastros aguardando aprovação')+'</p></div>'+
+      '<button type="button" class="btn '+(pendingAccounts?'primary':'secondary')+'" data-nav="registry">Gerenciar acessos</button></section>';
+    let html='<div class="admin-operation">'+heading+(mode==='dashboard'?approvals:adminFiltersHtml());
     if(mode!=='reports')html+='<section class="panel"><h2>Pedidos na seleção</h2><div class="grid stats">'+metric('orders-total','Selecionados',summary.total,'Todos os estados')+metric('orders-open','Abertos',summary.open,'Aguardando aceite','status:open')+metric('orders-run','Em execução',summary.run,'Corridas ativas','status:run')+metric('orders-done','Concluídos',summary.done,'Entregas finalizadas','status:done')+metric('orders-cancelled','Cancelados',summary.cancelled,'Inclui cotações canceladas','status:cancelled')+metric('orders-quotes','Cotações',summary.quotes,'Pendentes ou contratadas','status:quotes')+'</div></section>';
+    if(mode==='dashboard')html+=adminFiltersHtml();
     if(mode!=='all')html+='<section class="panel" style="margin-top:14px"><h2>Financeiro da seleção</h2><p>Apenas entregas concluídas. Informar pagamento não confirma recebimento.</p><div class="grid stats">'+metric('finance-total','Valor das entregas',cash(summary.finance.total),summary.done+' concluída(s)')+metric('finance-pending','Não informado',cash(summary.unreportedValue),summary.pending+' pagamento(s)','payment:pending')+metric('finance-reported','Para conferir',cash(summary.finance.reported),summary.reported+' informado(s)','payment:reported')+metric('finance-confirmed','Confirmados',cash(summary.finance.received),summary.confirmed+' recebido(s)','payment:confirmed')+metric('finance-receivable','A acertar',cash(summary.finance.pending),'Inclui os informados')+metric('finance-overdue','Dias anteriores',cash(summary.finance.overdue),summary.finance.overdueCount+' pendência(s)')+'</div></section>';
     if(mode==='dashboard'){
       html+='<section class="panel" style="margin-top:14px"><h2>Atenção necessária · '+summary.issues.length+'</h2><p>Alertas para conferência. Eles não cancelam corridas nem bloqueiam usuários.</p><div class="list">'+(summary.issues.slice(0,10).map(issue=>'<article class="chip" style="display:block;overflow-wrap:anywhere"><b>'+esc(issue.order.orderCode||issue.order.id)+'</b><p>'+esc(issue.label)+'</p><small>'+esc(issue.order.storeName||'Loja')+' · '+esc(issue.order.courierName||'Sem motoboy')+'</small><div><button type="button" class="btn secondary tiny" data-action="admin-detail" data-id="'+esc(issue.order.id)+'">Conferir pedido</button></div></article>').join('')||empty('Nenhum alerta na seleção','Os critérios são 15 minutos em aberto, 25 sem retirada, mais de 2 sem GPS e pagamentos de dias anteriores.'))+'</div>'+(summary.issues.length>10?'<button class="btn secondary tiny" type="button" data-action="admin-filter" data-id="alert:any">Ver todos os pedidos com alerta</button>':'')+'</section>';
@@ -3231,7 +3312,7 @@
       const payment=order.status==='done'?({pending:'Pagamento não informado',reported:'Pagamento informado, aguardando confirmação',confirmed:'Pagamento confirmado'})[window.ExpressPayments.paymentState(order)]:'';
       return '<article class="order" data-admin-order="'+esc(order.id)+'"><b>'+esc(order.orderCode||order.id)+'</b><p>'+esc(adminStatus(order))+' · '+(order.status==='cotacao'?'A definir':cash(order.fee))+'</p><p>'+esc(order.storeName||'Loja sem nome')+' · '+esc(order.courierName||'Sem motoboy')+'</p><small>Criado em '+esc(adminTime(order.created))+'</small>'+(payment?'<p>'+payment+'</p>':'')+issues.map(issue=>'<p style="color:#9A3412">'+esc(issue.label)+'</p>').join('')+'<button type="button" class="btn secondary tiny" data-action="admin-detail" data-id="'+esc(order.id)+'">Ver detalhes</button></article>';
     }).join('')||empty('Nenhum pedido corresponde aos filtros','Ajuste ou limpe a seleção.'))+'</div><div class="buttons" style="margin-top:12px"><button type="button" class="btn secondary tiny" data-action="admin-page" data-id="previous" '+(adminPage===0?'disabled':'')+'>Anterior</button><button type="button" class="btn secondary tiny" data-action="admin-page" data-id="next" '+(adminPage>=pages-1?'disabled':'')+'>Próxima</button></div></section>';
-    return html;
+    return html+'</div>';
   }
 
   function adminOrderDetail(order,outside){

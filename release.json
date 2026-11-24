@@ -1,6 +1,6 @@
 {
-  "version": "2.0.20",
+  "version": "2.0.21",
   "name": "Express Entregas Beta",
   "channel": "beta",
-  "notes": "Menu e cabeçalho do motoboy alinhados ao painel do lojista, navegação de moto e rastreio do cliente com estimativa e aviso de chegada."
+  "notes": "Tela de aprovação de cadastro e painel administrativo adaptados a computador e celular."
 }

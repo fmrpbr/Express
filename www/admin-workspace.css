@@ -1,0 +1,70 @@
+.app.has-account-status {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  overflow: visible;
+  background: var(--store-bg);
+  color: var(--store-text);
+  box-shadow: none;
+  font: 15px/1.55 var(--store-font);
+}
+
+.has-account-status > :is(.main, .side), .account-status[hidden], #store-account [hidden] { display: none !important; }
+.account-status { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: inherit; }
+.account-status-brand { display: flex; align-items: center; gap: 10px; padding: 14px max(18px, calc((100% - 1100px) / 2)); border-bottom: 1px solid var(--store-border); background: var(--store-surface); font-size: 16px; font-weight: 750; }
+.account-status-brand img { border-radius: 10px; }
+.account-status-content { align-self: center; width: min(100%, 610px); margin-inline: auto; padding: clamp(24px, 7vw, 52px) clamp(20px, 6vw, 40px); padding-bottom: max(32px, env(safe-area-inset-bottom)); }
+.account-status-content h1 { margin: 8px 0 10px; font-size: clamp(28px, 6.2vw, 44px); line-height: 1.12; letter-spacing: -.045em; }
+.account-status-content h1:focus { outline: none; }
+.account-status-content p { margin: 0; color: var(--store-muted); overflow-wrap: anywhere; }
+.account-status-content .account-status-label { display: inline-flex; border-radius: 7px; padding: 4px 9px; background: var(--store-payment-bg); color: var(--store-payment-text); font-size: 13px; font-weight: 750; }
+.account-status:not([data-access='pending']) .account-status-label { background: var(--store-soft); color: var(--store-text); }
+.account-status-content #account-status-reason { margin-top: 9px; }
+.account-status-content .btn { margin-top: 22px; min-height: 44px; border: 1px solid var(--store-border); background: var(--store-surface); color: var(--store-text); }
+
+#admin-account-role { margin: 0; padding-inline: 4px; color: var(--store-muted); font-weight: 650; }
+.admin-workspace .admin-operation { display: grid; gap: 14px; min-width: 0; }
+.admin-workspace .admin-operation .panel { margin: 0 !important; }
+.admin-workspace :is(.panel, .order, .stat, .registry-entry, .empty) { min-width: 0; border-color: var(--store-border); background: var(--store-surface); color: var(--store-text); box-shadow: none; }
+.admin-workspace :is(.panel, .order, .registry-entry, .empty) { border-radius: 13px; }
+.admin-workspace :is(.panel p, .order p, .registry-entry small, .stat-foot) { color: var(--store-muted); overflow-wrap: anywhere; }
+.admin-workspace .btn.primary { background: var(--store-accent); color: #fff; }
+.admin-workspace .btn.primary:not(:disabled):hover { background: var(--store-accent-hover); }
+.admin-workspace .btn.secondary { border-color: var(--store-border); background: var(--store-surface); color: var(--store-text); }
+.admin-workspace .btn.secondary:not(:disabled):hover { background: var(--store-soft); }
+.admin-workspace .head h1, .admin-page-heading h1 { margin: 0; font-size: clamp(26px, 4.2vw, 35px); line-height: 1.15; letter-spacing: -.045em; }
+.admin-page-heading { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 9px 20px; }
+.admin-sync { padding: 3px 0; color: var(--store-muted); font-size: 13px; }
+.admin-sync b { font-weight: 700; }
+.admin-sync[data-state='live'] b { color: var(--store-teal); }
+.admin-sync[data-state='error'] b { color: var(--store-link); }
+.admin-sync :is(p, small) { display: block; margin: 0; }
+
+.admin-approvals { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; padding: clamp(12px, 2.5vw, 18px); border: 1px solid var(--store-border); border-radius: 13px; background: var(--store-surface); }
+.admin-approvals[data-pending='true'] { border-inline-start: 4px solid #aa651c; background: var(--store-payment-bg); color: var(--store-payment-text); }
+.admin-approvals > div:first-child { display: grid; place-items: center; width: 37px; height: 37px; border-radius: 9px; background: var(--store-soft); color: var(--store-teal); }
+.admin-approvals .store-icon { width: 21px; height: 21px; }
+.admin-approvals h2 { margin: 0; font-size: 16px; }
+.admin-approvals p { margin: 0; font-size: 13px; }
+.admin-approvals .btn { min-height: 42px; }
+
+.admin-filter-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 185px), 1fr)); gap: 9px 13px; }
+.admin-filters .field { min-width: 0; margin: 0; }
+.admin-filters .field.full { margin-top: 9px; }
+.admin-filters :is(input, select) { width: 100%; min-width: 0; max-width: 100%; min-height: 42px; border-color: var(--store-border); background: var(--store-bg); color: var(--store-text); }
+.admin-filters #admin-filter-feedback:empty { display: none; }
+.admin-operation .stats { grid-template-columns: repeat(auto-fit, minmax(min(100%, 147px), 1fr)); align-items: stretch; }
+.admin-operation [data-admin-stat] { min-width: 0; padding: 9px; border: 1px solid var(--store-border); border-radius: 10px; }
+.admin-operation [data-admin-stat] .stat { padding: 0; border: 0; }
+.admin-operation [data-admin-stat] .stat-value { color: var(--store-text); font-size: clamp(19px, 3.5vw, 25px); overflow-wrap: anywhere; }
+.admin-operation [data-admin-stat] .stat-label { color: var(--store-muted); }
+.admin-operation [data-admin-stat] .store-text-button { min-height: 32px; margin-top: 4px; }
+.admin-operation .buttons { flex-wrap: wrap; }
+
+@media (max-width: 500px) {
+  .admin-approvals { grid-template-columns: auto minmax(0, 1fr); }
+  .admin-approvals .btn { grid-column: 2; justify-self: start; }
+  .admin-filters :is(input, select) { font-size: 16px; }
+  .admin-operation .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
