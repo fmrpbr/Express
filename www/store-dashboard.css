@@ -34,7 +34,7 @@
 .store-side-inner { display: contents; }
 .store-sidebar-toggle, .store-nav-desktop { display: none; }
 
-.store-workspace.app {
+:is(.store-workspace, .courier-workspace).app {
   width: 100%;
   max-width: none;
   background: var(--store-bg);
@@ -43,8 +43,8 @@
   font: 14px/1.5 var(--store-font);
 }
 
-.store-workspace .main { background: var(--store-bg); }
-.store-workspace.compact-web .main > .content {
+:is(.store-workspace, .courier-workspace) .main { background: var(--store-bg); }
+:is(.store-workspace, .courier-workspace).compact-web .main > .content {
   width: min(100%, 1220px);
   max-width: none;
   margin-inline: auto;
@@ -53,34 +53,34 @@
   color: var(--store-text);
 }
 
-.store-workspace.compact-web .map-hero {
+:is(.store-workspace, .courier-workspace).compact-web .map-hero {
   padding: 10px clamp(16px, 3.5vw, 44px) 12px;
   border-bottom: 1px solid var(--store-border);
   background: var(--store-surface);
   color: var(--store-text);
 }
 
-.store-workspace .hero-dashboard {
+:is(.store-workspace, .courier-workspace) .hero-dashboard {
   max-width: 1132px;
   margin-inline: auto;
   grid-template-areas: 'header' 'meta' 'stats' 'alerts';
   gap: 7px;
 }
 
-.store-workspace .store-brand-row { grid-area: header; min-height: 40px; margin: 0; }
-.store-workspace .store-brand-row strong { font-size: 17px; letter-spacing: -.03em; }
-.store-workspace .store-header-actions button { width: 38px; height: 38px; border-radius: 10px; background: var(--store-soft); color: var(--store-teal); }
-.store-workspace .store-header-actions button:hover { color: var(--store-link); }
-.store-workspace .hero-top { grid-area: meta; }
-.store-workspace .hero-top :is(.hero-clock small, .hero-clock b, .hero-weather-copy b) { color: var(--store-muted); }
-.store-workspace .hero-weather-icon { font-size: 16px; }
-.store-workspace .hero-stats { grid-area: stats; background: var(--store-soft); border-radius: 12px; padding: 7px 2px; }
-.store-workspace .hero-stat { gap: 2px; padding-block: 2px; }
-.store-workspace .hero-stat + .hero-stat { border-left-color: var(--store-border); }
-.store-workspace .hero-stat b { color: var(--store-text); font-size: 17px; }
-.store-workspace .hero-stat small { color: var(--store-muted); font-size: clamp(9px, 2.7vw, 12px); }
-.store-workspace .hero-stat.available b { color: var(--store-teal); }
-.store-workspace .hero-alerts { grid-area: alerts; }
+:is(.store-workspace, .courier-workspace) .store-brand-row { grid-area: header; min-height: 40px; margin: 0; }
+:is(.store-workspace, .courier-workspace) .store-brand-row strong { font-size: 17px; letter-spacing: -.03em; }
+:is(.store-workspace, .courier-workspace) .store-header-actions button { width: 38px; height: 38px; border-radius: 10px; background: var(--store-soft); color: var(--store-teal); }
+:is(.store-workspace, .courier-workspace) .store-header-actions button:hover { color: var(--store-link); }
+:is(.store-workspace, .courier-workspace) .hero-top { grid-area: meta; }
+:is(.store-workspace, .courier-workspace) .hero-top :is(.hero-clock small, .hero-clock b, .hero-weather-copy b) { color: var(--store-muted); }
+:is(.store-workspace, .courier-workspace) .hero-weather-icon { font-size: 16px; }
+:is(.store-workspace, .courier-workspace) .hero-stats { grid-area: stats; background: var(--store-soft); border-radius: 12px; padding: 7px 2px; }
+:is(.store-workspace, .courier-workspace) .hero-stat { gap: 2px; padding-block: 2px; }
+:is(.store-workspace, .courier-workspace) .hero-stat + .hero-stat { border-left-color: var(--store-border); }
+:is(.store-workspace, .courier-workspace) .hero-stat b { color: var(--store-text); font-size: 17px; }
+:is(.store-workspace, .courier-workspace) .hero-stat small { color: var(--store-muted); font-size: clamp(9px, 2.7vw, 12px); }
+:is(.store-workspace, .courier-workspace) .hero-stat.available b { color: var(--store-teal); }
+:is(.store-workspace, .courier-workspace) .hero-alerts { grid-area: alerts; }
 
 .store-workspace .store-dashboard { gap: 20px; }
 .store-welcome { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 13px 22px; }
@@ -160,12 +160,12 @@
 .store-workspace .store-recent-payment { color: var(--store-payment-text); }
 .store-workspace .browser-preferences { margin: 16px 0 0; padding: 8px 0; border: 0; border-top: 1px solid var(--store-border); border-radius: 0; background: transparent; color: var(--store-text); }
 
-.store-workspace #nav { display: block; overflow: visible; }
-.store-workspace .store-nav-mobile { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); width: 100%; gap: 2px; }
-.store-workspace #nav :is(button[data-nav], button[data-store-dialog], button[data-open-sheet]) { min-width: 0; color: var(--store-muted); }
-.store-workspace #nav button .store-nav-label { width: auto; font-size: inherit; line-height: 1.15; }
-.store-workspace #nav button .store-icon { width: 19px; height: 19px; }
-.store-workspace #nav button.active { color: var(--store-link); }
+:is(.store-workspace, .courier-workspace) #nav { display: block; overflow: visible; }
+:is(.store-workspace, .courier-workspace) .store-nav-mobile { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); width: 100%; gap: 2px; }
+:is(.store-workspace, .courier-workspace) #nav :is(button[data-nav], button[data-store-dialog], button[data-open-sheet]) { min-width: 0; color: var(--store-muted); }
+:is(.store-workspace, .courier-workspace) #nav button .store-nav-label { width: auto; font-size: inherit; line-height: 1.15; }
+:is(.store-workspace, .courier-workspace) #nav button .store-icon { width: 19px; height: 19px; }
+:is(.store-workspace, .courier-workspace) #nav button.active { color: var(--store-link); }
 
 #store-menu.store-menu-popover {
   position: fixed;
@@ -213,7 +213,7 @@
 }
 
 @media (max-width: 899px) {
-  .store-workspace.compact-web .side {
+  :is(.store-workspace, .courier-workspace).compact-web .side {
     position: fixed !important;
     inset: auto 0 0;
     transform: none;
@@ -225,17 +225,17 @@
     background: var(--store-surface);
   }
 
-  .store-workspace .side :is(.brand, .nav-title, .side-note) { display: none; }
-  .store-workspace .main { padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
-  .store-workspace #nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 45px; padding: 4px 0; font-size: clamp(9px, 2.55vw, 12px); }
-  .store-workspace #nav button.active { border-radius: 9px; background: var(--store-soft); }
+  :is(.store-workspace, .courier-workspace) .side :is(.brand, .nav-title, .side-note) { display: none; }
+  :is(.store-workspace, .courier-workspace) .main { padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
+  :is(.store-workspace, .courier-workspace) #nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 45px; padding: 4px 0; font-size: clamp(9px, 2.55vw, 12px); }
+  :is(.store-workspace, .courier-workspace) #nav button.active { border-radius: 9px; background: var(--store-soft); }
 }
 
 @media (min-width: 900px) {
-  .store-workspace.app { --store-sidebar-width: 230px; height: 100dvh; overflow: hidden; }
-  .store-workspace.store-sidebar-collapsed { --store-sidebar-width: 64px; }
-  .store-workspace .main { height: 100%; }
-  .store-workspace .side {
+  :is(.store-workspace, .courier-workspace).app { --store-sidebar-width: 230px; height: 100dvh; overflow: hidden; }
+  :is(.store-workspace, .courier-workspace).store-sidebar-collapsed { --store-sidebar-width: 64px; }
+  :is(.store-workspace, .courier-workspace) .main { height: 100%; }
+  :is(.store-workspace, .courier-workspace) .side {
     position: relative !important;
     flex: 0 0 var(--store-sidebar-width);
     width: var(--store-sidebar-width);
@@ -246,7 +246,7 @@
     transition: flex-basis .19s ease;
   }
 
-  .store-workspace .store-side-inner {
+  :is(.store-workspace, .courier-workspace) .store-side-inner {
     position: absolute;
     inset: 0 auto 0 0;
     display: flex;
@@ -259,16 +259,16 @@
     transition: width .19s ease, box-shadow .19s ease;
   }
 
-  .store-workspace .side :is(.nav-title, .side-note) { display: none; }
-  .store-workspace .side .brand { flex: 0 0 auto; gap: 9px; padding: 2px 3px 16px; white-space: nowrap; }
-  .store-workspace .side .brand .logo { flex: 0 0 38px; width: 38px; height: 38px; overflow: hidden; }
-  .store-workspace .side .brand b { color: #fff; font-size: 14px; }
-  .store-workspace .side .brand small { display: none; }
-  .store-workspace .store-nav-mobile { display: none; }
-  .store-workspace .store-nav-desktop { display: grid; gap: 2px; }
+  :is(.store-workspace, .courier-workspace) .side :is(.nav-title, .side-note) { display: none; }
+  :is(.store-workspace, .courier-workspace) .side .brand { flex: 0 0 auto; gap: 9px; padding: 2px 3px 16px; white-space: nowrap; }
+  :is(.store-workspace, .courier-workspace) .side .brand .logo { flex: 0 0 38px; width: 38px; height: 38px; overflow: hidden; }
+  :is(.store-workspace, .courier-workspace) .side .brand b { color: #fff; font-size: 14px; }
+  :is(.store-workspace, .courier-workspace) .side .brand small { display: none; }
+  :is(.store-workspace, .courier-workspace) .store-nav-mobile { display: none; }
+  :is(.store-workspace, .courier-workspace) .store-nav-desktop { display: grid; gap: 2px; }
 
-  .store-workspace #nav .store-nav-desktop button,
-  .store-workspace .store-sidebar-toggle {
+  :is(.store-workspace, .courier-workspace) #nav .store-nav-desktop button,
+  :is(.store-workspace, .courier-workspace) .store-sidebar-toggle {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -283,23 +283,23 @@
     white-space: nowrap;
   }
 
-  .store-workspace .store-sidebar-toggle { margin-top: auto; text-align: left; }
+  :is(.store-workspace, .courier-workspace) .store-sidebar-toggle { margin-top: auto; text-align: left; }
   .store-sidebar-toggle > span:first-child { flex: 0 0 19px; font-size: 18px; text-align: center; }
   .store-sidebar-toggle[aria-expanded="false"] > span:first-child { transform: rotate(180deg); }
-  .store-workspace #nav .store-nav-desktop button:is(:hover, .active),
-  .store-workspace .store-sidebar-toggle:hover { background: var(--store-navigation-hover); color: #fff; }
-  .store-workspace #nav .store-nav-desktop button.active { box-shadow: inset 3px 0 #badeca; }
-  .store-workspace.store-sidebar-collapsed .store-side-inner { width: 64px; }
-  .store-workspace.store-sidebar-collapsed .store-side-inner :is(.brand > div:nth-child(2), .store-nav-label, .store-sidebar-label) { opacity: 0; }
-  .store-workspace.store-sidebar-collapsed :is(.store-side-inner:has(#nav :focus-visible), .store-side-inner:has(.store-sidebar-toggle:focus-visible)) { width: 230px; box-shadow: 8px 0 25px #102e3033; }
-  .store-workspace.store-sidebar-collapsed :is(.store-side-inner:has(#nav :focus-visible), .store-side-inner:has(.store-sidebar-toggle:focus-visible)) :is(.brand > div:nth-child(2), .store-nav-label, .store-sidebar-label) { opacity: 1; }
+  :is(.store-workspace, .courier-workspace) #nav .store-nav-desktop button:is(:hover, .active),
+  :is(.store-workspace, .courier-workspace) .store-sidebar-toggle:hover { background: var(--store-navigation-hover); color: #fff; }
+  :is(.store-workspace, .courier-workspace) #nav .store-nav-desktop button.active { box-shadow: inset 3px 0 #badeca; }
+  :is(.store-workspace, .courier-workspace).store-sidebar-collapsed .store-side-inner { width: 64px; }
+  :is(.store-workspace, .courier-workspace).store-sidebar-collapsed .store-side-inner :is(.brand > div:nth-child(2), .store-nav-label, .store-sidebar-label) { opacity: 0; }
+  :is(.store-workspace, .courier-workspace).store-sidebar-collapsed :is(.store-side-inner:has(#nav :focus-visible), .store-side-inner:has(.store-sidebar-toggle:focus-visible)) { width: 230px; box-shadow: 8px 0 25px #102e3033; }
+  :is(.store-workspace, .courier-workspace).store-sidebar-collapsed :is(.store-side-inner:has(#nav :focus-visible), .store-side-inner:has(.store-sidebar-toggle:focus-visible)) :is(.brand > div:nth-child(2), .store-nav-label, .store-sidebar-label) { opacity: 1; }
 
-  .store-workspace .hero-dashboard { grid-template-areas: 'meta header' 'stats stats' 'alerts alerts'; grid-template-columns: minmax(0, 1fr) auto; }
-  .store-workspace .store-brand-row strong { display: none; }
-  .store-workspace .hero-top { justify-content: flex-start; gap: 18px; }
-  .store-workspace .hero-stats { padding: 8px; }
-  .store-workspace .hero-stat { flex-direction: row; justify-content: center; gap: 6px; }
-  .store-workspace.compact-web .main > .content { padding-block: clamp(24px, 4vh, 40px); }
+  :is(.store-workspace, .courier-workspace) .hero-dashboard { grid-template-areas: 'meta header' 'stats stats' 'alerts alerts'; grid-template-columns: minmax(0, 1fr) auto; }
+  :is(.store-workspace, .courier-workspace) .store-brand-row strong { display: none; }
+  :is(.store-workspace, .courier-workspace) .hero-top { justify-content: flex-start; gap: 18px; }
+  :is(.store-workspace, .courier-workspace) .hero-stats { padding: 8px; }
+  :is(.store-workspace, .courier-workspace) .hero-stat { flex-direction: row; justify-content: center; gap: 6px; }
+  :is(.store-workspace, .courier-workspace).compact-web .main > .content { padding-block: clamp(24px, 4vh, 40px); }
   .store-workspace .dashboard-actions { width: auto; grid-template-columns: auto auto; }
   .store-workspace .dashboard-actions .btn { padding-inline: 16px; }
   .store-workspace .store-stat { padding-inline: 14px; }
@@ -309,11 +309,11 @@
 }
 
 @media (min-width: 900px) and (hover: hover) {
-  .store-workspace.store-sidebar-collapsed:not(.store-sidebar-hold) .store-side-inner:hover { width: 230px; box-shadow: 8px 0 25px #102e3033; }
-  .store-workspace.store-sidebar-collapsed:not(.store-sidebar-hold) .store-side-inner:hover :is(.brand > div:nth-child(2), .store-nav-label, .store-sidebar-label) { opacity: 1; }
+  :is(.store-workspace, .courier-workspace).store-sidebar-collapsed:not(.store-sidebar-hold) .store-side-inner:hover { width: 230px; box-shadow: 8px 0 25px #102e3033; }
+  :is(.store-workspace, .courier-workspace).store-sidebar-collapsed:not(.store-sidebar-hold) .store-side-inner:hover :is(.brand > div:nth-child(2), .store-nav-label, .store-sidebar-label) { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .store-workspace :is(.side, .store-side-inner) { transition: none; }
+  :is(.store-workspace, .courier-workspace) :is(.side, .store-side-inner) { transition: none; }
   #store-menu.store-menu-popover { animation: none; }
 }

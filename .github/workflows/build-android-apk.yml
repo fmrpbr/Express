@@ -57,7 +57,7 @@ jobs:
           path.write_bytes(base64.b64decode(key, validate=True))
           path.chmod(0o600)
           PY
-      - name: Compilar APK Express Entregas Beta 2.0.19
+      - name: Compilar APK Express Entregas Beta 2.0.20
         working-directory: android
         run: |
           chmod +x gradlew

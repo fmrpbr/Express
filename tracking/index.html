@@ -10,19 +10,33 @@
 </head>
 <body>
   <main>
-    <header><span class="brand"><img src="/rastreio/icon.png" alt="" width="48" height="48"><span>EXPRESS<small>ENTREGAS</small></span></span><span class="live" id="connection">Conectando</span></header>
-    <h1>Sua entrega,<br>mais perto.</h1>
-    <p class="intro">Acompanhe as atualizações enviadas pelo motoboy.</p>
-    <section aria-live="polite" aria-atomic="true">
-      <span class="label">SITUAÇÃO DA ENTREGA</span>
+    <header><span class="brand"><img src="./icon.png" alt="" width="44" height="44"><span>Express Entregas</span></span><span class="live" id="connection">Conectando</span></header>
+    <h1>Acompanhe sua entrega</h1>
+    <section id="tracking-status" class="surface" aria-live="polite" aria-atomic="true">
+      <p class="code" id="code"></p>
       <h2 id="status">Carregando entrega…</h2>
       <p id="detail">Aguarde um instante.</p>
-      <div class="code" id="code"></div>
-      <p class="time" id="time"></p>
-      <a id="map" target="_blank" rel="noopener noreferrer" hidden>Ver localização no mapa</a>
     </section>
-    <p class="privacy">O link é exclusivo desta entrega. Não mostra nomes, telefones, endereços ou valores.</p>
-    <footer>EXPRESS ENTREGAS · ARACRUZ</footer>
+    <div class="sound-row">
+      <button type="button" id="sound" aria-pressed="false" hidden>Ativar aviso sonoro</button>
+      <small id="sound-status" role="status"></small>
+    </div>
+    <section class="surface" id="metrics" aria-labelledby="route-title" hidden>
+      <h2 id="route-title">Previsão de chegada</h2>
+      <p id="route-missing">Aguardando localização.</p>
+      <div id="route-numbers" class="route-numbers" hidden>
+        <div><strong id="eta"></strong><span>Tempo estimado</span></div>
+        <div><strong id="distance"></strong><span>Distância restante</span></div>
+        <small>Google Maps</small>
+      </div>
+    </section>
+    <section class="surface" id="map-block" aria-labelledby="map-title" hidden>
+      <h2 id="map-title">Localização do motoboy</h2>
+      <iframe id="map-frame" title="Mapa do motoboy e da entrega" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen hidden></iframe>
+      <a id="map" target="_blank" rel="noopener noreferrer">Abrir posição no Google Maps</a>
+    </section>
+    <p class="time" id="time"></p>
+    <footer><p>Quem tiver o link pode acompanhar esta entrega enquanto ele estiver válido.</p><p><a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">Termos do Google</a> · <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Privacidade do Google</a></p></footer>
   </main>
 </body>
 </html>

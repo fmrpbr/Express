@@ -1,6 +1,6 @@
 {
-  "version": "2.0.19",
+  "version": "2.0.20",
   "name": "Express Entregas Beta",
   "channel": "beta",
-  "notes": "Painel do motoboy atualizado, com ofertas e entregas em execução no mesmo layout para web e Android."
+  "notes": "Menu e cabeçalho do motoboy alinhados ao painel do lojista, navegação de moto e rastreio do cliente com estimativa e aviso de chegada."
 }

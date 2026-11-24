@@ -6,10 +6,14 @@ vm.runInNewContext(await readFile('www/firebase-config.example.js', 'utf8'), san
 const source = sandbox.window.EXPRESS_FIREBASE_CONFIG;
 const config = Object.fromEntries(['apiKey','authDomain','databaseURL','projectId','appId'].map(key => [key, source[key]]));
 if(config.projectId !== 'express-entregas-2-testes') throw new Error('Rastreio restrito ao projeto de testes.');
+const mapsKey = process.env.EXPRESS_TRACKING_MAPS_BROWSER_KEY || '';
 await mkdir('public-tracking/rastreio', { recursive: true });
 await copyFile('tracking/index.html', 'public-tracking/rastreio/index.html');
 await copyFile('icons/icon-192.png', 'public-tracking/rastreio/icon.png');
 await copyFile('tracking/style.css', 'public-tracking/rastreio/style.css');
 await writeFile('public-tracking/index.html', '<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Express Entregas</title><p>Abra o link de acompanhamento enviado pela loja.</p></html>');
-await build({ entryPoints: ['tracking/track.js'], bundle: true, minify: true, outfile: 'public-tracking/rastreio/app.js', define: { __EXPRESS_PUBLIC_FIREBASE__: JSON.stringify(config) } });
+await build({ entryPoints: ['tracking/track.js'], bundle: true, minify: true, outfile: 'public-tracking/rastreio/app.js', define: {
+  __EXPRESS_PUBLIC_FIREBASE__: JSON.stringify(config),
+  __EXPRESS_TRACKING_MAPS_KEY__: JSON.stringify(mapsKey),
+} });
 console.log('Página pública de rastreio gerada. Nenhum dado privado ou segredo incluído.');
