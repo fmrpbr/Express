@@ -447,8 +447,7 @@
 
   function openSheetLocal(editId, mode){
     if(window.__expressModuleReady && window.__express?.openSheet) return window.__express.openSheet(editId, mode);
-    if(window.__express && window.__express.prepareSheet) window.__express.prepareSheet(editId, mode || "delivery");
-    window.ExpressOrderRequest?.open();
+    showLoading();
   }
 
   function closeSheetLocal(){
@@ -663,7 +662,7 @@
         </label>
       </details>
     </div>
-    <div class="login-install"><small class="login-version" data-app-version>Versão 2.1.2 Beta</small><button type="button" data-express-install hidden>Instalar Express</button></div>
+    <div class="login-install"><small class="login-version" data-app-version>Versão 2.1.3 Beta</small><button type="button" data-express-install hidden>Instalar Express</button></div>
   </div>
   </div>
 </div>
@@ -965,9 +964,9 @@
 <script src="./order-request.js"></script>
 <script src="./platform-order-alerts.js"></script>
 <script type="module">
-  const APP_VERSION="2.1.2";
+  const APP_VERSION="2.1.3";
   window.EXPRESS_APP_VERSION=APP_VERSION;
-  document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão 2.1.2 Beta");
+  document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão 2.1.3 Beta");
   const { initializeApp, getDatabase, ref, set, update, push, get, onValue, query, orderByChild, equalTo, limitToLast, startAt, onDisconnect, serverTimestamp,
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult, sendPasswordResetEmail,
     getFunctions, httpsCallable, connectDatabaseEmulator, connectAuthEmulator, connectFunctionsEmulator } = window.ExpressFirebase;
@@ -1004,6 +1003,23 @@
     connectFunctionsEmulator(functions, "127.0.0.1", 5001);
   }
   const callOrderCommand = httpsCallable(functions, "orderCommand");
+  async function sendGpsPosition(orderId,coords,user){
+    const nativeHttp=window.Capacitor?.isNativePlatform?.()&&window.ExpressNativePush?.CapacitorHttp;
+    if(!nativeHttp||localEmulator)return command('location',orderId,coords);
+    const token=await user.getIdToken();
+    if(currentUser?.uid!==user.uid||trackingOrderId!==orderId)return;
+    const response=await nativeHttp.post({
+      url:'https://southamerica-east1-express-entregas-2-testes.cloudfunctions.net/orderCommand',
+      headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
+      data:{data:{action:'location',orderId,input:coords,requestId:crypto.randomUUID()}},
+      connectTimeout:8000,readTimeout:10000,
+    });
+    const body=typeof response.data==='string'?JSON.parse(response.data):response.data;
+    if(response.status===200&&body?.result?.ok===true)return;
+    const error=new Error(body?.error?.message||'O servidor não recebeu a posição.');
+    if(body?.error?.status)error.code='functions/'+body.error.status.toLowerCase().replaceAll('_','-');
+    throw error;
+  }
   const callIhubIntegration = httpsCallable(functions, "ihubIntegration", { timeout: 12000 });
   const callIhubCourier = httpsCallable(functions, "ihubCourier", { timeout: 20000 });
   const emptyIhubState = () => ({ orders: [], merchants: [], adminStatus: "idle", storeBusy: false, realtime: false, saving: false,
@@ -1035,8 +1051,10 @@
     }
   }
   let presenceTimer = null;
+  let changingAvailability=false;
   let presenceSessionRef = null;
   let trackingUnsubscribe = null;
+  let storeTrackingDialog=null;
   let connections = {};
   let ownBids = {};
   let pushPreferences = {};
@@ -1114,6 +1132,7 @@
     if(!isPushSession(owner))throw new Error('A sessão de notificações mudou.');
     saveDevicePushPreference(owner,{reenable:false,detachPending:false});
     pushRegistration={owner,platform,id,syncedAt:Date.now()};
+    if(role==='courier')render();
   }
 
   async function saveNativeFcmToken(tokenValue,owner){
@@ -1285,6 +1304,50 @@
         <p style="font-size:10px;color:#98A2B3;text-align:center;margin:0;">Este link não exibe nome, telefone, endereço residencial ou valores do pedido.</p>
       `;
     }, () => { box.textContent = "Rastreamento encerrado, expirado ou indisponível."; });
+  }
+
+  function renderStoreTracking(){
+    const state=storeTrackingDialog;
+    if(!state)return;
+    const order=data.orders.find(item=>item.id===state.id&&item.storeId===actor);
+    const {dialog}=state;
+    const point=order?.location;
+    const loc=order?.status==='run'&&!order.externalOrder?.returnRequestedAt&&Number.isFinite(point?.lat)&&Math.abs(point.lat)<=90&&
+      Number.isFinite(point.lng)&&Math.abs(point.lng)<=180&&Number.isFinite(point.updatedAt)&&point.updatedAt>0&&point.updatedAt<=serverNow()+60000;
+    const status=dialog.querySelector('[data-tracking-status]');
+    const message=dialog.querySelector('[data-tracking-message]');
+    const map=dialog.querySelector('[data-tracking-map]');
+    const link=dialog.querySelector('[data-tracking-map-link]');
+    status.textContent=order?.status==='run'?runningOrderStage(order):order?.status==='done'?'Entrega concluída':order?.status==='cancelled'?'Corrida cancelada':'Rastreio indisponível';
+    message.textContent=loc?(serverNow()-point.updatedAt>120000?'GPS sem atualização recente. Última posição em ':'Posição recebida em ')+date(point.updatedAt)
+      :order?.status==='run'&&!order.externalOrder?.returnRequestedAt?'Aguardando a primeira posição. O motoboy deve conferir a permissão de localização no aparelho.':'';
+    map.hidden=link.hidden=!loc;
+    if(!loc){map.removeAttribute('src');state.position='';return;}
+    const {lat,lng}=point;
+    const position=lat.toFixed(5)+','+lng.toFixed(5);
+    if(position!==state.position){
+      const bbox=[Math.max(-180,lng-.012),Math.max(-90,lat-.009),Math.min(180,lng+.012),Math.min(90,lat+.009)];
+      map.src='https://www.openstreetmap.org/export/embed.html?'+new URLSearchParams({bbox:bbox.join(','),layer:'mapnik',marker:position});
+      link.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(position);
+      state.position=position;
+    }
+  }
+
+  function openStoreTracking(order){
+    if(storeTrackingDialog)return;
+    const dialog=document.createElement('dialog');
+    dialog.className='express-dialog store-map-dialog';
+    dialog.setAttribute('aria-labelledby','store-map-title');
+    dialog.innerHTML='<form method="dialog"><header><h2 id="store-map-title">Localização do motoboy</h2><button class="btn secondary tiny">Fechar</button></header>'+
+      '<p>'+esc(order.orderCode||order.id)+'</p><strong data-tracking-status></strong><p data-tracking-message role="status"></p>'+
+      '<iframe data-tracking-map title="Última posição do motoboy no mapa" referrerpolicy="no-referrer" hidden></iframe>'+
+      '<a data-tracking-map-link target="_blank" rel="noopener noreferrer" hidden>Abrir posição no Google Maps</a></form>';
+    document.body.appendChild(dialog);
+    storeTrackingDialog={dialog,id:order.id,position:''};
+    const ageTimer=setInterval(renderStoreTracking,15000);
+    dialog.addEventListener('close',()=>{clearInterval(ageTimer);storeTrackingDialog=null;dialog.remove();},{once:true});
+    renderStoreTracking();
+    dialog.showModal();
   }
 
   document.getElementById("btn-close-track").addEventListener("click", () => {
@@ -1499,6 +1562,7 @@
   }
 
   function stopDataListeners() {
+    storeTrackingDialog?.dialog.close();
     stopPickupRoute();
     if (ihubSheet) closeOrderSheet();
     offerSettings={enabled:false,couriersPerRound:3,responseSeconds:30,maxRounds:3};
@@ -1528,6 +1592,7 @@
       if(care)carePreviews.delete(order.id);
       return order;
     }).map(order => ownBids[order.id] && order.status === "cotacao" ? { ...order, bids: { [actor]: ownBids[order.id] } } : order);
+    if(storeTrackingDialog)renderStoreTracking();
     if(role === "courier") {
       const running = courierRunningOrders();
       // One physical GPS session serves both accepted orders. Changing their
@@ -1537,7 +1602,7 @@
         gpsStartInterrupted = false; gpsBlockedOrderId = active.id;
         toast("O início do GPS foi interrompido. Confira a permissão e toque em Tentar GPS na corrida.", "warn");
       }
-      if(active && trackingOrderId !== active.id && gpsBlockedOrderId !== active.id) startGpsTracking(active.id);
+      if(active && !document.hidden && trackingOrderId !== active.id && gpsBlockedOrderId !== active.id) startGpsTracking(active.id);
       else if(!active && trackingOrderId) stopGpsTracking();
       if(!active) gpsBlockedOrderId = null;
     }
@@ -1798,11 +1863,18 @@
     });
     presenceTimer = setInterval(() => { recalculate(); heartbeat(); }, 30000);
   }
-  async function toggleCourierAvailability() {
-    if(role !== "courier" || !currentUser) return;
-    const presence = data.presence.find(p => p.id === currentUser.uid) || {};
-    await set(ref(db, "courierPresence/" + currentUser.uid + "/availableForWork"), presence.availableForWork !== true);
-    toast(presence.availableForWork === true ? "Recebimento de novas ofertas pausado." : "Você pode receber novas ofertas, inclusive em segundo plano.");
+  async function toggleCourierAvailability(force){
+    if(role!=="courier"||!currentUser||changingAvailability)return;
+    const owner=currentUser.uid;
+    const presence=data.presence.find(p=>p.id===owner)||{};
+    const available=typeof force==='boolean'?force:presence.availableForWork!==true;
+    changingAvailability=true;render();
+    try{
+      await set(ref(db,'courierPresence/'+owner+'/availableForWork'),available);
+      if(currentUser?.uid!==owner)return;
+      toast(available?'Disponibilidade salva. Confira se os avisos estão ativos neste aparelho.':'Recebimento de novas ofertas pausado.');
+      if(available)restoreDeviceNotifications();
+    }finally{changingAvailability=false;if(currentUser?.uid===owner)render();}
   }
 
   function startAlertsListener() {
@@ -1925,18 +1997,25 @@
   window.openOrderSheet = function(editId, mode, confirmedOrder) {
     let store = person();
     if(!accountAllowed() || ihubSheet)return;
+    if(!window.ExpressOrderRequest?.open){toast('O formulário não carregou. Feche e abra o Express para tentar novamente.','warn');return;}
     if (role === "store" && mode !== "quote" && store && !store.address) {
       if(!confirm("⚠️ Você ainda não cadastrou o endereço da sua loja no seu perfil.\nDeseja cadastrar agora?")) return;
       view = "profile"; render(); return;
     }
-    const form = document.getElementById("mobile-order-form");
-    if(editId&&view==='routes')addingRouteDelivery=true;
-    if(!editId) form.reset();
-    delete form.dataset.requestId; delete form.dataset.payloadFingerprint;
-    prepareSheet(editId, mode || "delivery", confirmedOrder);
-    recalculateMobileFee();
-    phoneOrders?.open(form.dataset.mode==='quote',editId);
-    window.ExpressOrderRequest.open(() => phoneOrders?.validate() ?? true);
+    try{
+      const form=document.getElementById('mobile-order-form');
+      if(editId&&view==='routes')addingRouteDelivery=true;
+      if(!editId)form.reset();
+      delete form.dataset.requestId;delete form.dataset.payloadFingerprint;
+      if(prepareSheet(editId,mode||'delivery',confirmedOrder)===false)return;
+      recalculateMobileFee();
+      phoneOrders?.open(form.dataset.mode==='quote',editId);
+      window.ExpressOrderRequest.open(()=>phoneOrders?.validate()??true);
+    }catch(error){
+      window.ExpressOrderRequest.close();
+      console.warn('Falha ao abrir a solicitação',error.name);
+      toast('Não foi possível abrir a solicitação. Confira o endereço da loja e tente novamente.','warn');
+    }
   };
 
   window.closeOrderSheet = function() {
@@ -1975,7 +2054,7 @@
       return;
     }
     let o = confirmedOrder || data.orders.find(x => x.id === editId);
-    if (!o) return;
+    if (!o) {toast('O pedido já mudou de etapa. Atualize a lista antes de editar.','warn');return false;}
     document.getElementById('field-store-unit').hidden = true;
     document.getElementById('order-store-unit').value = o.storeUnitId || '';
     document.getElementById("mobile-order-form").dataset.agreedFee = String(o.agreedFee || "");
@@ -2032,7 +2111,7 @@
       let zones = resolvedOrderRates().zones;
       select.innerHTML = '<option value="">Sede e bairros (padrão)</option>' +
         Object.keys(zones).filter(z => z !== "Sede e Bairros (Padrão)").map(z => `<option value="${esc(z)}">${esc(z)} — ${cash(zones[z])}</option>`).join("");
-      select.value = Object.hasOwn(zones,selected) ? selected : '';
+      select.value = Object.prototype.hasOwnProperty.call(zones,selected) ? selected : '';
     }
   }
 
@@ -2068,8 +2147,8 @@
       let k = document.getElementById("chk-bank-mob").checked;
       let zoneVal = document.getElementById("zone-select-mobile").value;
       const prior = data.orders.find(o => o.id === editId);
-      const city=storeUnits[form.elements.storeUnitId.value]?.cityId || activeCity();
-      const waitingRates=city!=='aracruz'&&!localCityRates[city];
+      const city=storeUnits[document.getElementById('order-store-unit').value]?.cityId || activeCity();
+      const waitingRates=!prior&&city!=='aracruz'&&!localCityRates[city];
       let total = waitingRates ? 0 : prior && prior.status!=='cotacao' ? prior.fee : Number(form.dataset.agreedFee || 0) || calculateFee(p, false, b, k, zoneVal);
       const dual=document.getElementById('service-type-select').value==='roundtrip';
       if(dual){const sum=prior?.roundtripTotalFee||((prior?.status==='cotacao_aceita'||document.getElementById('mobile-order-form').dataset.completingQuote==='true')?total:total*2);const first=prior?.roundtripSchema?prior.fee:Math.floor(sum*100/2)/100;document.getElementById('quote-price-mobile').textContent=cash(first)+' + '+cash(Math.round((sum-first)*100)/100)+' = '+cash(sum);}
@@ -2077,7 +2156,7 @@
       form.dataset.expectedFee=String(total);
       if(waitingRates)document.getElementById('quote-price-mobile').textContent='Consultando tarifa…';
       if(!form.dataset.requestSubmitting)btnSubmit.disabled=waitingRates;
-      const roundOption=document.querySelector('#service-type-select option[value=roundtrip]');roundOption.disabled=!logisticsReady;
+      const roundOption=document.querySelector('#service-type-select option[value=roundtrip]');roundOption.disabled=!logisticsReady||Boolean(prior&&prior.status==='open'&&!prior.roundtripSchema&&prior.serviceType!=='roundtrip');
       if(addingRouteDelivery){document.getElementById('service-type-select').value='delivery';document.getElementById('service-type-select').disabled=true;btnSubmit.textContent='Salvar entrega no rascunho da rota';}else document.getElementById('service-type-select').disabled=false;
     }
   }
@@ -2126,16 +2205,17 @@
     if (trackingOrderId === orderId || gpsBlockedOrderId === orderId) return;
     stopGpsTracking();
     const generation = gpsGeneration;
-    const trackingUser = currentUser?.uid;
-    const stillCurrent = () => gpsGeneration === generation && trackingOrderId === orderId && currentUser?.uid === trackingUser;
+    const trackingUser=currentUser;
+    const stillCurrent = () => gpsGeneration === generation && trackingOrderId === orderId && currentUser?.uid === trackingUser?.uid;
     trackingOrderId = orderId;
     lastGpsWriteAt = 0;
     lastGpsCoords = null;
     gpsWriteInFlight = false;
     const onPosition = async (position) => {
-      if (trackingOrderId !== orderId || gpsWriteInFlight) return;
+      if (!stillCurrent() || gpsWriteInFlight) return;
       const now = Date.now();
       const { latitude, longitude, accuracy } = position.coords;
+      if(!Number.isFinite(latitude)||!Number.isFinite(longitude))return;
       const coords = { lat: latitude, lng: longitude, ...(Number.isFinite(accuracy) ? {accuracy} : {}) };
       const elapsed = now - lastGpsWriteAt;
       const distance = gpsDistanceMeters(lastGpsCoords, coords);
@@ -2144,26 +2224,27 @@
       // parado, envia um heartbeat de localização a cada 60s.
       if (lastGpsWriteAt && (elapsed < 20000 || (distance < 30 && elapsed < 60000))) return;
 
-      const location = { ...coords, updatedAt: now };
       const currentOrder = data.orders.find(item => item.id === orderId);
       if (!currentOrder || currentOrder.status !== "run" || currentOrder.courierId !== currentUser?.uid) { stopGpsTracking(); return; }
 
       gpsWriteInFlight = true;
       try {
-        await command("location", orderId, coords);
+        await sendGpsPosition(orderId,coords,trackingUser);
+        if(!stillCurrent())return;
         gpsErrorShown = false;
         lastGpsWriteAt = now;
         lastGpsCoords = coords;
       } catch (err) {
+        if(!stillCurrent())return;
         if(!gpsErrorShown) { toast("Localização não enviada. Verifique conexão e autorização.", "warn"); gpsErrorShown = true; }
         if(["functions/permission-denied", "functions/failed-precondition"].includes(err.code)) stopGpsTracking();
       } finally {
-        gpsWriteInFlight = false;
+        if(stillCurrent())gpsWriteInFlight = false;
       }
     };
     const onGpsError = error => {
       if(!stillCurrent()) return;
-      if(!gpsErrorShown) { toast((error.code === 1 || error.code === "NOT_AUTHORIZED") ? "Permita o acesso à localização para acompanhar a corrida." : "GPS sem posição recente. Verifique o sinal.", "warn"); gpsErrorShown = true; }
+      if(!gpsErrorShown) { toast((error.code === 1 || error.code === "NOT_AUTHORIZED") ? "Feche as bolhas sobre a tela, permita a localização e toque em Tentar GPS na corrida." : "GPS sem posição recente. Verifique o sinal.", "warn"); gpsErrorShown = true; }
       if(error.code === 1 || error.code === "NOT_AUTHORIZED") { gpsBlockedOrderId = orderId; stopGpsTracking(); }
     };
     if(background) {
@@ -2173,10 +2254,10 @@
         if(!stillCurrent()) return;
         if(permission.receive !== "granted") permission = await pushApi.requestPermissions();
         if(!stillCurrent()) return;
-        if(permission.receive !== "granted") { toast("Permita as notificações para mostrar o aviso de localização durante a corrida.", "warn"); gpsBlockedOrderId = orderId; stopGpsTracking(); return; }
-        if(document.visibilityState !== "visible") { gpsBlockedOrderId = orderId; stopGpsTracking(); return; }
+        if(permission.receive !== "granted") { toast("Feche as bolhas sobre a tela e permita avisos do Express no Android. Depois toque em Tentar GPS.", "warn"); gpsBlockedOrderId = orderId; stopGpsTracking(); return; }
+        if(document.visibilityState !== "visible") { stopGpsTracking(); return; }
         localStorage.setItem("express_gps_start_pending", "1");
-        const watcher = await background.addWatcher({ backgroundTitle: "Corrida em andamento", backgroundMessage: "Localização ativa durante esta entrega.", requestPermissions: true, stale: false, distanceFilter: 30 }, (location, error) => {
+        const watcher = await background.addWatcher({ backgroundTitle: "Corrida em andamento", backgroundMessage: "Localização ativa durante esta entrega.", requestPermissions: true, stale: false, distanceFilter: 0 }, (location, error) => {
           if(error) return onGpsError(error);
           if(location && trackingOrderId === orderId) onPosition({ coords: location });
         });
@@ -2186,6 +2267,12 @@
       finally { if(gpsGeneration === generation || !trackingOrderId) localStorage.removeItem("express_gps_start_pending"); }
     } else watchId = navigator.geolocation.watchPosition(onPosition, onGpsError, { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 });
   }
+
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden||role!=='courier'||!currentUser)return;
+    const active=courierRunningOrders()[0];
+    if(active&&!trackingOrderId&&gpsBlockedOrderId!==active.id)void startGpsTracking(active.id);
+  });
 
   function stopGpsTracking() {
     gpsGeneration++;
@@ -2213,19 +2300,23 @@
   async function shareTrackingWhatsApp(orderId, copyOnly = false){
     const base = firebaseConfig.publicTrackingBaseUrl;
     if(!base || !base.startsWith("https://")) throw new Error("Endereço público de rastreamento ainda não configurado para os testes.");
-    const nativeShare = window.Capacitor?.isNativePlatform?.() && window.ExpressNativePush?.Share;
-    // Open synchronously on the click, before awaiting Firebase, so browsers do
-    // not block the WhatsApp window as an unsolicited popup.
-    const popup = !copyOnly && !nativeShare ? window.open("about:blank", "_blank") : null;
+    const order=data.orders.find(item=>item.id===orderId&&item.storeId===actor);
+    if(role!=='store'||!order)throw Error('Compartilhamento indisponível para este pedido.');
+    const native=window.Capacitor?.isNativePlatform?.();
+    const popup = !copyOnly && !native ? window.open("about:blank", "_blank") : null;
     if(popup) popup.opener = null;
     try {
       const result = await command("tracking", orderId);
+      if(!/^[a-f0-9]{64}$/.test(result.token||''))throw Error('Não foi possível gerar o link.');
       const link = base.split("#")[0] + "#track=" + result.token;
-      const text = "Olá! Você pode acompanhar sua entrega pelo link:";
+      const service=order.serviceType==='collection'?'retirada':'entrega';
+      const text=`Olá! Acompanhe a ${service} do pedido ${order.orderCode||orderId} da ${order.storeName||'nossa loja'}. Veja a etapa atual e a previsão de chegada quando estiver disponível.\n${link}`;
+      const phone=String(order.phone||'').replace(/\D/g,'');
+      const recipient=/^[1-9]\d9\d{8}$/.test(phone)?'55'+phone:/^55[1-9]\d9\d{8}$/.test(phone)?phone:'';
+      const whatsapp='https://wa.me/'+(order.externalOrder?.provider==='ifood'?'':recipient)+'?text='+encodeURIComponent(text);
       if(copyOnly) { await navigator.clipboard.writeText(link); toast("Link copiado. Cole na conversa com o cliente.", "success"); }
-      else if(nativeShare) await nativeShare.share({ title: "Acompanhe sua entrega", text, url: link, dialogTitle: "Enviar rastreio pelo WhatsApp" });
-      else if(popup) popup.location.replace("https://wa.me/?text=" + encodeURIComponent(text + " " + link));
-      else { await navigator.clipboard.writeText(link); toast("Link copiado. Cole no WhatsApp do cliente.", "success"); }
+      else if(popup) popup.location.replace(whatsapp);
+      else window.location.assign(whatsapp);
     } catch(error) { if(popup) popup.close(); throw error; }
   }
 
@@ -2292,7 +2383,7 @@
     }
     const permission = Notification.permission === 'default' && interactive ? await Notification.requestPermission() : Notification.permission;
     if(permission !== 'granted'){
-      if(interactive)throw new Error('Autorize as notificações nas permissões deste site.');
+      if(interactive)throw new Error(permission==='denied'?'Abra as permissões do site no Chrome e permita Notificações.':'Feche as bolhas flutuantes de outros apps, como a 99, e tente ativar de novo.');
       return false;
     }
     const config = await notificationTool('config').catch(error => {
@@ -2526,11 +2617,13 @@
     const label = {busy:"Em atendimento", available:"Disponível", paused:"Pausado"}[state];
     const slots = `${workSlots}/2 vagas ocupadas`;
     const hint = activeRoute ? "Rota em execução · novas corridas bloqueadas"
-      : available ? slots : `${slots} · Novas ofertas pausadas`;
+      : available ? slots+' · Você pode trocar de app' : `${slots} · Toque em Ficar disponível para aceitar corridas`;
+    const owner=currentUser?.uid;
+    const notificationsReady=pushRegistration?.owner===owner&&pushPreferences.enabled!==false&&pushPreferences.orders!==false;
     return '<section class="courier-availability" data-availability="' + state + '" aria-label="Disponibilidade">' +
-      '<div><b data-work-status>' + label + '</b><small>' + hint + '</small></div>' +
+      '<div><b data-work-status>' + label + '</b><small>' + hint + '</small>'+(available?(notificationsReady?'<small>Avisos de corridas configurados neste aparelho.</small>':'<button type="button" class="store-text-button" data-enable-push>Conferir avisos em segundo plano</button>'):'')+'</div>' +
       '<button type="button" class="btn ' + (available ? "secondary" : "primary") +
-      ' tiny" data-toggle-availability>' + (available ? "Pausar" : "Ficar disponível") + '</button></section>';
+      ' tiny" data-toggle-availability'+(changingAvailability?' disabled':'')+'>' + (available ? "Pausar" : "Ficar disponível") + '</button></section>';
   }
 
   function storeRecentCard(order){
@@ -2581,7 +2674,8 @@
         : '<button type="button" class="store-text-button store-track-button" data-nav="run">Acompanhar rota</button>';
       const channel = order.externalOrder?.provider ? ' · ' + esc(storeOrderChannel(order)) : '';
       return '<article class="store-active-row"><span class="store-stat-icon" aria-hidden="true">' + storeIcon("delivery") + '</span>' +
-        '<div><strong>' + esc(runningOrderStage(order)) + '</strong><small>' + esc(destination) + ' · ' + esc(order.orderCode || order.id) + channel + '</small></div>' + tracking + '</article>';
+        '<div><strong>' + esc(runningOrderStage(order)) + '</strong><small>' + esc(destination) + ' · ' + esc(order.orderCode || order.id) + channel + '</small></div>' +
+        '<div class="store-tracking-actions">'+tracking+(order.status==='run'&&!order.externalOrder?.returnRequestedAt?trackingWhatsAppButton(order):'')+'</div></article>';
     }).join("");
     return '<section class="store-overview-section store-active-deliveries" aria-labelledby="store-active-title"><h2 id="store-active-title">Entregas em andamento</h2>' + rows +
       (active.length > 3 ? '<button type="button" class="store-text-button" data-nav="run">Ver outras entregas</button>' : '') + '</section>';
@@ -2672,6 +2766,9 @@
   }
 
   function courierOfferActions(order,label){
+    const presence=data.presence.find(item=>item.id===actor);
+    if(presence?.availableForWork!==true)return '<button type="button" class="btn primary tiny" data-action="enable-courier-for-offer"'+(changingAvailability?' disabled':'')+'>Ficar disponível</button><small>Ative sua disponibilidade para aceitar esta corrida.</small>';
+    if(courierOccupiedSlots()>=2)return '<small>Conclua uma corrida para liberar uma vaga.</small>';
     if(order.offerStatus!=='pending')return '<button type="button" class="btn primary tiny" data-action="accept" data-id="'+esc(order.id)+'">'+label+'</button>';
     return '<div class="info">'+(order.isFavoriteOffer?'Oferta exclusiva':'Oferta da rodada '+Number(order.offerRound||1))+' · <strong '+offerCountdown(order.offerExpiresAt)+'</strong></div><button type="button" class="btn primary tiny" data-action="accept" data-id="'+esc(order.id)+'">'+label+'</button><button type="button" class="btn secondary tiny" data-action="decline-offer" data-id="'+esc(order.id)+'">Recusar oferta</button>';
   }
@@ -2886,7 +2983,7 @@
     if (role === "store" && o.status === "run" && !o.picked && canCancelFree && !o.externalOrder?.sourceKey) action += ` <button type="button" class="btn danger tiny" data-action="cancel-free" data-id="${o.id}">⚠️ Cancelar sem custo</button>`;
 
     if(role==='store'&&o.storeId===actor)action+=' <button type="button" class="btn secondary tiny" data-action="print-order" data-id="'+esc(o.id)+'">🖨️ Imprimir pedido</button>';
-    let trackingShareHtml = role === "store" && ["open", "run"].includes(o.status) && !returningIfood ? `<div style="margin-top:8px;background:#F2F3F5;padding:8px 10px;border-radius:10px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;"><span style="font-size:11px;">🔗 <b>Rastreio do cliente</b></span><button type="button" class="btn secondary tiny" data-action="share-whatsapp" data-id="${o.id}" style="background:#fff;">Compartilhar WhatsApp</button><button type="button" class="btn secondary tiny" data-action="copy-tracking" data-id="${o.id}">Copiar link</button></div>` : "";
+    let trackingShareHtml = role === "store" && ["open", "run"].includes(o.status) && !returningIfood ? `<div class="store-tracking-actions"><b>Rastreio do cliente</b>${trackingWhatsAppButton(o)}<button type="button" class="btn secondary tiny" data-action="copy-tracking" data-id="${esc(o.id)}">Copiar link</button></div>` : "";
     if(role === "store" && o.status === "run" && Number(o.queuePosition) === 2) trackingShareHtml = '<div class="info">Motoboy com duas corridas. Sua entrega está na próxima posição.</div>' + trackingShareHtml;
     let gpsTrackingInfo = (canLoc(o) && o.location && o.status === "run") ? `<div class="gps" style="margin-top:6px; background:var(--mint); padding:8px; border-radius:10px;">📍 <b>Motoboy em trânsito:</b> <a href="https://www.openstreetmap.org/?mlat=${o.location.lat}&mlon=${o.location.lng}#map=16/${o.location.lat}/${o.location.lng}" target="_blank" rel="noopener noreferrer" style="color:var(--green-dark); font-weight:bold;">Acompanhar Mapa</a> · Última posição: ${date(o.location.updatedAt)}</div>` : "";
     let isSpecialQuote = o.status === "cotacao" || o.status === "cotacao_aceita";
@@ -3650,8 +3747,12 @@
       (isRunning && order.courierName ? '<small>' + esc(order.courierName) + ' · ' + esc(courierRatingLabel(order)) + '</small>' : '') +
       (paymentLabel ? '<small class="store-order-payment" data-payment="' + payment + '">' + paymentLabel + '</small>' : '') + '</span>' +
       '<strong class="store-order-price">' + price + '</strong>' + storeIcon("next") + '</summary>' +
-      '<div class="store-order-detail">' + card(order) + (order.cancellationReason ? '<p class="info">'+esc(order.cancellationReason)+'</p>' : '') + '</div></details>' + favoriteOfferStatus(order) + orderSearchStatus(order) + tracking +
+      '<div class="store-order-detail">' + card(order) + (order.cancellationReason ? '<p class="info">'+esc(order.cancellationReason)+'</p>' : '') + '</div></details>' + favoriteOfferStatus(order) + orderSearchStatus(order) + (tracking?'<div class="store-tracking-actions">'+tracking+trackingWhatsAppButton(order)+'</div>':'') +
       (page==='done'&&order.status==='done'&&order.courierId&&order.kind!=='route'&&!order.ratingStatus?.storeSubmitted?'<button class="store-text-button" type="button" data-action="rate-delivery" data-id="'+esc(order.id)+'">Avaliar entrega</button>':'')+'</article>';
+  }
+
+  function trackingWhatsAppButton(order){
+    return '<button type="button" class="store-text-button store-track-button" data-action="share-whatsapp" data-id="'+esc(order.id)+'">Enviar pelo WhatsApp</button>';
   }
 
   function storeOrdersView(orders, page){
@@ -4204,6 +4305,7 @@
       const order = data.orders.find(o => o.id === id);
       if(action==='account-logout'){await window.logout();return;}
       if(currentUser&&!accountAllowed())throw Error('Aguarde a liberação do administrador.');
+      if(action==='enable-courier-for-offer'){await toggleCourierAvailability(true);return;}
       if(action === "toggle-alert-composer" && role === "store" && view === "alerts") {
         storeAlertDraft.open = !storeAlertDraft.open;
         render();
@@ -4394,8 +4496,7 @@
       if(action === "copy-tracking") return await shareTrackingWhatsApp(id, true);
       if(action === "open-store-tracking") {
         if(role !== "store" || !order || order.storeId !== actor || order.status !== "run") throw Error("Rastreio indisponível para este pedido.");
-        const result = await command("tracking", id);
-        openPublicTracker(result.token || "");
+        openStoreTracking(order);
         return;
       }
       if(action === "push-settings") return await openPushSettings();
@@ -4490,11 +4591,13 @@
       if(!care||typeof care.fragile!=="boolean"||typeof care.importantNotes!=="boolean"||typeof care.notes!=="string"||!Number.isSafeInteger(care.revision)||care.revision<0)throw Error("Não foi possível conferir os cuidados. Tente novamente.");
       carePreviews.set(id,{fragile:care.fragile,importantNotes:care.importantNotes,notes:care.notes,revision:care.revision});
       mergeOrders();
-      let input={logisticsVersion:1};
+      const shownType=data.orders.find(order=>order.id===id)?.serviceType;
+      if(preview.serviceType&&shownType&&preview.serviceType!==shownType)throw Error('A modalidade mudou. Confira a oferta atualizada antes de aceitar.');
+      let input={logisticsVersion:1,serviceType:shownType};
       if(care.fragile||care.importantNotes){
         const message=(attempt?"O pedido foi atualizado. Confira os cuidados novamente.\n\n":"")+(care.fragile?"📦 CONTEÚDO FRÁGIL. Transportar com cuidado.\n\n":"")+(care.notes?"OBSERVAÇÕES: "+care.notes:"Confirme que leu os cuidados.");
         if(!await confirmInApp("⚠️ Cuidados com o pedido",message,"Li e estou ciente"))return null;
-        input={logisticsVersion:1,careAcknowledged:true,careRevision:care.revision};
+        input={...input,careAcknowledged:true,careRevision:care.revision};
       }
       if(!sameSession())throw Error("A sessão mudou. Entre novamente antes de aceitar.");
       try{return await command("accept",id,input);}
@@ -4633,6 +4736,11 @@
     const owner=currentUser.uid;
     const enable=dialog.querySelector('[data-push-enable]');
     const remoteTest=dialog.querySelector('[data-push-test]');
+    if(!native){
+      const help=document.createElement('p');
+      help.textContent='Se o Chrome não abrir a permissão, feche as bolhas flutuantes de outros apps, como a 99, e toque em Ativar neste dispositivo novamente.';
+      enable.before(help);
+    }
     const disable=document.createElement('button');
     disable.type='button';
     disable.className='btn secondary full';
@@ -4736,7 +4844,7 @@
     
     let completingQuote = f.dataset.completingQuote === "true";
     let serviceType = f.serviceType.value;
-    let city = f.elements.namedItem("city").value.trim() || "ARACRUZ";
+    let city = f.elements.namedItem("city").value.trim();
     let clientStreet = f.clientStreet.value.trim();
     let clientNumber = f.clientNumber.value.trim();
     let clientNeighborhood = f.clientNeighborhood.value.trim();

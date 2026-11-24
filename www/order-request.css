@@ -107,7 +107,10 @@
 .order-footer-actions .btn { min-height: 44px; padding: 8px clamp(10px, 2.6vw, 18px); font-size: 13px; }
 
 .native-app #order-sheet-overlay .order-request-header {
-  padding-top: max(12px, env(safe-area-inset-top));
+  padding-top: max(28px, env(safe-area-inset-top));
+}
+.native-app #order-sheet-overlay .order-request-footer {
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
 }
 
 @media (max-width: 439px) {

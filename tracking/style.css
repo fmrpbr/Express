@@ -39,4 +39,8 @@ button[aria-pressed='true'] { color: var(--teal); background: #e4eee8; }
 #map-frame { display: block; width: 100%; height: clamp(225px, 46vh, 385px); margin: 9px 0; border: 0; border-radius: 9px; background: #e4eee8; }
 a { color: var(--accent); text-underline-offset: 2px; }
 #map { display: inline-flex; align-items: center; min-height: 40px; font-size: 13px; font-weight: 650; }
+#steps { list-style: none; margin: 4px 0 0; padding: 0; }
+#steps li { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 2px 10px; padding-block: 8px; }
+#steps li + li { border-top: 1px solid var(--border); }
+#steps time { font-size: 13px; color: var(--muted); }
 footer p + p { margin-top: 4px; }

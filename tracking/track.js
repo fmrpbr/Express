@@ -11,6 +11,7 @@ let audio, sound = false, shownMap, mapAt = 0;
 const arrivals = new Set();
 const mapsKey = __EXPRESS_TRACKING_MAPS_KEY__;
 const timeFormat = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+const milestoneFormat=new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'});
 const distanceFormat = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
 
 function signalArrival() {
@@ -85,10 +86,17 @@ function render(view) {
   if (arrivalVisible && !view.arrived) view = { ...view, arrived: true, status: 'Seu motoboy chegou', detail: 'O motoboy está no local da entrega ou retirada.', estimate: null };
   $('status').textContent = view.status;
   $('detail').textContent = view.detail;
-  $('code').textContent = view.code || '';
+  $('code').textContent = [view.code,view.service].filter(Boolean).join(' · ');
   $('tracking-status').classList.toggle('arrived', Boolean(view.arrived));
   $('time').textContent = view.location ? (view.stale ? 'GPS sem atualização recente · ' : 'Última posição · ') + timeFormat.format(view.location.updatedAt)
-    : view.completedAt ? 'Concluída às ' + timeFormat.format(view.completedAt) : '';
+    : Number.isFinite(view.updatedAt)&&view.updatedAt>0 ? 'Última atualização · ' + milestoneFormat.format(view.updatedAt) : '';
+  $('steps-block').hidden=!view.milestones?.length;
+  $('steps').replaceChildren(...(view.milestones||[]).map(([label,at])=>{
+    const item=document.createElement('li');
+    const event=document.createElement('strong');event.textContent=label;
+    const time=document.createElement('time');time.dateTime=new Date(at).toISOString();time.textContent=milestoneFormat.format(at);
+    item.append(event,time);return item;
+  }));
   $('sound').hidden = Boolean(view.ended);
   if (view.ended) $('sound-status').textContent = '';
   $('metrics').hidden = !view.toCustomer || Boolean(view.arrived);
