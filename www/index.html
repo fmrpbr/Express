@@ -2806,6 +2806,8 @@
     const entering = accountStatus.hidden;
     accountStatus.hidden = !restricted;
     if (restricted) {
+      document.getElementById('nav').replaceChildren();
+      document.getElementById('content').replaceChildren();
       renderAccountStatus(accountStatus, entering);
       return;
     }
