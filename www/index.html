@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Express">
 <meta name="application-name" content="Express">
-<title>Express Entregas Beta</title>
+<title>Express Entregas</title>
 <link rel="stylesheet" href="./express-install.css">
 <script defer src="./express-install.js"></script>
 
@@ -393,6 +393,24 @@
     var ln = document.getElementById("label-name"), an = document.getElementById("auth-name");
     if(ln) ln.textContent = r === "store" ? "Nome do Estabelecimento" : "Nome Completo";
     if(an) an.placeholder = r === "store" ? "Ex: Restaurante Central" : "Ex: João Silva";
+    updateRegistrationFields();
+  }
+
+  function updateRegistrationFields(){
+    var registering = window.__expressAuthMode === 'register';
+    var store = window.__expressLoginRole !== 'courier';
+    document.getElementById('registration-city-fields').hidden = !registering;
+    document.getElementById('auth-city').required = registering;
+    document.getElementById('auth-name').required = registering;
+    document.getElementById('auth-extra').required = registering;
+    var storeFields = document.getElementById('registration-store-fields');
+    storeFields.hidden = !registering || !store;
+    for (var input of storeFields.querySelectorAll('input')) {
+      input.disabled = !registering || !store;
+      input.required = registering && store && input.hasAttribute('data-registration-required');
+    }
+    document.getElementById('registration-courier-field').hidden = !registering || store;
+    document.getElementById('auth-courier-neighborhood').disabled = !registering || store;
   }
 
   function setAuthTabLocal(mode){
@@ -417,6 +435,7 @@
       document.getElementById(id).style.display = registering ? "grid" : "none";
     }
     document.getElementById("auth-submit-btn").textContent = registering ? "Criar conta →" : "Entrar na plataforma →";
+    updateRegistrationFields();
   }
 
   function togglePasswordLocal(){
@@ -545,7 +564,7 @@
   <div class="login-card">
     <div class="login-brand">
       <div class="logo"><img src="./icons/icon-192.png" alt=""></div>
-      <h1>Express Entregas Beta</h1>
+      <h1>Express Entregas</h1>
     </div>
 
     <div class="login-heading">
@@ -566,7 +585,7 @@
     <form id="auth-form" class="login-form">
       <div class="field full" id="field-name" style="display:none">
         <label id="label-name" for="auth-name">Nome do Estabelecimento</label>
-        <input type="text" id="auth-name" placeholder="Ex: Restaurante Central">
+        <input type="text" id="auth-name" maxlength="80" placeholder="Ex: Restaurante Central">
       </div>
 
       <div class="field full">
@@ -583,8 +602,28 @@
       </div>
 
       <div class="field full" id="field-extra" style="display:none">
-        <label id="label-extra" for="auth-extra">Telefone / WhatsApp</label>
-        <input type="tel" id="auth-extra" autocomplete="tel" placeholder="(27) 99999-9999">
+        <label id="label-extra" for="auth-extra">WhatsApp com DDD</label>
+        <input type="tel" id="auth-extra" autocomplete="tel" maxlength="22" placeholder="(27) 99999-9999">
+      </div>
+      <div id="registration-city-fields" class="registration-city-fields full" hidden>
+        <div class="field"><label for="auth-city">Cidade de operação</label><select id="auth-city" name="cityId"><option value="">Carregando cidades…</option></select></div>
+        <div class="registration-store-fields" id="registration-store-fields" hidden>
+          <div class="field"><label for="auth-responsible">Nome completo do responsável</label><input id="auth-responsible" name="responsibleName" autocomplete="name" maxlength="100" data-registration-required></div>
+          <div class="field"><label for="auth-street">Rua da retirada</label><input id="auth-street" name="street" autocomplete="address-line1" maxlength="120" data-registration-required></div>
+          <div class="field"><label for="auth-number">Número ou s/n</label><input id="auth-number" name="number" maxlength="20" data-registration-required></div>
+          <div class="field"><label for="auth-neighborhood">Bairro</label><input id="auth-neighborhood" name="neighborhood" maxlength="100" data-registration-required></div>
+          <details class="registration-extra full"><summary>Complemento e informações de retirada</summary>
+            <div class="registration-store-fields">
+              <div class="field"><label for="auth-cep">CEP</label><input id="auth-cep" name="cep" autocomplete="postal-code" inputmode="numeric" maxlength="9"></div>
+              <div class="field"><label for="auth-complement">Complemento</label><input id="auth-complement" name="complement" maxlength="100"></div>
+              <div class="field"><label for="auth-reference">Ponto de referência</label><input id="auth-reference" name="reference" maxlength="150"></div>
+              <div class="field"><label for="auth-pickup-hours">Horário de retirada</label><input id="auth-pickup-hours" name="pickupHours" maxlength="100"></div>
+              <div class="field"><label for="auth-pickup-instructions">Instruções para retirada</label><input id="auth-pickup-instructions" name="pickupInstructions" maxlength="240"></div>
+              <div class="field"><label for="auth-alternate-contact">Contato alternativo</label><input id="auth-alternate-contact" name="alternateContact" type="tel" maxlength="35"></div>
+            </div>
+          </details>
+        </div>
+        <div class="field" id="registration-courier-field" hidden><label for="auth-courier-neighborhood">Bairro de referência (opcional)</label><input id="auth-courier-neighborhood" name="neighborhood" maxlength="100"></div>
       </div>
 
       <button type="button" class="login-link password-link" data-action="open-password-recovery">Esqueceu sua senha?</button>
@@ -624,7 +663,7 @@
         </label>
       </details>
     </div>
-    <div class="login-install"><small class="login-version" data-app-version>Versão 2.0.21</small><button type="button" data-express-install hidden>Instalar Express</button></div>
+    <div class="login-install"><small class="login-version" data-app-version>Versão 2.1 Beta</small><button type="button" data-express-install hidden>Instalar Express</button></div>
   </div>
   </div>
 </div>
@@ -762,6 +801,8 @@
               </div>
             </div>
             <input type="checkbox" name="isQuote" id="chk-is-quote" hidden>
+            <div class="field" id="field-store-unit" hidden><label for="order-store-unit">Unidade da loja</label><select id="order-store-unit" name="storeUnitId"><option value="">Unidade principal</option></select></div>
+            <div class="field" id="field-favorite-courier" hidden><label for="favorite-courier">Oferecer primeiro a um favorito</label><select id="favorite-courier" name="favoriteCourierId"><option value="">Distribuição normal</option></select></div>
             <details class="order-service-options" id="order-service-options">
               <summary>Adicionais e observações</summary>
               <div class="order-options-body">
@@ -799,7 +840,7 @@
     <div class="store-side-inner">
     <div class="brand">
       <div class="logo"><img src="./icons/icon-192.png" alt=""></div>
-      <div><b>Express Entregas Beta</b><small>Lojista ↔ Motoboy</small></div>
+      <div><b>Express Entregas</b><small>Lojista ↔ Motoboy</small></div>
     </div>
     <div>
       <div class="nav-title">NAVEGAÇÃO</div>
@@ -820,7 +861,7 @@
     <section class="map-hero" aria-label="Painel operacional Express">
       <div class="hero-dashboard">
         <div class="store-brand-row">
-          <strong>Express Entregas Beta</strong>
+          <strong>Express Entregas</strong>
           <div class="store-header-actions">
             <button type="button" data-nav="alerts" aria-label="Alertas" title="Alertas"></button>
             <button type="button" data-store-dialog="store-account" aria-haspopup="dialog" aria-label="Minha conta" title="Minha conta"></button>
@@ -924,9 +965,9 @@
 <script src="./order-request.js"></script>
 <script src="./platform-order-alerts.js"></script>
 <script type="module">
-  const APP_VERSION="2.0.21";
+  const APP_VERSION="2.1.0";
   window.EXPRESS_APP_VERSION=APP_VERSION;
-  document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão "+APP_VERSION);
+  document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão 2.1 Beta");
   const { initializeApp, getDatabase, ref, set, update, push, get, onValue, query, orderByChild, equalTo, limitToLast, startAt, onDisconnect, serverTimestamp,
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult, sendPasswordResetEmail,
     getFunctions, httpsCallable, connectDatabaseEmulator, connectAuthEmulator, connectFunctionsEmulator } = window.ExpressFirebase;
@@ -943,6 +984,18 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
+  let cityDirectory = {}, cityManagers = {}, managerCity = '', courierActiveCity = '', storeFavorites = {}, cityTariffProposals = {}, localCityRates = {}, storeUnits = {}, cityUnits = {};
+  const activeCity = () => role === 'manager' ? managerCity : role === 'courier' ? courierActiveCity || accountProfile?.cityId || 'aracruz' : accountProfile?.cityId || 'aracruz';
+  const registrationCities = document.getElementById('auth-city');
+  onValue(ref(db,'cityDirectory'), snap => {
+    cityDirectory = snap.val() || { aracruz:{ id:'aracruz', name:'Aracruz', uf:'ES', enabled:true } };
+    const value = registrationCities.value;
+    const options = Object.values(cityDirectory).filter(city => city.enabled).sort((a,b) => a.name.localeCompare(b.name,'pt-BR'));
+    registrationCities.replaceChildren(new Option(options.length ? 'Selecione a cidade' : 'Nenhuma cidade disponível', ''),
+      ...options.map(city => new Option([city.name, city.uf].filter(Boolean).join(' – '), city.id)));
+    if (options.some(city => city.id === value)) registrationCities.value = value;
+    if (currentUser) render();
+  }, () => { registrationCities.replaceChildren(new Option('Não foi possível carregar as cidades', '')); });
   const auth = getAuth(app);
   const functions = getFunctions(app, "southamerica-east1");
   if(firebaseConfig.useEmulators === true && ["localhost", "127.0.0.1"].includes(location.hostname)) {
@@ -991,7 +1044,7 @@
   let leavingPushSession = false;
   let gpsErrorShown = false;
   let accountProfile=null, accessUnsubscribe=null;
-  const accountAllowed=()=>role==='admin'||!!accountProfile&&(!accountProfile.accessStatus||accountProfile.accessStatus==='approved');
+  const accountAllowed=()=>role==='admin'||(role==='manager'?cityManagers[managerCity]===true:!!accountProfile&&(!accountProfile.accessStatus||accountProfile.accessStatus==='approved'));
   let pendingPushOrderId = null;
   const digestKey = async value => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))), b => b.toString(16).padStart(2, "0")).join("");
 
@@ -1524,13 +1577,18 @@
       leavingPushSession = false;
       let token = await getIdTokenResult(user, true);
       let isAdmin = token.claims && token.claims.admin === true;
-      if (adminLoginRequested && !isAdmin) { await signOut(auth); throw new Error("Esta conta não possui permissão de administrador."); }
+      const managedCities = isAdmin ? {} : (await get(ref(db, 'cityManagers/' + user.uid))).val() || {};
+      if (adminLoginRequested && !isAdmin && !Object.values(managedCities).includes(true)) { await signOut(auth); throw new Error("Esta conta não possui permissão administrativa."); }
       if (isAdmin) { role = "admin"; actor = "admin"; }
+      else if (Object.values(managedCities).includes(true)) {
+        role = 'manager'; actor = user.uid; cityManagers = managedCities;
+        managerCity = Object.keys(managedCities).find(id => managedCities[id] === true);
+      }
       else {
         let storeSnap = await get(ref(db, "profiles/stores/" + user.uid));
         let courierSnap = await get(ref(db, "profiles/couriers/" + user.uid));
         if (storeSnap.exists()) { role = "store"; actor = user.uid; accountProfile=storeSnap.val(); }
-        else if (courierSnap.exists()) { role = "courier"; actor = user.uid; accountProfile=courierSnap.val(); }
+        else if (courierSnap.exists()) { role = "courier"; actor = user.uid; accountProfile=courierSnap.val(); courierActiveCity=(await get(ref(db, 'courierPresence/'+user.uid+'/activeCityId'))).val()||''; }
         else { await signOut(auth); throw new Error("Cadastro incompleto. Abra Criar Conta e informe os mesmos dados para concluir."); }
       }
       activeSessionUid = user.uid;
@@ -1540,7 +1598,13 @@
       view = role === "courier" ? "available" : "dashboard";
       startDataListeners(); render();
       if(accessUnsubscribe)accessUnsubscribe();
-      if(role!=='admin')accessUnsubscribe=onValue(ref(db,'profiles/'+(role==='store'?'stores/':'couriers/')+user.uid),snap=>{
+      if(role==='manager')accessUnsubscribe=onValue(ref(db,'cityManagers/'+user.uid),snap=>{
+        cityManagers=snap.val()||{};
+        if(!Object.values(cityManagers).includes(true)){void window.logout();return;}
+        if(!cityManagers[managerCity]){managerCity=Object.keys(cityManagers).find(id=>cityManagers[id]===true);startDataListeners();}
+        render();
+      });
+      else if(role!=='admin')accessUnsubscribe=onValue(ref(db,'profiles/'+(role==='store'?'stores/':'couriers/')+user.uid),snap=>{
         const wasAllowed=accountAllowed();accountProfile=snap.val();
         const allowed=accountAllowed();
         if(wasAllowed!==allowed){
@@ -1562,6 +1626,20 @@
     stopDataListeners();
     pushPreferences=restorePushPreferences(currentUser.uid);
     if (!currentUser || !accountAllowed()) return;
+    if (role === 'manager') {
+      const path = 'cityOperations/' + managerCity;
+      data.stores = []; data.couriers = []; data.presence = []; connections = {};
+      Object.assign(adminHealth, {orders:'loading',stores:'loading',couriers:'loading',presence:'ready',connections:'ready'});
+      unsubscribers.push(onValue(ref(db,'.info/connected'),snap=>{adminConnected=snap.val()===true;render();}));
+      for (const key of ['stores','couriers','orders']) unsubscribers.push(onValue(ref(db,path+'/'+key), snap => {
+        data[key] = Object.entries(snap.val()||{}).map(([id,value])=>({id,...value}));
+        adminHealth[key] = 'ready'; adminLastDataAt = Date.now(); render();
+      }, () => {adminHealth[key]='error';render();}));
+      unsubscribers.push(onValue(ref(db,'cityTariffProposals/'+managerCity),snap=>{cityTariffProposals={[managerCity]:snap.val()||{}};render();}));
+      cityUnits={};
+      unsubscribers.push(onValue(ref(db,path+'/units'),snap=>{cityUnits=snap.val()||{};render();}));
+      return;
+    }
     loadLogisticsCapabilities();
     unsubscribers.push(onValue(ref(db,'.info/serverTimeOffset'),snap=>{adminServerOffset=Number(snap.val())||0;}));
     startHeroTimers();
@@ -1576,6 +1654,8 @@
     unsubscribers.push(onValue(ref(db,'systemNotices'),snap=>{systemNotices=Object.entries(snap.val()||{}).map(([id,n])=>({...n,id}));render();}));
     if(role==='admin')unsubscribers.push(onValue(ref(db,'rainSignals'),snap=>{rainSignals=snap.val()||{};render();}));
     if (role === "admin") {
+      unsubscribers.push(onValue(ref(db,'storeUnits'),snap=>{cityUnits=Object.assign({},...Object.values(snap.val()||{}));render();}));
+      unsubscribers.push(onValue(ref(db,'cityTariffProposals'),snap=>{cityTariffProposals=snap.val()||{};render();}));
       unsubscribers.push(onValue(ref(db,'.info/connected'),snap=>{adminConnected=snap.val()===true;render();}));
       unsubscribers.push(onValue(ref(db,'.info/serverTimeOffset'),snap=>{adminServerOffset=Number(snap.val())||0;render();}));
       unsubscribers.push(onValue(ref(db, "profiles/stores"), snap => { let v=snap.val()||{}; data.stores=Object.entries(v).map(([id,x])=>({id,...x}));adminReceived('stores');render(); },()=>adminLoadError('stores')));
@@ -1586,13 +1666,18 @@
       },()=>adminLoadError('couriers')));
       listenOrders("admin", "orders");
     } else if (role === "store") {
+      unsubscribers.push(onValue(ref(db,'storeUnits/'+actor),snap=>{storeUnits=snap.val()||{};render();}));
+      unsubscribers.push(onValue(ref(db,'storeFavorites/'+actor),snap=>{storeFavorites=snap.val()||{};render();}));
+      const city=activeCity();
+      unsubscribers.push(onValue(ref(db,'cityPricing/'+city),snap=>{localCityRates[city]=snap.val()||{};render();}));
       unsubscribers.push(onValue(ref(db,"profiles/stores/"+actor), snap => { let v=snap.val(); data.stores = v ? [{id:actor,...v}] : []; render(); }));
       listenOrders("store", "storeOrders/" + actor);
       listenIhubOrders();
     } else {
       unsubscribers.push(onValue(ref(db,"profiles/couriers/"+actor), snap => { let v=snap.val(); data.couriers = v ? [{id:actor,...v}] : []; render(); }));
-      listenOrders("available", "availableOrders");
-      listenOrders("quotes", "quoteBoard");
+      const city = activeCity();
+      listenOrders("available", city === 'aracruz' ? 'availableOrders' : `cityOperations/${city}/availableOrders`);
+      listenOrders("quotes", city === 'aracruz' ? 'quoteBoard' : `cityOperations/${city}/quoteBoard`);
       listenOrders("courier", "courierOrders/" + actor);
       listenOrders("offers", "courierOffers/" + actor);
       unsubscribers.push(onValue(ref(db, "courierBids/" + actor), snap => { ownBids = snap.val() || {}; mergeOrders(); }));
@@ -1784,10 +1869,11 @@
     if(adminLoginMode){await window.loginAsAdmin();return;}
     let email = document.getElementById("auth-email").value.trim().toLowerCase();
     let password = document.getElementById("auth-password").value;
-    let name = document.getElementById("auth-name").value.trim() || email.split("@")[0];
+    let name = document.getElementById("auth-name").value.trim();
     let phone = document.getElementById("auth-extra").value.trim();
     let submit = document.getElementById("auth-submit-btn");
-    if (currentAuthMode === "register" && !phone) return toast("Informe o telefone para criar a conta.", "warn");
+    const registration = Object.fromEntries(new FormData(e.currentTarget));
+    if (currentAuthMode === "register" && (!registration.cityId || !cityDirectory[registration.cityId]?.enabled)) return setAuthFeedback("Selecione uma cidade com cadastro aberto.", "error");
     busy = true; submit.disabled = true; submit.textContent = "Aguarde...";
     setAuthFeedback(currentAuthMode === "register" ? "Criando sua conta..." : "Verificando dados...", "info");
 
@@ -1805,7 +1891,7 @@
         try {
           const ownStore = await get(ref(db, "profiles/stores/" + credential.user.uid));
           const ownCourier = await get(ref(db, "profiles/couriers/" + credential.user.uid));
-          if(!ownStore.exists() && !ownCourier.exists()) await command("createProfile", null, { name, phone, role: registrationRole });
+          if(!ownStore.exists() && !ownCourier.exists()) await command("createProfile", null, { ...registration, name, phone, role: registrationRole });
         } catch(error) { await signOut(auth); throw error; }
         finally { releaseProfileWait(); pendingProfileWrite = null; }
         await initializeSession(credential.user);
@@ -1880,11 +1966,17 @@
       document.getElementById("sheet-title-text").textContent = quoteMode ? "Pedir cotação" : "Pedir motoboy";
       document.getElementById("service-date").value = localDateInputValue();
       document.getElementById("service-type-select").value = "delivery";
+      document.getElementById('quote-city').value = '';
+      const units = Object.values(storeUnits).filter(unit=>unit.status==='approved');
+      document.getElementById('order-store-unit').replaceChildren(new Option('Unidade principal',''),...units.map(unit=>new Option(unit.name+' · '+unit.city,unit.id)));
+      document.getElementById('field-store-unit').hidden = !units.length || addingRouteDelivery;
       configureOrderFormMode(quoteMode);
       return;
     }
     let o = confirmedOrder || data.orders.find(x => x.id === editId);
     if (!o) return;
+    document.getElementById('field-store-unit').hidden = true;
+    document.getElementById('order-store-unit').value = o.storeUnitId || '';
     document.getElementById("mobile-order-form").dataset.agreedFee = String(o.agreedFee || "");
     document.getElementById("edit-order-id").value = o.id;
     document.getElementById("sheet-title-text").textContent = o.status === "cotacao_aceita" ? "Completar pedido contratado" : o.status === "cotacao" ? "Editar cotação" : "Editar pedido";
@@ -1922,8 +2014,11 @@
     ['zone-select-mobile','payment-select-mobile','chk-bag-mob','chk-bank-mob'].forEach(id=>{document.getElementById(id).disabled=frozen;});
     ["field-street","field-number","field-reference","field-client","field-phone","field-payment","field-zone","field-notes","section-addons"].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isQuote?"none":"";});
     const city=document.getElementById("field-city");if(city)city.style.display="";
+    const favorite = document.getElementById('favorite-courier');
+    favorite.replaceChildren(new Option('Distribuição normal',''),...Object.entries(storeFavorites).map(([id,item])=>new Option(item.name,id)));
+    document.getElementById('field-favorite-courier').hidden = isQuote || completing || Boolean(document.getElementById('edit-order-id').value) || !Object.keys(storeFavorites).length;
     ["inp-street","inp-number","inp-client"].forEach(id=>{const el=document.getElementById(id);if(el)el.required=!isQuote;});
-    const ci=document.getElementById("quote-city");if(ci){ci.required=true;if(!ci.value)ci.value="ARACRUZ";}
+    const ci=document.getElementById("quote-city");if(ci){ci.required=true;if(!ci.value)ci.value=accountProfile?.city || cityDirectory[accountProfile?.cityId || 'aracruz']?.name || '';}
     const nb=document.getElementById("input-neighborhood");if(nb)nb.required=true;
     const p=document.getElementById("box-price-display");if(p)p.style.display=isQuote?"none":"flex";
     if(completing){["inp-street","inp-number","inp-client"].forEach(id=>{const el=document.getElementById(id);if(el)el.required=true;});if(ci)ci.required=false;}
@@ -1933,7 +2028,7 @@
     let select = document.getElementById("zone-select-mobile");
     if (select) {
       const selected = select.value;
-      let zones = window.ExpressTariffs.resolve(tariffConfig,Date.now(),defaultRates).zones;
+      let zones = resolvedOrderRates().zones;
       select.innerHTML = '<option value="">Sede e bairros (padrão)</option>' +
         Object.keys(zones).filter(z => z !== "Sede e Bairros (Padrão)").map(z => `<option value="${esc(z)}">${esc(z)} — ${cash(zones[z])}</option>`).join("");
       select.value = selected;
@@ -1943,6 +2038,8 @@
   function recalculateMobileFee() {
     const form = document.getElementById("mobile-order-form");
     if (ihubSheet) {
+      document.getElementById('field-store-unit').hidden = true;
+      document.getElementById('field-favorite-courier').hidden = true;
       const { quote, submitting } = ihubSheet;
       const zone = quote.zones.find(item => item.zone === form.elements.selectedZone.value);
       document.getElementById("box-price-display").style.display = quote.canDispatch && !quote.sandbox ? "flex" : "none";
@@ -1982,8 +2079,27 @@
 
   function calculateFee(paymentMethod, isRain, isBag, isBank, selectedZone) {
     const t=window.ExpressTariffs;
-    return t.price({paymentMethod,bag:isBag,bank:isBank,selectedZone},t.resolve(tariffConfig,Date.now(),defaultRates),t.rain(tariffConfig),Date.now()).fee;
+    return t.price({paymentMethod,bag:isBag,bank:isBank,selectedZone},resolvedOrderRates(),t.rain(tariffConfig),Date.now()).fee;
   }
+
+  function resolvedOrderRates(){
+    const now=Date.now();
+    const city=storeUnits[document.getElementById('order-store-unit').value]?.cityId || activeCity();
+    const config=localCityRates[city]||{};
+    const active=Object.values(config.plans||{}).filter(plan=>plan.effectiveAt<=now).sort((a,b)=>b.effectiveAt-a.effectiveAt)[0];
+    return active?.rates || config.base || window.ExpressTariffs.resolve(tariffConfig,now,defaultRates);
+  }
+
+  document.getElementById('order-store-unit').addEventListener('change',async event=>{
+    const unit=storeUnits[event.target.value];
+    const city=unit?.cityId || activeCity();
+    document.getElementById('quote-city').value = cityDirectory[city]?.name || unit?.city || accountProfile?.city || '';
+    if(unit && !localCityRates[city]) {
+      try { localCityRates[city]=(await get(ref(db,'cityPricing/'+city))).val()||{}; }
+      catch(error) { toast('Não foi possível consultar a tarifa desta unidade.','warn'); }
+    }
+    recalculateMobileFee();
+  });
 
   function gpsDistanceMeters(a, b) {
     if (!a || !b) return Infinity;
@@ -2287,6 +2403,8 @@
     tariffs: '<path d="M4 7V4h3l13 13-3 3L4 7z"/><circle cx="7.5" cy="7.5" r=".8"/>',
     registry: '<path d="M16 21H3v-2a6.5 4.5 0 0 1 13 0zM17 8h5m-2.5-2.5v5"/><circle cx="9.5" cy="8" r="3.5"/>',
     integrations: '<path d="M8 13a4 4 0 0 0 6 .4l4-4a4 4 0 0 0-5.7-5.7l-2.1 2.1m5.8 5.2a4 4 0 0 0-6-.4l-4 4a4 4 0 0 0 5.7 5.7l2.1-2.1"/>',
+    favorites: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z"/>',
+    cities: '<path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     minus: '<path d="M5 12h14"/>',
     next: '<path d="m9 5 7 7-7 7"/>'
@@ -2299,7 +2417,7 @@
   function renderStoreNavigation(){
     const pageHasRequest = view === "dashboard" || view === "open";
     const main = [["dashboard", "Início"], ["quotes", "Cotações"], ["run", "Em execução"], ["done", "Concluídos"]];
-    const extra = [["open", "Pedidos em aberto"], ["routes", "Rotas"], ["reports", "Relatórios"], ["alerts", "Alertas"], ["profile", "Perfil da loja"], ["tariffs", "Tarifas e avisos"]];
+    const extra = [["open", "Pedidos em aberto"], ["routes", "Rotas"], ["favorites", "Motoboys favoritos"], ["reports", "Relatórios"], ["alerts", "Alertas"], ["profile", "Perfil da loja"], ["tariffs", "Tarifas e avisos"]];
     const button = ([id, label]) => '<button type="button" data-nav="' + id + '" aria-label="' + label + '"' +
       (view === id ? ' class="active" aria-current="page"' : '') + '>' + storeIcon(id) + '<span class="store-nav-label">' + label + '</span></button>';
     const request = pageHasRequest ? '' : '<button type="button" data-open-sheet data-sheet-mode="delivery" aria-label="Pedir motoboy">' +
@@ -2329,7 +2447,7 @@
 
   function renderCourierNavigation(availableCount){
     const main = [["available", "Ofertas"], ["quotes", "Cotações"], ["run", "Em execução"], ["done", "Concluídos"]];
-    const extra = [["reports", "Relatórios"], ["alerts", "Alertas"], ["profile", "Meu Pix"], ["tariffs", "Tarifas e avisos"]];
+    const extra = [["reports", "Relatórios"], ["alerts", "Alertas"], ["profile", "Meu Pix"], ["tariffs", "Tarifas e avisos"], ["cities", "Cidades"]];
     const nav = document.getElementById("nav");
     const button = ([id, label]) => {
       const badge = id === "available" && availableCount > 0
@@ -2367,8 +2485,8 @@
 
   function renderAdminNavigation(){
     const main = [["dashboard", "Visão geral"], ["all", "Pedidos", "open"], ["registry", "Cadastros"], ["reports", "Relatórios"]];
-    const extra = [["quotes", "Cotações"], ["alerts", "Alertas"], ["offers", "Ofertas", "delivery"],
-      ["integrations", "Integrações"], ["rates", "Taxas", "tariffs"]];
+    const extra = [["cities", "Cidades e tarifas"]];
+    if (role === 'admin') extra.unshift(["quotes", "Cotações"], ["alerts", "Alertas"], ["offers", "Ofertas", "delivery"], ["integrations", "Integrações"], ["rates", "Taxas", "tariffs"]);
     const button = ([id, label, icon = id]) => '<button type="button" data-nav="' + id + '" aria-label="' + label + '"' +
       (view === id ? ' class="active" aria-current="page"' : '') + '>' + storeIcon(icon) + '<span class="store-nav-label">' + label + '</span></button>';
     const nav = document.getElementById("nav");
@@ -2544,9 +2662,21 @@
   }
 
   function courierOfferActions(order,label){
-    if(!offerSettings.enabled||order.offerStatus!=='pending')return '<button type="button" class="btn primary tiny" data-action="accept" data-id="'+esc(order.id)+'">'+label+'</button>';
-    const remaining=Math.max(0,Math.ceil((Number(order.offerExpiresAt||0)-serverNow())/1000));
-    return '<div class="info" role="status">Oferta da rodada '+Number(order.offerRound||1)+' · responda em até '+remaining+' s.</div><button type="button" class="btn primary tiny" data-action="accept" data-id="'+esc(order.id)+'">'+label+'</button><button type="button" class="btn secondary tiny" data-action="decline-offer" data-id="'+esc(order.id)+'">Recusar oferta</button>';
+    if(order.offerStatus!=='pending')return '<button type="button" class="btn primary tiny" data-action="accept" data-id="'+esc(order.id)+'">'+label+'</button>';
+    return '<div class="info">'+(order.isFavoriteOffer?'Oferta exclusiva':'Oferta da rodada '+Number(order.offerRound||1))+' · <strong '+offerCountdown(order.offerExpiresAt)+'</strong></div><button type="button" class="btn primary tiny" data-action="accept" data-id="'+esc(order.id)+'">'+label+'</button><button type="button" class="btn secondary tiny" data-action="decline-offer" data-id="'+esc(order.id)+'">Recusar oferta</button>';
+  }
+  function offerCountdown(expiresAt){return 'data-offer-countdown="'+Number(expiresAt)+'">'+elapsedLabel(Math.max(0,Number(expiresAt)-serverNow()));}
+  function favoriteOfferStatus(order){
+    const offer=order.favoriteOffer;
+    if(role!=='store'||order.status!=='open'||!offer||offer.status==='released')return '';
+    if(offer.status==='pending'&&offer.expiresAt>serverNow())return '<div class="info">Aguardando '+esc(storeFavorites[offer.courierId]?.name||'motoboy favorito')+' · <strong '+offerCountdown(offer.expiresAt)+'</strong></div>';
+    return '<div class="info"><b>'+(offer.status==='declined'?'Oferta recusada':'Prazo da oferta encerrado')+'</b> <button type="button" class="btn secondary tiny" data-action="release-favorite" data-id="'+esc(order.id)+'">Liberar para os motoboys da cidade</button></div>';
+  }
+  function courierRatingLabel(order){
+    const rating=order.courierRating;
+    if(!rating?.count)return 'Ainda sem avaliações';
+    if(rating.count<5)return rating.count+' '+(rating.count===1?'avaliação':'avaliações');
+    return '★ '+rating.average.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' · '+rating.count+' avaliações';
   }
   function recordActions(o){
     const storeParticipant=role==='store'&&(o.storeId===actor||o.routeStoreIds?.[actor]===true);
@@ -2562,6 +2692,7 @@
       const submitted=o.ratingStatus?.storeSubmitted;
       if(!submitted)parts.push('<button type="button" class="btn secondary tiny" data-action="rate-delivery" data-id="'+esc(o.id)+'">Avaliar entrega</button>');
       else parts.push('<span class="tag green">Avaliação enviada</span>');
+      if(o.courierId) parts.push('<button type="button" class="btn secondary tiny" data-action="toggle-favorite" data-id="'+esc(o.courierId)+'">'+(storeFavorites[o.courierId]?'Remover dos favoritos':'Adicionar aos favoritos')+'</button>');
       if(o.ratingStatus?.storeSubmitted&&o.ratingStatus?.courierSubmitted)parts.push('<button type="button" class="btn secondary tiny" data-action="view-ratings" data-id="'+esc(o.id)+'">Ver avaliações</button>');
     }
     if(o.deliveryProofAt&&(participant||role==='admin'))parts.push('<button type="button" class="btn secondary tiny" data-action="view-proof" data-id="'+esc(o.id)+'">Ver comprovante</button>');
@@ -2785,6 +2916,46 @@
     if (entering) heading.focus({preventScroll:true});
   }
 
+  function favoriteList(){
+    const entries = Object.entries(storeFavorites);
+    if (!entries.length) return empty('Nenhum motoboy favorito', 'Você pode favoritar um motoboy pelo histórico de entregas concluídas.');
+    return '<div class="list">'+entries.map(([uid, item])=>'<div class="registry-entry"><b>'+esc(item.name)+'</b><button type="button" class="btn secondary tiny" data-action="remove-favorite" data-id="'+esc(uid)+'">Remover dos favoritos</button></div>').join('')+'</div>';
+  }
+
+  function citySettingsView(){
+    const heading='<div class="head"><h1>'+(role==='courier'?'Minhas cidades':'Cidades e tarifas')+'</h1></div>';
+    const available=Object.values(cityDirectory).filter(city=>city.enabled);
+    if(role==='courier'){
+      const memberships=accountProfile?.cityMemberships || {[activeCity()]:'approved'};
+      return heading+'<div class="list">'+available.map(city=>{
+        const status=memberships[city.id], active=activeCity()===city.id;
+        const action=active?'':status==='approved'?'city-switch':status==='pending'?'':'city-request';
+        return '<section class="panel"><h2>'+esc(city.name)+'</h2><p>'+ (active?'Cidade ativa':status==='pending'?'Aguardando aprovação':status==='approved'?'Acesso aprovado':'Solicite acesso para receber ofertas')+'</p>'+
+          (action?'<button type="button" class="btn secondary" data-action="'+action+'" data-id="'+esc(city.id)+'">'+(action==='city-switch'?'Usar esta cidade':'Solicitar acesso')+'</button>':'')+'</section>';
+      }).join('')+'</div>';
+    }
+    const admin=role==='admin';
+    const listed=Object.values(cityDirectory).filter(city=>admin || cityManagers[city.id]===true);
+    const options=listed.map(city=>'<option value="'+esc(city.id)+'">'+esc(city.name)+'</option>').join('');
+    const fields='<div class="field"><label>Tarifa diurna<input type="number" name="baseFee" min="1" step="0.01" required></label></div>'+
+      '<div class="field"><label>Tarifa noturna<input type="number" name="nightFee" min="1" step="0.01"></label></div>'+
+      '<div class="field"><label>Tarifas por bairro (bairro = valor, uma por linha)<textarea name="zones" rows="3"></textarea></label></div>';
+    const form=(id,title,body)=>'<form id="'+id+'" class="panel city-operation-form"><h2>'+title+'</h2>'+body+'<button type="submit" class="btn primary">'+(id==='city-tariff-form'?'Enviar para autorização':'Salvar')+'</button></form>';
+    const cityField='<div class="field"><label>Cidade<select name="cityId" required>'+options+'</select></label></div>';
+    const directory='<div class="list">'+listed.map(city=>'<section class="panel"><h2>'+esc(city.name)+'</h2><p>'+(city.enabled?'Operação liberada':'Operação pausada')+'</p>'+
+      (admin?'<button type="button" class="btn secondary" data-action="city-toggle" data-id="'+esc(city.id)+'">'+(city.enabled?'Pausar operação':'Liberar operação')+'</button>':city.id!==managerCity?'<button type="button" class="btn secondary" data-action="city-manager-switch" data-id="'+esc(city.id)+'">Abrir painel desta cidade</button>':'')+'</section>').join('')+'</div>';
+    const proposals=listed.flatMap(city=>Object.entries(cityTariffProposals[city.id]||{}).map(([id,proposal])=>{
+      const pending=proposal.status==='pending';
+      const title=pending?'Aguardando autorização':proposal.status==='returned'?'Devolvida para ajuste':proposal.effectiveAt>serverNow()?'Autorizada · agendada':'Autorizada';
+      return '<article class="registry-entry"><b>'+esc(city.name)+' · '+title+'</b><p>'+esc(date(proposal.effectiveAt))+' · Dia '+cash(proposal.rates.sedeDay)+' · Noite '+cash(proposal.rates.sedeNight)+'</p>'+
+        (admin&&pending?'<div class="buttons"><button class="btn primary tiny" type="button" data-action="city-tariff-approve" data-id="'+esc(id)+'" data-city="'+esc(city.id)+'">Autorizar</button><button class="btn secondary tiny" type="button" data-action="city-tariff-return" data-id="'+esc(id)+'" data-city="'+esc(city.id)+'">Devolver</button></div>':'')+'</article>';
+    })).join('');
+    return heading+directory+(admin?'<section class="panel"><h2>Piloto de Aracruz</h2><button type="button" class="btn secondary" data-action="city-pilot-review">Conferir cadastros e pedidos existentes</button></section>'+form('city-directory-form','Cadastrar ou configurar cidade','<div class="field"><label>Nome da cidade<input name="name" required maxlength="100"></label></div><div class="field"><label>UF<input name="uf" maxlength="2" value="ES" required></label></div>'+fields+'<div class="field"><label>Destinos autorizados<select name="destinations" multiple>'+options+'</select></label></div>')+
+      form('city-manager-form','Vincular gerente local',cityField+'<div class="field"><label>Identificador da conta Firebase<input name="uid" required></label></div><div class="field"><label>Acesso<select name="enabled"><option value="true">Conceder</option><option value="false">Remover</option></select></label></div>'):'')+
+      form('city-tariff-form','Propor tarifa',cityField+fields+'<div class="field"><label>Início desejado<input name="effectiveAt" type="datetime-local" required></label></div>')+
+      '<section class="panel"><h2>Propostas de tarifa</h2>'+(proposals||'<p>Nenhuma proposta registrada.</p>')+'</section>';
+  }
+
   function render(){
     const pushPrompt = document.getElementById('push-permission-prompt');
     pushPrompt.hidden = !currentUser || !accountAllowed() || window.Capacitor?.isNativePlatform?.() ||
@@ -2794,7 +2965,7 @@
     const allowed = !!currentUser && accountAllowed();
     const storeWorkspace = role === "store" && allowed;
     const courierWorkspace = role === "courier" && allowed;
-    const adminWorkspace = role === "admin" && allowed;
+    const adminWorkspace = (role === "admin" || role === 'manager') && allowed;
     const restricted = !!currentUser && !allowed;
     appLayout.classList.toggle("compact-web", allowed);
     appLayout.classList.toggle("express-workspace", allowed);
@@ -2813,6 +2984,8 @@
     }
     document.querySelector('#store-account [data-nav="profile"]').hidden = adminWorkspace;
     document.getElementById('admin-account-role').hidden = !adminWorkspace;
+    document.getElementById('admin-account-role').textContent = role === 'manager' ? 'Gerente local' : 'Administrador';
+    document.querySelector('.store-header-actions [data-nav="alerts"]').hidden = role === 'manager';
     const adminTeamOpen=document.getElementById('admin-team')?.open===true;
     const drafts=Array.from(document.querySelectorAll('#tariff-form[data-dirty],#rain-form[data-dirty],#admin-filter-form[data-dirty],#store-profile-form[data-dirty],#pix-profile-form[data-dirty],#ihub-link-form[data-dirty],#ihub-authorization-form[data-dirty]')).map(form=>({id:form.id,version:form.dataset.baseVersion,fields:Array.from(form.querySelectorAll('input,select')).map((el,index)=>({index,value:el.value})),focus:form.contains(document.activeElement)?document.activeElement.id:null}));
     let label = role === "store" ? "Lojista" : role === "courier" ? "Motoboy" : "Administrador";
@@ -2900,7 +3073,9 @@
   }
 
   function show(){
-    if(role==='admin'&&['dashboard','all','reports'].includes(view))return adminDashboard(view);
+    if(['admin','manager'].includes(role)&&['dashboard','all','reports'].includes(view))return adminDashboard(view);
+    if(view==='cities'&&['admin','manager','courier'].includes(role))return citySettingsView();
+    if(view==='favorites'&&role==='store')return '<div class="head"><h1>Motoboys favoritos</h1></div><section class="panel">'+favoriteList()+'</section>';
     if(view==="routes"&&role==="store")return routesView();
     if(view==="dashboard") return dashboard();
     if(view==="alerts") return alertsView();
@@ -2917,7 +3092,7 @@
     if(view==="summary") return summaryView();
     if(view==="rates" && role==="admin") return ratesView();
     if(view==="tariffs") return ratesView();
-    if(view==="registry" && role==="admin") return registry();
+    if(view==="registry" && ['admin','manager'].includes(role)) return registry();
     return dashboard();
   }
 
@@ -3103,11 +3278,42 @@
           <div class="store-page-actions"><button type="submit" class="btn primary">Salvar alterações</button></div>
         </form>
         ${externalPendingView()}
-      </div></div>`;
+      </div>${storeUnitsView()}</div>`;
+  }
+
+  function storeUnitsView(){
+    const allowedCities=Object.values(cityDirectory).filter(city=>city.enabled);
+    const options=allowedCities.map(city=>'<option value="'+esc(city.id)+'">'+esc(city.name)+'</option>').join('');
+    const fields=[['name','Nome do estabelecimento',80],['responsibleName','Nome do responsável',100],['phone','WhatsApp com DDD',22],['street','Rua',120],['number','Número ou s/n',20],['neighborhood','Bairro',100]];
+    const units=Object.values(storeUnits).map(unit=>'<article class="registry-entry"><b>'+esc(unit.name)+' · '+esc(unit.city)+'</b><p>'+esc(unit.address)+'</p><small>'+esc(({pending:'Aguardando aprovação',approved:'Aprovada',rejected:'Reprovada',blocked:'Bloqueada'})[unit.status]||'')+'</small></article>').join('');
+    return '<section class="store-page-surface"><h2>Unidades da loja</h2>'+units+'<form id="store-unit-form" class="city-operation-form"><h3>Cadastrar unidade</h3>'+
+      '<div class="field"><label>Cidade<select name="cityId" required><option value="">Selecione a cidade</option>'+options+'</select></label></div>'+
+      fields.map(([name,label,limit])=>'<div class="field"><label>'+label+'<input name="'+name+'" maxlength="'+limit+'" required></label></div>').join('')+
+      '<button class="btn primary" type="submit">Enviar unidade para aprovação</button></form></section>';
   }
 
   document.addEventListener('change',e=>{if(e.target.matches('[data-route-select]')){const id=e.target.dataset.routeSelect;if(e.target.checked&&!routeSelection.includes(id))routeSelection.push(id);else if(!e.target.checked)routeSelection=routeSelection.filter(x=>x!==id);render();}});
   document.addEventListener("submit", async e => {
+    if (['city-directory-form','city-manager-form','city-tariff-form','store-unit-form'].includes(e.target.id)) {
+      e.preventDefault();
+      const values = new FormData(e.target);
+      const input = Object.fromEntries(values);
+      const action = ({'city-directory-form':'saveCityConfig','city-manager-form':'setCityManager','city-tariff-form':'proposeCityTariff','store-unit-form':'addStoreUnit'})[e.target.id];
+      try {
+        if (input.zones !== undefined) input.zoneRates=Object.fromEntries(input.zones.split('\n').map(value=>value.trim()).filter(Boolean).map(row=>{
+          const [name, fee, ...extra]=row.split('=');
+          if(!name.trim()||!fee?.trim()||extra.length)throw Error('Use o formato bairro = valor, uma tarifa por linha.');
+          return [name.trim(),Number(fee.trim().replace(',','.'))];
+        }));
+        if (input.effectiveAt) input.effectiveAt = new Date(input.effectiveAt).getTime();
+        if (action==='saveCityConfig') input.destinations=values.getAll('destinations');
+        if (action==='setCityManager') input.enabled=input.enabled==='true';
+        await command(action,null,input);
+        e.target.reset();
+        toast(action==='proposeCityTariff'?'Proposta enviada para autorização.':action==='addStoreUnit'?'Unidade enviada para aprovação.':'Configuração salva.','success');
+      } catch(error) { toast(error.message,'warn'); }
+      return;
+    }
     if (e.target.id === "ihub-authorization-form") {
       e.preventDefault();
       const fields = new FormData(e.target);
@@ -3279,14 +3485,14 @@
   }
 
   function adminDashboard(mode){
-    if(role!=='admin')return '';
+    if(!['admin','manager'].includes(role))return '';
     const required=['orders','stores','couriers','presence','connections'];
     const ready=required.every(key=>adminHealth[key]==='ready');
     const errors=required.some(key=>adminHealth[key]==='error');
     const syncLabel=errors?'Falha ao carregar dados':!ready?'Carregando dados da operação':adminConnected?'Atualização em tempo real':'Sem conexão';
     const syncDescription=errors?'Reabra o painel para tentar carregar os dados.':ready&&!adminConnected?'Os dados exibidos podem estar desatualizados.':'';
     const syncState=errors||ready&&!adminConnected?'error':ready?'live':'loading';
-    const heading='<header class="admin-page-heading"><div><h1>'+(mode==='reports'?'Financeiro da operação':mode==='all'?'Pedidos da operação':'Painel da operação')+'</h1></div>'+
+    const heading='<header class="admin-page-heading"><div><h1>'+(mode==='reports'?'Financeiro da operação':mode==='all'?'Pedidos da operação':'Painel da operação')+'</h1>'+(role==='manager'?'<p>'+esc(cityDirectory[managerCity]?.name||managerCity)+'</p>':'')+'</div>'+
       '<div class="admin-sync" role="status" data-admin-sync data-state="'+syncState+'"><b>'+syncLabel+'</b>'+(syncDescription?'<p>'+syncDescription+'</p>':'')+
       (adminLastDataAt?'<small>Último recebimento: '+esc(adminTime(adminLastDataAt))+'</small>':'')+'</div></header>';
     if(!ready)return '<div class="admin-operation">'+heading+(errors?'<div><button class="btn secondary" type="button" data-action="admin-reload">Reabrir painel</button></div>':'')+'</div>';
@@ -3382,6 +3588,17 @@
     if(document.getElementById('order-sheet-overlay').classList.contains('active'))recalculateMobileFee();
   },15000);
 
+  setInterval(()=>{
+    if(!currentUser)return;
+    let expired=false;
+    for(const tag of document.querySelectorAll('[data-offer-countdown]')) {
+      const left=Number(tag.dataset.offerCountdown)-serverNow();
+      tag.textContent=elapsedLabel(Math.max(0,left));
+      if(left<=0)expired=true;
+    }
+    if(expired)render();
+  },1000);
+
   function storeOrderEntry(order, page){
     const route = order.kind === "route";
     const isRunning = order.status === "run";
@@ -3393,7 +3610,9 @@
       return_priority:Number(order.priorityUntil) > serverNow() ? "Devolução prioritária" : "Aguardando motoboy",
       route_cancelled:order.routeEndReason === "cancelled" ? "Rota cancelada" : "Rota desagrupada",
     };
-    const status = isRunning ? runningOrderStage(order) : stages[order.status] || adminStatus(order);
+    const exclusive = order.status==='open' && order.favoriteOffer && order.favoriteOffer.status!=='released' ? order.favoriteOffer : null;
+    const waiting = exclusive?.status==='pending' && exclusive.expiresAt>serverNow();
+    const status = waiting ? 'Oferta exclusiva' : exclusive ? exclusive.status==='declined' ? 'Oferta recusada' : 'Prazo da oferta encerrado' : isRunning ? runningOrderStage(order) : stages[order.status] || adminStatus(order);
     const towardsStore = isRunning && (order.serviceType === "collection" && order.picked || order.serviceType === "roundtrip" && [1, 2].includes(Number(order.tripStage)));
     const destination = route ? "Rota múltipla" : towardsStore ? order.storeNeighborhood || "Loja" : order.clientNeighborhood || order.city || "Destino a confirmar";
     const address = route ? (order.completedStops || 0) + " de " + (order.deliveryCount || 0) + " entregas concluídas"
@@ -3409,10 +3628,11 @@
       '<span class="store-order-location"><strong>' + esc(destination) + '</strong>' + (address ? '<small>' + esc(address) + '</small>' : '') +
       '<small>' + esc(metadata) + '</small></span>' +
       '<span class="store-order-progress"><span class="store-order-status">' + esc(order.status === "cotacao" && proposals ? proposals + (proposals === 1 ? " proposta recebida" : " propostas recebidas") : status) + '</span>' +
-      (isRunning && order.courierName ? '<small>' + esc(order.courierName) + '</small>' : '') +
+      (isRunning && order.courierName ? '<small>' + esc(order.courierName) + ' · ' + esc(courierRatingLabel(order)) + '</small>' : '') +
       (paymentLabel ? '<small class="store-order-payment" data-payment="' + payment + '">' + paymentLabel + '</small>' : '') + '</span>' +
       '<strong class="store-order-price">' + price + '</strong>' + storeIcon("next") + '</summary>' +
-      '<div class="store-order-detail">' + card(order) + '</div></details>' + tracking + '</article>';
+      '<div class="store-order-detail">' + card(order) + '</div></details>' + favoriteOfferStatus(order) + tracking +
+      (page==='done'&&order.status==='done'&&order.courierId&&order.kind!=='route'&&!order.ratingStatus?.storeSubmitted?'<button class="store-text-button" type="button" data-action="rate-delivery" data-id="'+esc(order.id)+'">Avaliar entrega</button>':'')+'</article>';
   }
 
   function storeOrdersView(orders, page){
@@ -3841,7 +4061,9 @@
       const actions=state==='pending'?[['approved','Aprovar'],['rejected','Reprovar']]:state==='approved'?[['blocked','Bloquear acesso']]:[['approved','Liberar acesso']];
       return '<article class="registry-entry"><b>'+esc(p.name)+'</b><span class="tag '+(state==='approved'?'green':'orange')+'">'+esc(labels[state]||state)+'</span><small>'+esc(p.email||'')+' · '+esc(p.phone||'')+'</small>'+(p.accessReason?'<p>'+esc(p.accessReason)+'</p>':'')+'<div class="buttons">'+actions.map(([status,label])=>'<button type="button" class="btn '+(status==='approved'?'primary':'danger')+' tiny" data-action="account-access" data-id="'+esc(p.id)+'" data-account-role="'+kind+'" data-status="'+status+'" data-expected="'+state+'">'+label+'</button>').join('')+'</div></article>';
     }).join('')+'</section>';
-    return '<div class="head"><div><h1>Cadastros e aprovação</h1><p>Novos cadastros só podem operar após a aprovação. Bloquear interrompe o acesso, inclusive a corridas em andamento.</p></div></div><div class="grid cols">'+section('Lojistas',data.stores,'store')+section('Motoboys',data.couriers,'courier')+'</div>';
+    const units=Object.values(cityUnits).map(unit=>'<article class="registry-entry"><b>'+esc(unit.name)+' · '+esc(unit.city)+'</b><span class="tag gray">'+esc(labels[unit.status]||unit.status)+'</span><p>'+esc(unit.address)+'</p>'+
+      (unit.status==='pending'?'<div class="buttons">'+[['approved','Aprovar unidade'],['rejected','Reprovar unidade']].map(([status,label])=>'<button type="button" class="btn secondary tiny" data-action="unit-access" data-id="'+esc(unit.id)+'" data-owner="'+esc(unit.owner)+'" data-city="'+esc(unit.cityId)+'" data-status="'+status+'">'+label+'</button>').join('')+'</div>':'')+'</article>').join('');
+    return '<div class="head"><div><h1>Cadastros e aprovação</h1><p>Novos cadastros só podem operar após a aprovação. Bloquear interrompe o acesso, inclusive a corridas em andamento.</p></div></div><div class="grid cols">'+section('Lojistas',data.stores,'store')+section('Motoboys',data.couriers,'courier')+'</div>'+(units?'<section class="panel"><h2>Unidades da loja</h2>'+units+'</section>':'');
   }
 
   const callOrderContact = httpsCallable(functions, "orderContact");
@@ -4015,7 +4237,7 @@
         return;
       }
       if(action==='account-access'){
-        if(role!=='admin')throw Error('Acesso administrativo necessário.');
+        if(!['admin','manager'].includes(role))throw Error('Acesso administrativo necessário.');
         const button=trigger||document.querySelector('[data-action="account-access"][data-id="'+CSS.escape(id)+'"]:focus');
         if(!button)throw Error('Abra o cadastro novamente.');
         const status=button.dataset.status,kind=button.dataset.accountRole;
@@ -4023,7 +4245,41 @@
         const reason=status==='approved'?'':await requestAccessReason(target?.name||'usuário',status);
         if(reason===null)return;
         if(status==='approved'&&!await confirmInApp('Liberar acesso','Aprovar o acesso de '+target.name+'?'))return;
-        await command('setAccountAccess',null,{uid:id,role:kind,status,expectedStatus:button.dataset.expected,reason});toast('Situação do cadastro atualizada.');return;
+        await command('setAccountAccess',null,{uid:id,role:kind,status,cityId:role==='manager'?managerCity:target?.cityId,expectedStatus:button.dataset.expected,reason});toast('Situação do cadastro atualizada.');return;
+      }
+      if(action==='unit-access'){
+        if(!await confirmInApp('Revisar unidade',trigger.dataset.status==='approved'?'Aprovar esta unidade para operar nesta cidade?':'Reprovar o cadastro desta unidade?'))return;
+        await command('setStoreUnitAccess',null,{uid:trigger.dataset.owner,unitId:id,cityId:trigger.dataset.city,status:trigger.dataset.status,expectedStatus:'pending'});
+        return;
+      }
+      if(action==='toggle-favorite'||action==='remove-favorite'){
+        await command('setCourierFavorite',null,{courierId:id,enabled:action==='toggle-favorite'&&!storeFavorites[id]});return;
+      }
+      if(action==='release-favorite'){
+        await command('releaseFavoriteOffer',id);toast('Pedido liberado para os motoboys da cidade.');return;
+      }
+      if(action==='city-switch'||action==='city-request'){
+        await command(action==='city-switch'?'switchCourierCity':'requestCourierCity',null,{cityId:id});
+        if(action==='city-switch'){courierActiveCity=id;startDataListeners();render();toast('Cidade selecionada. Ative sua disponibilidade para receber ofertas.');}
+        else toast('Solicitação enviada ao gerente da cidade.');
+        return;
+      }
+      if(action==='city-manager-switch'&&role==='manager'&&cityManagers[id]){
+        managerCity=id;view='dashboard';startDataListeners();render();return;
+      }
+      if(action==='city-toggle'){
+        await command('setCityEnabled',null,{cityId:id,enabled:!cityDirectory[id]?.enabled});return;
+      }
+      if(action==='city-pilot-review'){
+        const scan=await command('reviewPilotMigration',null,{cityId:'aracruz'});
+        const message=scan.stores+' lojas, '+scan.couriers+' motoboys e '+scan.orders+' pedidos com vínculo confirmado. '+scan.profilesToReview+' cadastros e '+scan.ordersToReview+' pedidos ficam para conferência.';
+        if(await confirmInApp('Vincular dados confirmados a Aracruz',message)){
+          await command('reviewPilotMigration',null,{cityId:'aracruz',apply:true});toast('Dados confirmados vinculados a Aracruz.');
+        }
+        return;
+      }
+      if(action==='city-tariff-approve'||action==='city-tariff-return'){
+        await command('reviewCityTariff',null,{cityId:trigger.dataset.city,proposalId:id,approved:action==='city-tariff-approve'});return;
       }
       if(action==='cancel-alert'){
         if(!await confirmInApp('Cancelar alerta','Retirar este alerta dos avisos ativos? Ele ficará no histórico como cancelado.'))return;
@@ -4074,7 +4330,7 @@
         return;
       }
       if(action.startsWith('admin-')){
-        if(role!=='admin')throw Error('Acesso administrativo necessário.');
+        if(!['admin','manager'].includes(role))throw Error('Acesso administrativo necessário.');
         if(action==='admin-reload'){location.reload();return;}
         if(action==='admin-reset'){adminFilters=window.ExpressAdmin.defaults();adminPage=0;adminSelectedOrderId=null;document.getElementById('admin-filter-form')?.removeAttribute('data-dirty');}
         else if(action==='admin-export'){
@@ -4151,7 +4407,7 @@
         return;
       }
       if(action === "decline-offer") {
-        if(role !== "courier" || !offerSettings.enabled) throw new Error("Esta oferta não está ativa nesta conta.");
+        if(role !== "courier" || !offerSettings.enabled&&!order.isFavoriteOffer) throw new Error("Esta oferta não está ativa nesta conta.");
         const reason=window.prompt("Motivo opcional para recusar a oferta:","");
         if(reason===null)return;
         await command("decline-offer",id,{reason:reason.trim().slice(0,200)});
@@ -4217,7 +4473,7 @@
     }
   }
   const serverNow=()=>Date.now()+adminServerOffset;
-  function isOffer(o){const available=o&&!o.routeId&&(o.status==='open'||o.status==='route_open'||o.status==='return_priority'&&(o.isPriorityOffer===true||Number(o.priorityUntil)<=serverNow()));return !!available&&(!offerSettings.enabled||o.offerStatus==='pending'&&Number(o.offerExpiresAt)>serverNow());}
+  function isOffer(o){const available=o&&!o.routeId&&(o.status==='open'||o.status==='route_open'||o.status==='return_priority'&&(o.isPriorityOffer===true||Number(o.priorityUntil)<=serverNow()));return !!available&&(o.offerStatus==='pending'?Number(o.offerExpiresAt)>serverNow():!offerSettings.enabled||o.openToCity===true);}
   function operational(o){return !o.routeId||o.status==='done';}
   async function loadLogisticsCapabilities(){
     const owner=currentUser?.uid;if(!owner||!accountAllowed())return;
@@ -4482,6 +4738,8 @@
         neighborhood: clientNeighborhood, selectedZone: selectedZone,
         paymentMethod: isQuote ? "" : p, notes: isQuote ? "" : f.elements.namedItem("notes").value.trim(),
         routeDraft:addingRouteDelivery,
+        favoriteCourierId: !isQuote&&!editId&&!addingRouteDelivery ? f.elements.favoriteCourierId.value : '',
+        storeUnitId: !editId&&!addingRouteDelivery ? f.elements.storeUnitId.value : '',
         fragile: !isQuote && f.fragile.checked, importantNotes: !isQuote && f.importantNotes.checked,
         rain: false, bag: isQuote ? false : b, bank: isQuote ? false : k, fee: completingQuote ? Number(data.orders.find(o=>o.id===editId)?.agreedFee||0) : finalFee, status: isQuote ? "cotacao" : "open"
       };

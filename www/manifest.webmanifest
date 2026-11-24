@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Express",
   "short_name": "Express",
-  "description": "Express Entregas Beta. Pedidos, entregas, cotações e rastreamento.",
+  "description": "Express Entregas. Pedidos, entregas, cotações e rastreamento.",
   "lang": "pt-BR",
   "start_url": "./",
   "scope": "./",

@@ -52,6 +52,9 @@
 #sheet-title-text { margin: 0; color: var(--store-text); font-size: clamp(21px, 3vw, 32px); line-height: 1.1; font-weight: 740; letter-spacing: -.045em; }
 
 #mobile-order-form { display: flex; flex: 1; min-height: 0; flex-direction: column; }
+#order-sheet-overlay #field-city { min-width: 0; grid-column: 1 / -1; }
+#order-sheet-overlay #quote-city, #order-sheet-overlay #favorite-courier { width: 100%; min-width: 0; max-width: 100%; }
+#order-sheet-overlay #field-favorite-courier[hidden] { display: none !important; }
 #order-sheet-overlay .sheet-body { display: block; min-height: 0; padding: 0; overscroll-behavior: contain; }
 .order-request-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; padding-block: 16px; }
 .ihub-sheet-context:not([hidden]) + .order-request-columns { padding-top: 12px; }

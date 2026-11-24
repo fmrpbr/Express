@@ -71,6 +71,14 @@
 #login-screen .login-form .pwd-box input { padding-inline-end: 52px; }
 #login-screen .login-form .pwd-toggle { right: 3px; min-inline-size: 44px; min-block-size: 44px; color: var(--login-muted); }
 #login-screen .login-form > .btn.full { grid-column: 1 / -1; }
+#login-screen .registration-city-fields:not([hidden]), #login-screen .registration-store-fields:not([hidden]) { display: grid; gap: 8px 12px; }
+#login-screen .registration-store-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#login-screen .registration-city-fields select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--login-line); border-radius: 9px; background: var(--login-field); color: var(--login-text); }
+#login-screen .registration-extra { grid-column: 1 / -1; font-size: 13px; }
+#login-screen .registration-extra[open] summary { margin-bottom: 7px; }
+@media (max-width: 380px) {
+  #login-screen .registration-store-fields { grid-template-columns: minmax(0, 1fr); }
+}
 #login-screen .login-form .btn.primary { min-height: 44px; padding-block: 8px; border-radius: 9px; background: var(--login-accent); color: #fff; box-shadow: 0 4px 10px var(--login-action-shadow); font-size: 14px; }
 #login-screen .login-form .btn.primary:hover { background: var(--login-accent-hover); }
 

@@ -61,6 +61,8 @@
 .admin-operation [data-admin-stat] .stat-label { color: var(--store-muted); }
 .admin-operation [data-admin-stat] .store-text-button { min-height: 32px; margin-top: 4px; }
 .admin-operation .buttons { flex-wrap: wrap; }
+.city-operation-form { margin-bottom: 12px; }
+.city-operation-form :is(input, select, textarea) { display: block; width: min(100%, 500px); margin-top: 4px; }
 
 @media (max-width: 500px) {
   .admin-approvals { grid-template-columns: auto minmax(0, 1fr); }
