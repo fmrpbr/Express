@@ -6,4 +6,5 @@ import { Share } from "@capacitor/share";
 const OrderPrinter = registerPlugin("ExpressPrint");
 const BackgroundGeolocation = registerPlugin("BackgroundGeolocation");
 const NotificationSettings = registerPlugin("ExpressNotifications");
-window.ExpressNativePush = { OrderPrinter, NotificationSettings, PushNotifications, LocalNotifications, NativeSettings, BackgroundGeolocation, Share, CapacitorHttp };
+const CourierOverlay = registerPlugin("ExpressCourierOverlay");
+window.ExpressNativePush = { OrderPrinter, NotificationSettings, PushNotifications, LocalNotifications, NativeSettings, BackgroundGeolocation, Share, CapacitorHttp, CourierOverlay };

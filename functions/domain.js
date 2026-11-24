@@ -242,8 +242,11 @@ function applyCommand(original, auth, command, context) {
         if (entry.token === input.token || entry.deviceId === deviceId) put(state, `fcmTokens/${owner}/${entryId}`, null);
       }
     }
-    const notificationSchema=input.notificationSchema===require('./notification-policy').SCHEMA?input.notificationSchema:'legacy';
-    put(state, `fcmTokens/${uid}/${tokenId}`, { token: input.token, deviceId, platform: "android", notificationSchema, updatedAt: now });
+    const soundSchema = require('./notification-policy').SCHEMA;
+    const notificationSchema = input.notificationSchema === soundSchema ? soundSchema : 'legacy';
+    const offerSound = who?.role === 'courier' && notificationSchema === soundSchema && input.offerSound === true;
+    put(state, `fcmTokens/${uid}/${tokenId}`, { token: input.token, deviceId, platform: "android", notificationSchema,
+      ...(offerSound ? { offerSound } : {}), updatedAt: now });
     result.notificationSchema=notificationSchema;
   } else if(action==='registerWebDevice') {
     fail(who?.role==='store'||who?.role==='courier'||auth.token?.admin===true,'Perfil não encontrado.','permission-denied');

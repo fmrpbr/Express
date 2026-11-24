@@ -223,6 +223,24 @@ test('notification channel schema is validated server-side; web registration tra
  assert.equal(moved.state.notificationAccounts.courierB.role,'courier');
 });
 
+test('offer sound is used only for order notifications on couriers’ compatible devices', () => {
+ const policy = require('../../functions/notification-policy');
+ const input = { token:'token-example-123456789012345', deviceId:'device', notificationSchema:policy.SCHEMA, offerSound:true };
+ const registered = run(fixture(), 'courierA', 'registerDevice', null, input);
+ const courierDevice = Object.values(registered.state.fcmTokens.courierA)[0];
+ assert.equal(policy.channel(courierDevice, 'order'), 'express_courier_offers_v2');
+ assert.equal(policy.sound(courierDevice, 'order'), 'express_offer');
+ for (const category of ['quote', 'reminder', 'update', 'alert']) {
+   assert.equal(policy.channel(courierDevice, category), policy.CHANNELS[category]);
+   assert.equal(policy.sound(courierDevice, category), 'express_alert');
+ }
+ const merchant = run(fixture(), 'storeA', 'registerDevice', null, input);
+ assert.equal(policy.channel(Object.values(merchant.state.fcmTokens.storeA)[0], 'order'), policy.CHANNELS.order);
+ const legacy = run(fixture(), 'courierA', 'registerDevice', null, {...input, notificationSchema:'legacy'});
+ assert.equal(policy.channel(Object.values(legacy.state.fcmTokens.courierA)[0], 'order'), policy.LEGACY.order);
+ assert.equal(policy.channel({notificationSchema:policy.SCHEMA}, 'order'), policy.CHANNELS.order);
+});
+
 test('rain push is limited to registered administrators after two distinct couriers and never activates the fee',()=>{
  const state=fixture();state.notificationAccounts={admin:{role:'admin'},storeA:{role:'store'}};
  const first=run(state,'courierA','signalRain').state;assert.equal(Object.keys(first.pushUpdates||{}).length,0);

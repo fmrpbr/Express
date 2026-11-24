@@ -38,6 +38,7 @@ public class MainActivity extends BridgeActivity {
         });
         }
         registerPlugin(ExpressNotificationsPlugin.class);
+        registerPlugin(ExpressCourierOverlay.class);
         registerPlugin(ExpressPrintPlugin.class);
         super.onCreate(state);
         String report = prefs.getString("last_crash", null);

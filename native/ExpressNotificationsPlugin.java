@@ -18,27 +18,60 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import java.util.Arrays;
 
 @CapacitorPlugin(name="ExpressNotifications")
 public class ExpressNotificationsPlugin extends Plugin {
     private static final String[] IDS={"express_orders_sound_v1","express_quotes_sound_v1","express_reminders_sound_v1","express_updates_sound_v1","express_alerts_sound_v1"};
     private static final String[] NAMES={"Novos pedidos", "Novas cotações", "Lembretes", "Atualizações de entregas", "Alertas operacionais"};
+    private static final String OFFER_CHANNEL = "express_courier_offers_v2";
+    private static final long[] STANDARD_VIBRATION = {0, 200, 100, 200};
+    private static final long[] OFFER_VIBRATION = {0, 180, 80, 180, 80, 180, 260, 180, 80, 180};
+
+    private Uri tone(String name) {
+        return Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE + "://" + getContext().getPackageName() + "/raw/" + name);
+    }
+
+    private void createChannel(NotificationManager manager, String id, String name, String sound, long[] vibration) {
+        NotificationChannel channel = new NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH);
+        channel.setDescription("Avisos do Express Entregas com som. Configure o toque nesta categoria.");
+        channel.setSound(tone(sound), new AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
+        channel.enableVibration(true);
+        channel.setVibrationPattern(vibration);
+        channel.setLockscreenVisibility(android.app.Notification.VISIBILITY_PRIVATE);
+        manager.createNotificationChannel(channel);
+    }
+
+    private boolean standardOrderSettings(NotificationChannel channel) {
+        return channel != null && channel.getImportance() == NotificationManager.IMPORTANCE_HIGH
+            && tone("express_alert").equals(channel.getSound())
+            && channel.shouldVibrate() && Arrays.equals(STANDARD_VIBRATION, channel.getVibrationPattern())
+            && !channel.canBypassDnd()
+            && (Build.VERSION.SDK_INT < 30 || !channel.hasUserSetSound());
+    }
+
     @PluginMethod public void prepare(PluginCall call) {
         try {
+            boolean offerSound = false;
             if(Build.VERSION.SDK_INT>=26){
                 NotificationManager manager=(NotificationManager)getContext().getSystemService(Context.NOTIFICATION_SERVICE);
                 for(int i=0;i<IDS.length;i++){
                     // Keep user sound/importance choices for existing channels.
                     if(manager.getNotificationChannel(IDS[i])!=null)continue;
-                    NotificationChannel channel=new NotificationChannel(IDS[i],NAMES[i],NotificationManager.IMPORTANCE_HIGH);
-                    channel.setDescription("Avisos do Express Entregas com som. Configure o toque nesta categoria.");
-                    channel.setSound(Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE+"://"+getContext().getPackageName()+"/raw/express_alert"),new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
-                    channel.enableVibration(true);channel.setVibrationPattern(new long[]{0,200,100,200});
-                    channel.setLockscreenVisibility(android.app.Notification.VISIBILITY_PRIVATE);
-                    manager.createNotificationChannel(channel);
+                    createChannel(manager, IDS[i], NAMES[i], "express_alert", STANDARD_VIBRATION);
+                }
+                if (Boolean.TRUE.equals(call.getBoolean("courier"))) {
+                    if (manager.getNotificationChannel(OFFER_CHANNEL) == null && standardOrderSettings(manager.getNotificationChannel(IDS[0]))) {
+                        createChannel(manager, OFFER_CHANNEL, "Ofertas de corrida", "express_offer", OFFER_VIBRATION);
+                    }
+                    offerSound = manager.getNotificationChannel(OFFER_CHANNEL) != null;
                 }
             }
-            call.resolve();
+            JSObject result = new JSObject();
+            result.put("offerSound", offerSound);
+            call.resolve(result);
         }catch(Exception e){call.reject("Não foi possível preparar os canais de notificação.");}
     }
     @PluginMethod public void status(PluginCall call){
@@ -55,8 +88,14 @@ public class ExpressNotificationsPlugin extends Plugin {
             result.put("batteryOptimized",!power.isIgnoringBatteryOptimizations(context.getPackageName()));
             JSArray channels=new JSArray();
             if(Build.VERSION.SDK_INT>=26)for(int i=0;i<IDS.length;i++){
-                NotificationChannel channel=manager.getNotificationChannel(IDS[i]);JSObject entry=new JSObject();
-                entry.put("id",IDS[i]);entry.put("name",NAMES[i]);entry.put("exists",channel!=null);
+                String id = IDS[i];
+                String name = NAMES[i];
+                if (i == 0 && Boolean.TRUE.equals(call.getBoolean("courier")) && manager.getNotificationChannel(OFFER_CHANNEL) != null) {
+                    id = OFFER_CHANNEL;
+                    name = "Ofertas de corrida";
+                }
+                NotificationChannel channel=manager.getNotificationChannel(id);JSObject entry=new JSObject();
+                entry.put("id",id);entry.put("name",name);entry.put("exists",channel!=null);
                 entry.put("importance",channel==null?0:channel.getImportance());
                 entry.put("sound",channel!=null&&channel.getSound()!=null);channels.put(entry);
             }
@@ -65,7 +104,7 @@ public class ExpressNotificationsPlugin extends Plugin {
     }
     @PluginMethod public void settings(PluginCall call){
         try{
-            String channel=call.getString("channel","");boolean known=false;for(String id:IDS)if(id.equals(channel))known=true;
+            String channel=call.getString("channel","");boolean known=OFFER_CHANNEL.equals(channel);for(String id:IDS)if(id.equals(channel))known=true;
             Intent intent;
             if(known&&Build.VERSION.SDK_INT>=26){intent=new Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,getContext().getPackageName()).putExtra(Settings.EXTRA_CHANNEL_ID,channel);}
             else {intent=new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,getContext().getPackageName());}

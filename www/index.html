@@ -98,6 +98,10 @@
 .head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:10px 0 16px}
 .head h1{font-size:22px;line-height:1.15;margin:0 0 4px;font-weight:800;letter-spacing:-.03em}.head p{margin:0;color:var(--muted);font-size:13px}
 .buttons{display:flex;gap:8px;flex-wrap:wrap}
+.order-contact .store-icon{width:16px;height:16px;flex:none}
+.order-contact .contact-whatsapp{color:#087746}
+.courier-arrival{display:grid;gap:9px;margin:12px 0;padding:12px;border:1px solid #a5c7b7;border-radius:14px;background:#eaf6ef}
+.courier-run-actions .courier-map-link{grid-column:1/-1;background:#e4f1e9;border-color:#abcbbb;color:#174f3b}
 .btn{border:1px solid transparent;border-radius:14px;padding:12px 16px;font-size:13px;font-weight:750;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;min-height:46px;transition:transform .12s,box-shadow .12s}
 .btn:active{transform:scale(.98)}
 .primary{background:var(--primary);color:#fff;box-shadow:0 8px 20px rgba(234,29,44,.28)}.secondary{background:#F2F3F5;border-color:transparent;color:#111}.soft{background:var(--mint);color:var(--green-dark)}.warning{background:var(--orangebg);color:var(--orange)}.danger{background:var(--redbg);color:var(--red)}.purple{background:var(--purplebg);color:var(--purple)}.tiny{padding:8px 12px;font-size:11px;min-height:36px;border-radius:10px}.btn.full{width:100%}
@@ -662,7 +666,7 @@
         </label>
       </details>
     </div>
-    <div class="login-install"><small class="login-version" data-app-version>Versão 2.1.3 Beta</small><button type="button" data-express-install hidden>Instalar Express</button></div>
+    <div class="login-install"><small class="login-version" data-app-version>Versão 2.1.4 Beta</small><button type="button" data-express-install hidden>Instalar Express</button></div>
   </div>
   </div>
 </div>
@@ -964,9 +968,9 @@
 <script src="./order-request.js"></script>
 <script src="./platform-order-alerts.js"></script>
 <script type="module">
-  const APP_VERSION="2.1.3";
+  const APP_VERSION="2.1.4";
   window.EXPRESS_APP_VERSION=APP_VERSION;
-  document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão 2.1.3 Beta");
+  document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão 2.1.4 Beta");
   const { initializeApp, getDatabase, ref, set, update, push, get, onValue, query, orderByChild, equalTo, limitToLast, startAt, onDisconnect, serverTimestamp,
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult, sendPasswordResetEmail,
     getFunctions, httpsCallable, connectDatabaseEmulator, connectAuthEmulator, connectFunctionsEmulator } = window.ExpressFirebase;
@@ -1064,6 +1068,9 @@
   let accountProfile=null, accessUnsubscribe=null;
   const accountAllowed=()=>role==='admin'||(role==='manager'?cityManagers[managerCity]===true:!!accountProfile&&(!accountProfile.accessStatus||accountProfile.accessStatus==='approved'));
   let pendingPushOrderId = null;
+  let pendingCourierRunId = null;
+  let courierDetailId = null;
+  let arrivalMonitor = null;
   const digestKey = async value => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))), b => b.toString(16).padStart(2, "0")).join("");
 
 
@@ -1135,34 +1142,44 @@
     if(role==='courier')render();
   }
 
+  let nativeOfferSound = false;
   async function saveNativeFcmToken(tokenValue,owner){
     if(!tokenValue || !isPushSession(owner))return;
     const tokenKey = await digestKey(tokenValue);
     if(!isPushSession(owner))return;
     const saved=await command("registerDevice", null, { token: tokenValue, deviceId:pushDeviceId('android'),
-      notificationSchema:window.ExpressNotificationPolicy.SCHEMA,enable:devicePushPreference(owner).reenable===true });
+      notificationSchema:window.ExpressNotificationPolicy.SCHEMA,offerSound:nativeOfferSound && role==="courier",
+      enable:devicePushPreference(owner).reenable===true });
     if(saved.notificationSchema!==window.ExpressNotificationPolicy.SCHEMA)throw new Error('Atualize as funções de notificações no Firebase para concluir a ativação.');
     recordPushRegistration(owner,'android',tokenKey);
   }
 
   const NotificationPolicy=window.ExpressNotificationPolicy;
   const EXPRESS_PUSH_CHANNELS=Object.entries(NotificationPolicy.CHANNELS).map(([category,id])=>({id,name:NotificationPolicy.LABELS[category]}));
+  function nativePushChannel(category) {
+    return NotificationPolicy.channel({ notificationSchema: NotificationPolicy.SCHEMA, offerSound: nativeOfferSound && role === "courier" }, category);
+  }
   async function prepareNativePushChannels(){
     if(!window.Capacitor?.isNativePlatform?.())return;
     const api=window.ExpressNativePush?.NotificationSettings;
     if(!api)throw new Error('Atualize para o APK 2.0.9 para preparar som e diagnóstico.');
-    await api.prepare();
+    const settings = await api.prepare({ courier: role === "courier" });
+    nativeOfferSound = settings?.offerSound === true;
   }
   const receivedPushIds=new Set();
   let pendingPushNavigation=null;
   function navigateFromPush(extra){
     pendingPushNavigation=extra;
-    if(!currentUser)return;
+    if(!currentUser || activeSessionUid !== currentUser.uid)return;
     if(extra.type==='admin-rain'&&role==='admin'){view='rates';render();}
     else if(extra.type==='alert'){view='alerts';render();}
     else if(extra.type==='announcement'){view='tariffs';render();}
     else if(extra.type==='platform-order'&&role==='store'){view='dashboard';storeOrderOrigin='platform';render();}
-    else if(extra.orderId){pendingPushOrderId=extra.orderId;mergeOrders();}
+    else if(extra.orderId){
+      if(role==="courier" && extra.type==="courier-arrival") pendingCourierRunId=extra.orderId;
+      else pendingPushOrderId=extra.orderId;
+      mergeOrders();
+    }
     else if(extra.type==='test')openPushSettings().catch(()=>{});
     pendingPushNavigation=null;
   }
@@ -1207,10 +1224,9 @@
           const permission=await window.ExpressNativePush.LocalNotifications.checkPermissions();
           if(permission.display !== 'granted') {toast('Permita as notificações locais do Express nas configurações do Android.','warn');return;}
           const category = notification.data?.category || "order";
-          const channels = NotificationPolicy.CHANNELS;
             await window.ExpressNativePush.LocalNotifications.schedule({ notifications: [{
               id: crypto.getRandomValues(new Uint32Array(1))[0] % 2147483647,
-              title, body, channelId: channels[category] || channels.update, smallIcon:"ic_express_notification", largeIcon:"ic_express_brand", iconColor:"#ed1726", extra: notification.data || {}
+              title, body, channelId: nativePushChannel(category), smallIcon:"ic_express_notification", largeIcon:"ic_express_brand", iconColor:"#ed1726", extra: notification.data || {}
             }] });
           } catch(error) { toast("Confira a permissão de notificações e o volume do Android.", "warn"); }
         }),
@@ -1562,6 +1578,7 @@
   }
 
   function stopDataListeners() {
+    syncCourierOverlay(true);
     storeTrackingDialog?.dialog.close();
     stopPickupRoute();
     if (ihubSheet) closeOrderSheet();
@@ -1575,7 +1592,7 @@
     unsubscribers.forEach(fn => { try { fn(); } catch (_) {} }); unsubscribers = [];
     if(presenceTimer) clearInterval(presenceTimer);
     presenceTimer = null; presenceSessionRef = null;
-    stopGpsTracking(); orderSources.clear(); carePreviews.clear(); data.orders = []; data.presence = [];
+    stopGpsTracking(); pendingCourierRunId = null; courierDetailId = null; orderSources.clear(); carePreviews.clear(); data.orders = []; data.presence = [];
     data.stores = []; data.couriers = []; data.alerts = []; data.alertHistory=[]; connections = {}; ownBids = {}; pushPreferences = {}; lastOrderCount = 0;
     document.getElementById("content").innerHTML = "";
   }
@@ -1595,6 +1612,7 @@
     if(storeTrackingDialog)renderStoreTracking();
     if(role === "courier") {
       const running = courierRunningOrders();
+      syncCourierArrival(running[0]);
       // One physical GPS session serves both accepted orders. Changing their
       // priority must not restart Android's foreground service in the background.
       const active = running.find(o => o.id === trackingOrderId) || running[0];
@@ -1605,6 +1623,10 @@
       if(active && !document.hidden && trackingOrderId !== active.id && gpsBlockedOrderId !== active.id) startGpsTracking(active.id);
       else if(!active && trackingOrderId) stopGpsTracking();
       if(!active) gpsBlockedOrderId = null;
+      if(running.some(order => order.id === pendingCourierRunId)) {
+        courierDetailId = pendingCourierRunId;
+        view = "run";
+      }
     }
     if(pendingPushOrderId) {
       const selected = data.orders.find(o => o.id === pendingPushOrderId);
@@ -2199,6 +2221,88 @@
     return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
   }
 
+  function courierArrivalStage(order) {
+    if (!order || order.kind === "route") return null;
+    if (order.externalOrder?.returnRequestedAt) return "return";
+    if (order.serviceType === "roundtrip") {
+      return ["roundtrip-0", "roundtrip-1", null, "roundtrip-3"][Number(order.tripStage || 0)];
+    }
+    return order.picked ? "delivery" : "pickup";
+  }
+
+  const isPickupStage = stage => ["pickup", "roundtrip-0"].includes(stage);
+
+  function syncCourierArrival(order) {
+    const stage = courierArrivalStage(order);
+    if (!stage) { arrivalMonitor = null; return null; }
+    const key = [order.id, order.accepted, stage].join(":");
+    if (arrivalMonitor?.key !== key) {
+      arrivalMonitor = { key, orderId: order.id, stage, nextLookup: 0, point: null, nearSince: 0,
+        lastNear: 0, prompted: false, dismissed: false };
+    }
+    return arrivalMonitor;
+  }
+
+  async function notifyCourierArrival(monitor, owner) {
+    if (!document.hidden || !isPushSession(owner) || pushPreferences.enabled === false || pushPreferences.reminders === false) return;
+    const title = isPickupStage(monitor.stage) ? "Chegou ao local da retirada?" : "Chegou ao destino?";
+    const body = isPickupStage(monitor.stage) ? "Abra a corrida e toque em Já recolhi quando estiver com o pedido." : "Abra a corrida para confirmar a etapa quando concluir.";
+    const extra = { type: "courier-arrival", orderId: monitor.orderId };
+    try {
+      const api = window.Capacitor?.isNativePlatform?.() && window.ExpressNativePush?.LocalNotifications;
+      if (api) {
+        const { display } = await api.checkPermissions();
+        if (display !== "granted" || arrivalMonitor !== monitor || !isPushSession(owner)) return;
+        await api.schedule({ notifications: [{
+          id: 1 + (crypto.getRandomValues(new Uint32Array(1))[0] % 2147483646),
+          title, body, channelId: NotificationPolicy.CHANNELS.reminder, smallIcon: "ic_express_notification", extra
+        }] });
+      } else if (window.Notification?.permission === "granted" && navigator.serviceWorker) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (arrivalMonitor === monitor && isPushSession(owner)) {
+          await registration?.showNotification(title, { body, icon: "./icons/icon-192.png", tag: "arrival-" + monitor.orderId, data: extra });
+        }
+      }
+    } catch (error) {
+      console.warn("Aviso de chegada indisponível:", error.code || error.name);
+    }
+  }
+
+  async function checkCourierArrival(coords, now, owner) {
+    const monitor = syncCourierArrival(courierRunningOrders()[0]);
+    if (!monitor || !Number.isFinite(coords.accuracy) || coords.accuracy < 0 || coords.accuracy > 45) return;
+    if (!monitor.point) {
+      if (!navigator.onLine || monitor.nextLookup > now) return;
+      monitor.nextLookup = now + 180000;
+      try {
+        const result = await callCourierArrivalPoint({ orderId: monitor.orderId, stage: monitor.stage,
+          latitude: coords.lat, longitude: coords.lng });
+        const point = result.data?.point;
+        if (arrivalMonitor !== monitor || currentUser?.uid !== owner ||
+            !Number.isFinite(point?.lat) || !Number.isFinite(point?.lng)) return;
+        monitor.point = point;
+      } catch {
+        return;
+      }
+    }
+    const distance = gpsDistanceMeters(coords, monitor.point);
+    if (distance > 90) {
+      monitor.nearSince = monitor.lastNear = 0;
+      if (distance > 140 && (monitor.prompted || monitor.dismissed)) {
+        monitor.prompted = monitor.dismissed = false;
+        render();
+      }
+      return;
+    }
+    if (monitor.prompted || monitor.dismissed) return;
+    if (!monitor.nearSince || now - monitor.lastNear > 45000) monitor.nearSince = now;
+    monitor.lastNear = now;
+    if (now - monitor.nearSince < 20000) return;
+    monitor.prompted = true;
+    render();
+    void notifyCourierArrival(monitor, owner);
+  }
+
   async function startGpsTracking(orderId) {
     const background = window.Capacitor?.isNativePlatform?.() ? window.ExpressNativePush?.BackgroundGeolocation : null;
     if (!background && !navigator.geolocation) { toast("GPS indisponível neste aparelho.", "warn"); return; }
@@ -2212,11 +2316,13 @@
     lastGpsCoords = null;
     gpsWriteInFlight = false;
     const onPosition = async (position) => {
-      if (!stillCurrent() || gpsWriteInFlight) return;
+      if (!stillCurrent()) return;
       const now = Date.now();
       const { latitude, longitude, accuracy } = position.coords;
       if(!Number.isFinite(latitude)||!Number.isFinite(longitude))return;
       const coords = { lat: latitude, lng: longitude, ...(Number.isFinite(accuracy) ? {accuracy} : {}) };
+      void checkCourierArrival(coords, now, trackingUser?.uid);
+      if (gpsWriteInFlight) return;
       const elapsed = now - lastGpsWriteAt;
       const distance = gpsDistanceMeters(lastGpsCoords, coords);
 
@@ -2289,6 +2395,7 @@
     lastGpsWriteAt = 0;
     lastGpsCoords = null;
     gpsWriteInFlight = false;
+    arrivalMonitor = null;
   }
 
   function createTrackingToken(){
@@ -2497,6 +2604,8 @@
     weather: '<path d="M4 14a4 4 0 0 1 1-8 5 5 0 0 1 9 1h3a3.5 3.5 0 0 1 0 7H4m4 3-1 3m5-3-1 3m5-3-1 3"/>',
     profile: '<circle cx="12" cy="7" r="3.5"/><path d="M4 21v-2a8 6 0 0 1 16 0v2z"/>',
     delivery: '<circle cx="5" cy="17" r="3"/><circle cx="19" cy="17" r="3"/><path d="m8 17 4-7h5l2 7M5 17l3-5h4m5-2-2-4h-3M3 9h4"/>',
+    shop: '<path d="M4 10v10h16V10M9 20v-6h6v6M3 7l2-3h14l2 3v2a2 2 0 0 1-4 0 2.5 2.5 0 0 1-5 0 2.5 2.5 0 0 1-5 0 2 2 0 0 1-4 0z"/>',
+    phone: '<path d="m7 3 3 5-2 2a13 13 0 0 0 6 6l2-2 5 3-1 3c-1 2-5 1-8-1a21 21 0 0 1-7-7C3 9 2 5 4 4z"/>',
     open: '<path d="M4 7h16v13H4zM3 4h18v3H3zM9 12h6"/>',
     routes: '<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h5a3 3 0 0 0 0-6h-2a3 3 0 0 1 0-6h5"/>',
     reports: '<path d="M4 19h16M7 15v-3m5 3V7m5 8v-5"/>',
@@ -2545,6 +2654,54 @@
     document.querySelector('.store-header-actions [data-store-dialog="store-account"]').innerHTML = storeIcon("profile");
   }
 
+  function courierOverlayApi() {
+    return window.Capacitor?.isNativePlatform?.() ? window.ExpressNativePush?.CourierOverlay : null;
+  }
+
+  function courierOverlayPreference() {
+    return !!currentUser && localStorage.getItem("express_courier_overlay:" + currentUser.uid) === "1";
+  }
+
+  let overlayEnabled;
+  function syncCourierOverlay(stop = false) {
+    const api = courierOverlayApi();
+    if (!api) return;
+    const enabled = !stop && role === "courier" && accountAllowed() && courierOverlayPreference() &&
+      (data.presence.some(courier => courier.id === actor && courier.availableForWork) || courierRunningOrders().length > 0);
+    if (enabled === overlayEnabled) return;
+    overlayEnabled = enabled;
+    api.configure({ enabled }).catch(() => { if (overlayEnabled === enabled) overlayEnabled = undefined; });
+  }
+
+  if (courierOverlayApi()) courierOverlayApi().addListener("openCourier", () => {
+    if (role !== "courier" || !currentUser || !accountAllowed()) return;
+    const order = courierRunningOrders()[0];
+    const newOffer = courierOccupiedSlots() < 2 && data.orders.some(isOffer);
+    if (order && (arrivalMonitor?.prompted && !arrivalMonitor.dismissed || !newOffer)) {
+      courierDetailId = pendingCourierRunId = order.id;
+      view = "run";
+    } else {
+      courierDetailId = pendingCourierRunId = null;
+      view = "available";
+    }
+    render();
+  }).catch(() => {});
+
+  async function toggleCourierOverlay() {
+    const api = courierOverlayApi();
+    if (!api || role !== "courier" || !currentUser) return;
+    const owner = currentUser.uid;
+    const enabled = !courierOverlayPreference();
+    localStorage.setItem("express_courier_overlay:" + owner, enabled ? "1" : "0");
+    render();
+    if (!enabled) return;
+    if (!(await api.permission()).allowed) {
+      if (currentUser?.uid !== owner) return;
+      toast("Autorize Exibir sobre outros apps para o Express.");
+      await api.requestPermission();
+    } else toast("Balão ativo quando você estiver disponível ou em corrida.");
+  }
+
   function renderCourierNavigation(availableCount){
     const main = [["available", "Ofertas"], ["quotes", "Cotações"], ["run", "Em execução"], ["done", "Concluídos"]];
     const extra = [["reports", "Relatórios"], ["alerts", "Alertas"], ["profile", "Meu Pix"], ["tariffs", "Tarifas e avisos"], ["cities", "Cidades"]];
@@ -2555,13 +2712,16 @@
       return '<button type="button" data-nav="' + id + '" aria-label="' + label + '"' + (view === id ? ' class="active" aria-current="page"' : '') + '>' +
         storeIcon(id) + '<span class="store-nav-label">' + label + '</span>' + badge + '</button>';
     };
-    const shortcuts = [ ["push-settings", "alerts", "Notificações e som"], ["signal-rain", "weather", "Sinalizar chuva"] ].map(([action, icon, label]) =>
+    const actions = [["push-settings", "alerts", "Notificações e som"], ["signal-rain", "weather", "Sinalizar chuva"]];
+    const floating = courierOverlayApi() && courierOverlayPreference();
+    if (courierOverlayApi()) actions.push(["courier-overlay", "direction", floating ? "Desativar balão" : "Ativar balão"]);
+    const shortcuts = actions.map(([action, icon, label]) =>
       '<button type="button" data-action="' + action + '" aria-label="' + label + '">' + storeIcon(icon) + '<span class="store-nav-label">' + label + '</span></button>').join("");
     const menuButton = '<button type="button" data-store-dialog="store-menu" data-store-menu-anchor aria-haspopup="dialog" aria-controls="store-menu">' + storeIcon("menu") + '<span class="store-nav-label">Menu</span></button>';
     const buttons = main.map(button).join("");
     const markup = '<div class="store-nav-desktop">' + buttons + extra.map(button).join("") + shortcuts + '</div>' +
       '<div class="store-nav-mobile">' + buttons + menuButton + '</div>';
-    const key = view + ':' + availableCount;
+    const key = view + ':' + availableCount + ':' + Boolean(floating);
     if (nav.dataset.role !== role || nav.dataset.courierView !== key || !nav.querySelector('[data-nav="available"]')) {
       const selectedNav = nav.contains(document.activeElement) ? document.activeElement.closest('[data-nav],[data-action]') : null;
       const group = selectedNav?.closest('.store-nav-desktop') ? '.store-nav-desktop' : '.store-nav-mobile';
@@ -2573,9 +2733,9 @@
       if (selectedValue) nav.querySelector(group + ' [' + attribute + '="' + CSS.escape(selectedValue) + '"]')?.focus({ preventScroll: true });
     }
     const menu = document.getElementById("store-menu-links");
-    if (menu.dataset.role !== role || menu.dataset.courierView !== view) {
+    if (menu.dataset.role !== role || menu.dataset.courierView !== key) {
       menu.dataset.role = role;
-      menu.dataset.courierView = view;
+      menu.dataset.courierView = key;
       document.querySelector('#store-account [data-nav="profile"]').textContent = "Meu Pix";
       menu.innerHTML = extra.map(button).join("") + shortcuts;
       document.querySelector('.store-header-actions [data-nav="alerts"]').innerHTML = storeIcon("alerts");
@@ -2953,19 +3113,20 @@
 
     if(role === "courier" && o.status === "run") {
       nextAtStore = returningIfood || (o.serviceType === "roundtrip" ? tripStage === 1 : o.serviceType === "collection" ? Boolean(o.picked) : !o.picked);
-      const mapUrl = motorcycleNavigation(courierDestination(o, nextAtStore));
+      const waitingForSecondTrip = o.serviceType === "roundtrip" && tripStage === 2 && !returningIfood;
+      const mapUrl = waitingForSecondTrip ? "" : motorcycleNavigation(courierDestination(o, nextAtStore));
       runNavigation = mapUrl ? '<a href="' + esc(mapUrl) + '" target="_blank" rel="noopener noreferrer" class="btn secondary courier-map-link">' +
-        storeIcon("direction") + (returningIfood ? "Voltar à loja" : o.serviceType === "roundtrip" ? nextAtStore ? "Ir à loja" : "Ir ao cliente" : o.picked ? "Navegar até o destino" : "Navegar até a coleta") + '</a>' : "";
+        storeIcon("direction") + (returningIfood ? "Voltar à loja" : isPickupStage(courierArrivalStage(o)) ? "Navegar até a retirada" : "Navegar até o destino") + '</a>' : "";
       const cancel = '<button type="button" class="btn danger tiny" data-action="cancel" data-id="'+esc(o.id)+'">Cancelar corrida</button>';
       if (o.serviceType === "roundtrip") {
-        const steps = ["Confirmar recolha no cliente", "Confirmar entrega na loja", "Iniciar 2ª viagem"];
+        const steps = ["Já recolhi", "Confirmar entrega na loja", "Iniciar 2ª viagem"];
         action = tripStage < steps.length
           ? '<button type="button" class="btn primary tiny" data-action="roundtrip-step" data-step="'+(tripStage+1)+'" data-id="'+esc(o.id)+'">'+steps[tripStage]+'</button>'
           : finishButton("Confirmar entrega ao cliente");
         runCancel = cancel;
       } else {
         action = o.picked ? finishButton(o.roundtripSchema && o.legNumber === 1 ? "Confirmar entrega na loja" : "Confirmar entrega")
-          : '<button type="button" class="btn primary tiny" data-action="picked" data-id="'+esc(o.id)+'">Confirmar coleta</button>';
+          : '<button type="button" class="btn primary tiny" data-action="picked" data-id="'+esc(o.id)+'">Já recolhi</button>';
         if (!o.picked) runCancel = cancel;
       }
       const first = courierRunningOrders()[0]?.id === o.id;
@@ -2999,12 +3160,17 @@
       const client = { name: o.client || "Cliente", address: [o.clientStreet, o.clientNumber, o.clientNeighborhood, o.city].filter(Boolean).join(", ") || o.address || "Endereço a confirmar", current: !atStore };
       const collection = o.serviceType === "collection" || o.serviceType === "roundtrip" && tripStage < 2;
       const stops = collection ? [client, store] : [store, client];
+      const reminder = arrivalMonitor?.orderId === o.id && arrivalMonitor.stage === courierArrivalStage(o) &&
+        arrivalMonitor.prompted && !arrivalMonitor.dismissed && courierRunningOrders()[0]?.id === o.id;
+      const arrivalActions = reminder ? '<section class="courier-arrival" aria-label="Lembrete de chegada"><strong role="status">' +
+        (isPickupStage(arrivalMonitor.stage) ? "Chegou ao local da retirada?" : "Chegou ao destino?") + '</strong><div class="buttons">' +
+        action + '<button type="button" class="btn secondary tiny" data-action="dismiss-arrival" data-id="'+esc(o.id)+'">Ainda não</button></div></section>' : "";
       return '<article class="order courier-run" data-order-id="'+esc(o.id)+'"><header class="courier-run-heading"><div><small>'+esc([o.orderCode || o.id, o.externalOrder?.provider ? storeOrderChannel(o) : "", serviceTypeLabel(o.serviceType)].filter(Boolean).join(" · "))+'</small><h2>'+esc(returningIfood ? runningOrderStage(o) : st)+'</h2></div><strong class="courier-run-price">'+cash(o.fee)+'</strong></header>' +
         '<div class="courier-run-progress">'+queueBadge+pickupTimerHtml+'</div><ol class="courier-run-stops">'+stops.map(({name,address,current}, index)=>
           '<li'+(current?' aria-current="step"':'')+'><span class="courier-stop-dot" aria-hidden="true"></span><div><small>'+(index===0?'Coleta':'Destino')+'</small><strong>'+esc(name)+'</strong><span>'+esc(address)+'</span></div></li>').join('')+'</ol>' +
         (o.clientReference ? '<p class="courier-reference"><b>Ponto de referência</b> '+esc(o.clientReference)+'</p>' : '') +
         careDetails(o) + (returningIfood ? '<p class="info">O pedido foi cancelado no iFood. Devolva o pedido à loja e confirme quando entregar.</p>' : codePending ? '<p class="courier-reference"><b>PIN exigido na entrega.</b> Solicite o código ao cliente. A conclusão depende da validação pela plataforma.</p>' : '') +
-        '<div class="courier-run-actions">'+action+runNavigation+'</div>'+arrival+returnHtml+
+        '<div class="courier-run-actions">'+runNavigation+(reminder ? "" : action)+'</div>'+arrivalActions+arrival+returnHtml+
         '<details class="courier-run-details" data-recent-id="'+esc(o.id)+'"><summary>Contatos e ações da corrida</summary><div class="courier-run-details-body">' +
         (o.phone ? '<p>Telefone do cliente · '+esc(o.phone)+'</p>' : '')+'<div class="meta"><span>Data: '+esc(formatServiceDate(o.serviceDate))+'</span>'+runDurationHtml+times+'</div><div class="buttons">'+callButtons(o)+runCancel+'</div>'+recordActions(o)+
         '</div></details></article>';
@@ -3073,6 +3239,7 @@
   }
 
   function render(){
+    syncCourierOverlay();
     const pushPrompt = document.getElementById('push-permission-prompt');
     pushPrompt.hidden = !currentUser || !accountAllowed() || window.Capacitor?.isNativePlatform?.() ||
       window.Notification?.permission !== 'default' || !('PushManager' in window) ||
@@ -3158,7 +3325,11 @@
     const openAlertHistory = storeAlerts ? Array.from(content.querySelectorAll(".store-alert-history details[open]"), detail => detail.id) : [];
     const focusedAlertControl = storeAlerts ? document.activeElement?.closest(".store-alerts [id]") : null;
     const alertSelection = focusedAlertControl?.id === "alert-message" ? [focusedAlertControl.selectionStart, focusedAlertControl.selectionEnd] : null;
-    content.innerHTML = availabilityPanel + tariffBanner + paymentNotice + (storeOverview ? storeDashboard() : overdueNotice + show()) + quickActions;
+    const arrivalShortcut = role === "courier" && arrivalMonitor?.prompted && !arrivalMonitor.dismissed &&
+      (view !== "run" || courierDetailId && courierDetailId !== arrivalMonitor.orderId)
+      ? '<div class="courier-arrival"><strong role="status">' + (isPickupStage(arrivalMonitor.stage) ? "Chegou ao local da retirada?" : "Chegou ao destino?") +
+        '</strong><button type="button" class="btn secondary tiny" data-action="open-arrival-order" data-id="' + esc(arrivalMonitor.orderId) + '">Ver corrida</button></div>' : "";
+    content.innerHTML = availabilityPanel + tariffBanner + paymentNotice + arrivalShortcut + (storeOverview ? storeDashboard() : overdueNotice + show()) + quickActions;
     for (const id of openAlertHistory) document.getElementById(id).open = true;
     if (focusedAlertControl) {
       const control = document.getElementById(focusedAlertControl.id);
@@ -3177,6 +3348,14 @@
     if (queueInfoOpen && content.querySelector(".courier-queue-info")) content.querySelector(".courier-queue-info").open = true;
     if(preferencesOpen&&document.querySelector("[data-browser-preferences]"))document.querySelector("[data-browser-preferences]").open=true;
     if (ihubFinishedOpen && document.getElementById("ihub-finished")) document.getElementById("ihub-finished").open = true;
+    if (pendingCourierRunId && role === "courier" && view === "run") {
+      const target = content.querySelector('[data-order-id="' + CSS.escape(pendingCourierRunId) + '"]');
+      if (target) {
+        target.scrollIntoView({ block: "start" });
+        target.querySelector(".courier-map-link")?.focus({ preventScroll: true });
+        pendingCourierRunId = null;
+      }
+    }
     if(pendingPushOrderId) {
       const card = document.querySelector('[data-order-id="' + CSS.escape(pendingPushOrderId) + '"]');
       if(!card && data.orders.some(order => order.id === pendingPushOrderId && order.status === "cotacao")) { view = "quotes"; document.getElementById("content").innerHTML = availabilityPanel + show(); }
@@ -3788,6 +3967,13 @@
     const courierOffers = courier && status === "open";
     const legend = role === "courier" && status === "open" ? '<div class="queue-legend"><span><i class="queue-dot green"></i> Verde: até 5 min</span><span><i class="queue-dot yellow"></i> Amarelo: 5 a 14 min</span><span><i class="queue-dot red"></i> Vermelho: 15 min ou mais</span><b>Ordem automática: maior espera primeiro</b></div>' : "";
     const gpsNotice = role === "courier" && status === "run" && arr.some(o => o.id === gpsBlockedOrderId) ? '<div class="info">GPS pausado. Confira as permissões de localização e notificações no Android. <button type="button" class="btn secondary tiny" data-action="retry-gps" data-id="'+esc(gpsBlockedOrderId)+'">Tentar GPS</button></div>' : "";
+    if (courier && status === "run" && courierDetailId) {
+      const selected = arr.find(order => order.id === courierDetailId);
+      if (selected || pendingCourierRunId === courierDetailId) {
+        return '<div class="head courier-page-heading"><h1>Corrida</h1><button type="button" class="btn secondary tiny" data-nav="run">Ver corridas</button></div>' +
+          gpsNotice + (selected ? '<div class="list courier-run-list">' + card(selected) + '</div>' : '<p role="status">Abrindo corrida…</p>');
+      }
+    }
     const queueInfo = courierOffers && arr.length ? '<details class="courier-queue-info"><summary>Prioridade da fila</summary>' + legend + '</details>' : '';
     const renderCard = (order) => courierOffers && order.kind !== "route" ? courierOfferCard(order) : card(order);
     const blank = courierOffers ? empty("Nenhuma oferta disponível", "As novas corridas aparecem aqui quando são liberadas.")
@@ -4188,6 +4374,7 @@
 
   const callOrderContact = httpsCallable(functions, "orderContact");
   const callRouteEstimate = httpsCallable(functions, "orderRouteEstimate");
+  const callCourierArrivalPoint = httpsCallable(functions, "courierArrivalPoint");
   function stopPickupRoute() {
     pickupRoute = null;
   }
@@ -4282,19 +4469,47 @@
     dialog.querySelectorAll('[data-resolve]').forEach(button=>button.addEventListener('click',async()=>{const resolution=window.prompt('Descreva a tratativa (opcional):','');if(resolution===null)return;try{await command('resolveOccurrence',id,{occurrenceId:button.dataset.resolve,status:'resolved',resolution});toast('Ocorrência tratada.');dialog.close();render();}catch(error){toast(error.message,'warn');}}));
     dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.showModal();
   }
-  async function dialOrderContact(order,target,trigger){
-    const session=currentUser?.uid;
-    const {phone}=(await callOrderContact({orderId:order.id,target})).data;
-    if(!session||session!==currentUser?.uid||!data.orders.some(item=>item.id===order.id&&item.status==="run"))return;
-    const ifoodContact = target === "customer" && order.externalOrder?.provider === "ifood" && /^0800\d{7}$/.test(phone || "");
-    if(!ifoodContact&&!/^55\d{10,11}$/.test(phone||"")){trigger.disabled=true;trigger.textContent="Número indisponível";return;}
-    window.location.href="tel:"+(ifoodContact?"":"+")+phone;
+  function ifoodDialer(order, target, phone = order.phone) {
+    return target === "customer" && order.externalOrder?.provider === "ifood" &&
+      /^0800\d{7}$/.test(String(phone || "").replace(/\D/g, ""));
   }
+
+  async function openOrderContact(order, target) {
+    const session = currentUser?.uid;
+    const native = window.Capacitor?.isNativePlatform?.();
+    let popup = !native && !ifoodDialer(order, target) ? window.open("about:blank", "_blank") : null;
+    if (popup) popup.opener = null;
+    try {
+      const { phone } = (await callOrderContact({ orderId: order.id, target })).data;
+      if (!session || session !== currentUser?.uid ||
+          !data.orders.some(item => item.id === order.id && item.status === "run")) return;
+      if (ifoodDialer(order, target, phone)) {
+        window.location.assign("tel:" + phone);
+      } else if (/^55\d{10,11}$/.test(phone || "")) {
+        const url = "https://wa.me/" + phone;
+        if (popup && !popup.closed) {
+          popup.location.replace(url);
+          popup = null;
+        } else window.location.assign(url);
+      } else {
+        toast("Número de contato indisponível.", "warn");
+      }
+    } finally {
+      popup?.close();
+    }
+  }
+
   function callButtons(order){
-    if(order.status!=="run")return "";
-    const targets=role==="store"&&order.storeId===actor?[["courier","motoboy"]]
-      :role==="courier"&&order.courierId===actor?[["store","loja"],["customer","cliente"]]:[];
-    return targets.map(([target,label])=>'<button type="button" class="btn secondary tiny" data-action="order-contact" data-id="'+esc(order.id)+'" data-contact="'+target+'">Ligar · '+label+'</button>').join("");
+    if(order.status!=="run" || order.kind==="route")return "";
+    const targets = role === "store" && order.storeId === actor ? [["courier", "do motoboy", "delivery"]]
+      : role === "courier" && order.courierId === actor ? [["store", "da loja", "shop"], ["customer", "do cliente", "profile"]] : [];
+    const whatsapp = '<svg class="store-icon contact-whatsapp" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 21l1.4-4.7A9.5 9.5 0 1 1 8 20z"/><path fill="currentColor" stroke="none" d="M8.8 7.2c-.8 0-1.5.7-1.5 1.7 0 2.7 3.9 6.9 6.8 7.3 1 .1 2.2-.6 2.2-1.5 0-.3-.2-.5-.5-.7l-1.8-.9c-.3-.2-.6-.1-.8.2l-.6.7c-1.1-.5-2.5-1.8-3-2.9l.6-.7c.2-.2.2-.5.1-.8l-.8-1.9c-.1-.3-.4-.5-.7-.5z"/></svg>';
+    return targets.map(([target, label, icon]) => {
+      const dialer = ifoodDialer(order, target);
+      return '<button type="button" class="btn secondary tiny order-contact" data-action="order-contact" data-id="' +
+        esc(order.id) + '" data-contact="' + target + '">' + (dialer ? storeIcon("phone") : whatsapp) +
+        storeIcon(icon) + (dialer ? "Ligar cliente" : "WhatsApp " + label) + '</button>';
+    }).join("");
   }
   const actionsInFlight = new Set();
   async function act(action, id, trigger) {
@@ -4438,7 +4653,22 @@
         const rating=await collectRating();if(!rating)return;
         await command('submitDeliveryRating',id,rating);toast('Avaliação registrada.');render();return;
       }
-      if(action==="order-contact"){if(order)await dialOrderContact(order,trigger.dataset.contact,trigger);return;}
+      if(action==="order-contact"){if(order)await openOrderContact(order,trigger.dataset.contact);return;}
+      if(action==="open-arrival-order"){
+        if(role === "courier" && arrivalMonitor?.orderId === id && order?.status === "run"){
+          courierDetailId = pendingCourierRunId = id;
+          view = "run";
+          render();
+        }
+        return;
+      }
+      if(action==="dismiss-arrival"){
+        if(arrivalMonitor?.orderId === id){
+          arrivalMonitor.dismissed = true;
+          render();
+        }
+        return;
+      }
       if(action==="pickup-route"){if(order&&role==="courier"&&view==="available"&&isOffer(order))calculatePickupRoute(order);return;}
       if(action==='route-add'){if(!logisticsReady)throw Error('Atualize o servidor para criar rotas.');addingRouteDelivery=true;window.openOrderSheet();recalculateMobileFee();return;}
       if(action==='route-up'){const n=routeSelection.indexOf(id);if(n>0)[routeSelection[n-1],routeSelection[n]]=[routeSelection[n],routeSelection[n-1]];render();return;}
@@ -4500,6 +4730,7 @@
         return;
       }
       if(action === "push-settings") return await openPushSettings();
+      if(action === "courier-overlay") return await toggleCourierOverlay();
       if(action === "push-enable-now") {
         try {
           if(await enablePushNotifications(true))toast('Notificações ativadas neste navegador.');
@@ -4566,7 +4797,8 @@
       const confirmed = action==="accept" ? await acceptOrderWithCare(id) : await command(action, id, input);
       if(!confirmed)return;
       if(["finish", "cancel", "cancel-free"].includes(action) && trackingOrderId === id) stopGpsTracking();
-      if(action === "accept") view = "run";
+      if(action === "accept") { pendingPushOrderId = null; courierDetailId = pendingCourierRunId = id; view = "run"; }
+      if(["finish", "cancel", "confirmIhubReturn"].includes(action) && courierDetailId === id) courierDetailId = null;
       if(action === "finish") view = role === "courier" && courierRunningOrders().some(o => o.id !== id) ? "run" : "done";
       toast(action === "finish" ? "Entrega concluída. Aguardando o lojista informar o pagamento." : action === "report-payment" ? "Pagamento informado. Aguardando confirmação do motoboy." : action === "confirm-payment" ? "Recebimento confirmado e sincronizado." : "Atualização confirmada.");
       if(action === "accept" && confirmed.paymentReviewCount > 0) toast("Corrida aceita. Você tem " + confirmed.paymentReviewCount + " pagamento(s) para conferir no Relatório.", "warn");
@@ -4736,6 +4968,7 @@
     const owner=currentUser.uid;
     const enable=dialog.querySelector('[data-push-enable]');
     const remoteTest=dialog.querySelector('[data-push-test]');
+    if(role==="courier")dialog.querySelector('#push-category').value='order';
     if(!native){
       const help=document.createElement('p');
       help.textContent='Se o Chrome não abrir a permissão, feche as bolhas flutuantes de outros apps, como a 99, e toque em Ativar neste dispositivo novamente.';
@@ -4754,7 +4987,7 @@
         const preference=devicePushPreference(owner);
         let allowed=window.Notification?.permission==='granted';
         if(native){
-          const status=await window.ExpressNativePush.NotificationSettings.status();
+          const status=await window.ExpressNativePush.NotificationSettings.status({ courier: role === "courier" });
           allowed=status.permission;
           const warnings=[];
           if(!status.permission)warnings.push('Notificações bloqueadas no Android.');
@@ -4762,7 +4995,8 @@
           if(status.ringerMode!==2)warnings.push(status.ringerMode===1?'Celular no modo vibrar.':'Celular no modo silencioso.');
           if(status.doNotDisturb)warnings.push('Não perturbe está ativado.');
           const channels=(status.channels||[]).map(c=>c.name+': '+(!c.exists?'não preparada':c.importance<3?'silenciosa ou bloqueada':!c.sound?'sem toque':'som configurado')).join('\n');
-          dialog.querySelector('[data-android-diagnostics]').textContent=(warnings.length?warnings.join('\n'):'Volume e permissão sem bloqueio detectado.')+'\n'+channels+(status.batteryOptimized?'\nEconomia de bateria ativa: se houver atrasos, confira as restrições do Express no Android.':'');
+          dialog.querySelector('[data-android-diagnostics]').textContent='Volume de notificações: '+status.volume+' de '+status.maxVolume+'.\n'+
+            (warnings.length?warnings.join('\n')+'\n':'')+channels+(status.batteryOptimized?'\nEconomia de bateria ativa: se houver atrasos, confira as restrições do Express no Android.':'');
           dialog.querySelector('[data-android-diagnostics]').style.cssText='white-space:pre-line;font-size:12px;line-height:1.6;margin:14px 0;padding:12px;background:#f8fafc;border-radius:12px';
         }
         const active=preference.enabled!==false && allowed && pushRegistration?.owner===owner;
@@ -4783,7 +5017,7 @@
         const api=window.ExpressNativePush.LocalNotifications;
         if((await api.checkPermissions()).display!=='granted')throw new Error('Ative a permissão de notificações primeiro.');
         await prepareNativePushChannels();
-        await api.schedule({notifications:[{id:crypto.getRandomValues(new Uint32Array(1))[0]%2147483647,title:'Teste local · '+NotificationPolicy.LABELS[category()],body:'Este teste verifica o aviso e o som no aparelho, sem envio pela internet.',channelId:NotificationPolicy.CHANNELS[category()],smallIcon:'ic_express_notification',largeIcon:'ic_express_brand',iconColor:'#ed1726',extra:{type:'test'}}]});
+        await api.schedule({notifications:[{id:crypto.getRandomValues(new Uint32Array(1))[0]%2147483647,title:'Teste local · '+NotificationPolicy.LABELS[category()],body:'Este teste verifica o aviso e o som no aparelho, sem envio pela internet.',channelId:nativePushChannel(category()),smallIcon:'ic_express_notification',largeIcon:'ic_express_brand',iconColor:'#ed1726',extra:{type:'test'}}]});
         feedback.textContent='Aviso local solicitado ao Android. Confira o toque e use o diagnóstico se estiver silencioso.';
       }else{await playBeep();feedback.textContent='Teste de áudio executado nesta tela. Agora teste o recebimento remoto.';}
       await refresh();
@@ -4803,7 +5037,7 @@
       }
       if(!closed)feedback.textContent='Teste na fila, sem confirmação do serviço até agora. Confira a publicação das funções e os registros do Firebase.';
     });
-    dialog.querySelector('[data-sound-settings]')?.addEventListener('click',()=>run(dialog.querySelector('[data-sound-settings]'),()=>window.ExpressNativePush.NotificationSettings.settings({channel:NotificationPolicy.CHANNELS[category()]})));
+    dialog.querySelector('[data-sound-settings]')?.addEventListener('click',()=>run(dialog.querySelector('[data-sound-settings]'),()=>window.ExpressNativePush.NotificationSettings.settings({channel:nativePushChannel(category())})));
     dialog.querySelector('[data-refresh]').onclick=()=>refresh();
     dialog.querySelector('[data-close]').onclick=()=>dialog.close();
     dialog.querySelector('form').onsubmit=async event=>{event.preventDefault();try{if(currentUser?.uid!==owner)throw new Error('A sessão mudou.');const preferences={...pushPreferences,...(role==='courier'?Object.fromEntries(['enabled','orders','quotes','reminders'].map(k=>[k,dialog.querySelector('[name="'+k+'"]').checked])):{}),alerts:dialog.querySelector('[name=alerts]').checked};await set(ref(db,'pushPreferences/'+owner),preferences);if(currentUser?.uid===owner)rememberPushPreferences(owner,preferences);dialog.close();toast('Preferências salvas.');}catch(error){feedback.textContent=pushError(error);}};
@@ -4814,7 +5048,7 @@
 
   window.__express = {
     prepareSheet: prepareSheet,
-    setView: function(v){ if(v === "new" && role === "store") return window.openOrderSheet(); if (document.querySelector(".app").classList.contains("compact-web") && view !== v) {
+    setView: function(v){ if(v === "new" && role === "store") return window.openOrderSheet(); if(role === "courier") courierDetailId = pendingCourierRunId = null; if (document.querySelector(".app").classList.contains("compact-web") && view !== v) {
       document.querySelector(".main").scrollTop = 0;
       window.scrollTo(0, 0);
     } view = v; render();

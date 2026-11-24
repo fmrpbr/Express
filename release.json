@@ -1,7 +1,7 @@
 {
-  "notes": "Formulários da loja, disponibilidade dos motoboys e rastreamento com compartilhamento pelo WhatsApp.",
-  "version": "2.1.3",
-  "display_version": "2.1.3 Beta",
+  "notes": "Contatos pelo WhatsApp, acesso direto à corrida, lembrete de chegada, toque de ofertas reforçado e balão opcional no Android.",
+  "version": "2.1.4",
+  "display_version": "2.1.4 Beta",
   "name": "Express Entregas",
   "channel": "beta"
 }

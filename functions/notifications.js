@@ -58,7 +58,7 @@ function createDispatcher(db, messaging, clock = Date.now, webPush = null) {
         try {
           if (device.platform === "android") {
             await messaging.send({ token: device.token, notification: { title, body }, data: { type: job.kind, category, orderId: job.orderId, notificationId:deliveryId },
-              android: { priority: "high", ttl:300000, collapseKey: deliveryId.slice(0, 64), notification: { channelId: Policy.channel(device,category), tag: deliveryId, sound: device.notificationSchema===Policy.SCHEMA?"express_alert":"default", icon:"ic_express_notification", priority: "max", visibility: "private" } } });
+              android: { priority: "high", ttl:300000, collapseKey: deliveryId.slice(0, 64), notification: { channelId: Policy.channel(device,category), tag: deliveryId, sound: Policy.sound(device,category), icon:"ic_express_notification", priority: "max", visibility: "private" } } });
           } else {
             await webPush.sendNotification({ endpoint: device.endpoint, keys: device.keys }, JSON.stringify({ title, body, orderId: job.orderId, type: job.kind, category, tag: deliveryId }), { TTL: 300 });
           }
@@ -124,7 +124,7 @@ function createUpdateDispatcher(db, messaging, clock = Date.now, webPush = null)
           const profilesNow=(await db.ref('profiles').get()).val()||{};
           if(!accessAllowed(profilesNow.stores?.[uid])&&!accessAllowed(profilesNow.couriers?.[uid])&&root.notificationAccounts?.[uid]?.role!=='admin'){await delivery.update({status:'cancelled'});continue;}
           if(event.action==='operational-alert'){const alertNow=(await db.ref(`alerts/${event.alertId}`).get()).val();if(!alertNow||alertNow.cancelledAt||alertNow.expiresAt<=clock()){await delivery.update({status:'cancelled'});continue;}}
-          if(device.platform==='android')await messaging.send({token:device.token,notification:{title,body},data:{...data,notificationId:id},android:{priority:'high',ttl:300000,notification:{channelId:Policy.channel(device,category),tag:id,sound:device.notificationSchema===Policy.SCHEMA?'express_alert':'default',icon:'ic_express_notification',visibility:'private',priority:'max'}}});
+          if(device.platform==='android')await messaging.send({token:device.token,notification:{title,body},data:{...data,notificationId:id},android:{priority:'high',ttl:300000,notification:{channelId:Policy.channel(device,category),tag:id,sound:Policy.sound(device,category),icon:'ic_express_notification',visibility:'private',priority:'max'}}});
           else await webPush.sendNotification({endpoint:device.endpoint,keys:device.keys},JSON.stringify({title,body,...data,tag:id}),{TTL:300,urgency:'high'});
           await delivery.update({status:'sent',sentAt:clock()});if(testRef)await testRef.set({status:'sent',platform:device.platform,at:clock()});
         }catch(error){

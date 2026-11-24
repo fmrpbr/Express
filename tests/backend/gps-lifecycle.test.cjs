@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 
 const html = fs.readFileSync(require('node:path').join(__dirname, '../../www/index.html'), 'utf8');
-const source = html.slice(html.indexOf('  async function startGpsTracking('), html.indexOf('  function createTrackingToken('));
+const source = html.slice(html.indexOf('  function gpsDistanceMeters('), html.indexOf('  function createTrackingToken('));
 const nativeUpload = html.slice(html.indexOf('  async function sendGpsPosition('), html.indexOf('  const callIhubIntegration'));
 function harness(overrides = {}) {
   const calls = [], removed = [], storage = new Map();
@@ -24,12 +24,12 @@ function harness(overrides = {}) {
     document: { visibilityState:'visible',addEventListener(event,handler){listeners[event]=handler;} }, navigator: {},
     trackingOrderId: null, nativeGpsWatcher: null, watchId: null,
     gpsGeneration: 0, gpsBlockedOrderId: null, gpsErrorShown: false,
-    lastGpsWriteAt: 0, lastGpsCoords: null, gpsWriteInFlight: false,
+    lastGpsWriteAt: 0, lastGpsCoords: null, gpsWriteInFlight: false, arrivalMonitor: null,
     currentUser: { uid:'courier',getIdToken:async()=> 'fixture-user-token' }, data: { orders: [{ id: 'ride', status: 'run', courierId: 'courier' }] },
     localEmulator:false,crypto:{randomUUID:()=> 'local-request'},role:'courier',storeTrackingDialog:null,
     courierRunningOrders:()=>[{id:'ride'}],
     localStorage: { setItem: (k,v) => storage.set(k,v), removeItem: k => storage.delete(k) },
-    toast() {}, command: async () => {}, gpsDistanceMeters: () => 100, Date,
+    toast() {}, command: async () => {}, Date,
   });
   vm.runInContext(nativeUpload+source, context);
   return { context, calls, removed, storage, listeners };
@@ -113,7 +113,7 @@ test('changing priority between two active orders preserves the existing physica
   await h.context.startGpsTracking('ride');
   const a={status:'run',courierId:'courier',queuePosition:2,accepted:1};
   const b={status:'run',courierId:'courier',queuePosition:1,accepted:2};
-  Object.assign(h.context,{actor:'courier',role:'courier',gpsStartInterrupted:false,ownBids:{},pendingPushOrderId:null,
+  Object.assign(h.context,{actor:'courier',role:'courier',gpsStartInterrupted:false,ownBids:{},pendingPushOrderId:null,pendingCourierRunId:null,
     carePreviews:new Map(),orderSources:new Map([['courier',new Map([['ride',a],['next',b]])]]),render(){}});
   vm.runInContext(html.slice(html.indexOf('  function courierRunningOrders('),html.indexOf('  function courierOccupiedSlots('))+
     html.slice(html.indexOf('  function mergeOrders('),html.indexOf('  function listenOrders(')),h.context);
@@ -121,4 +121,28 @@ test('changing priority between two active orders preserves the existing physica
   assert.equal(h.context.trackingOrderId,'ride');
   assert.equal(h.calls.length,1);
   assert.equal(h.removed.length,0);
+  assert.equal(h.context.arrivalMonitor.orderId,'next');
+});
+
+test('arrival waits for accurate GPS samples and a sustained stop before prompting once', async () => {
+  const { context } = harness();
+  let renders = 0;
+  Object.assign(context, {
+    view: 'run', navigator: { onLine: true },
+    render() { renders++; },
+    callCourierArrivalPoint: async () => ({ data: { point: { lat: -19.82, lng: -40.27 } } }),
+  });
+  const sample = (at, accuracy, lat = -19.82) =>
+    context.checkCourierArrival({ lat, lng: -40.27, accuracy }, at, 'courier');
+  await sample(1000, 70);
+  assert.equal(context.arrivalMonitor.point, null);
+  await sample(2000, 15);
+  await sample(18000, 15, -19.823);
+  await sample(21000, 15);
+  await sample(40000, 15);
+  assert.equal(renders, 0);
+  await sample(41000, 15);
+  await sample(42000, 15);
+  assert.equal(renders, 1);
+  assert.equal(context.arrivalMonitor.prompted, true);
 });
