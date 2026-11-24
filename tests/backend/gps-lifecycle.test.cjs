@@ -5,8 +5,10 @@ const fs = require('node:fs');
 
 const html = fs.readFileSync(require('node:path').join(__dirname, '../../www/index.html'), 'utf8');
 const source = html.slice(html.indexOf('  async function startGpsTracking('), html.indexOf('  function createTrackingToken('));
+const nativeUpload = html.slice(html.indexOf('  async function sendGpsPosition('), html.indexOf('  const callIhubIntegration'));
 function harness(overrides = {}) {
   const calls = [], removed = [], storage = new Map();
+  const listeners = {};
   const background = {
     async addWatcher(options, callback) { calls.push({ options, callback }); return 'watcher-1'; },
     async removeWatcher(value) { removed.push(value.id); },
@@ -18,17 +20,19 @@ function harness(overrides = {}) {
     ...overrides.push
   };
   const context = vm.createContext({
-    window: { Capacitor: { isNativePlatform: () => true }, ExpressNativePush: { BackgroundGeolocation: background, PushNotifications: push } },
-    document: { visibilityState: 'visible' }, navigator: {},
+    window: { Capacitor: { isNativePlatform: () => true }, ExpressNativePush: { BackgroundGeolocation: background, PushNotifications: push, CapacitorHttp:overrides.http } },
+    document: { visibilityState:'visible',addEventListener(event,handler){listeners[event]=handler;} }, navigator: {},
     trackingOrderId: null, nativeGpsWatcher: null, watchId: null,
     gpsGeneration: 0, gpsBlockedOrderId: null, gpsErrorShown: false,
     lastGpsWriteAt: 0, lastGpsCoords: null, gpsWriteInFlight: false,
-    currentUser: { uid: 'courier' }, data: { orders: [{ id: 'ride', status: 'run', courierId: 'courier' }] },
+    currentUser: { uid:'courier',getIdToken:async()=> 'fixture-user-token' }, data: { orders: [{ id: 'ride', status: 'run', courierId: 'courier' }] },
+    localEmulator:false,crypto:{randomUUID:()=> 'local-request'},role:'courier',storeTrackingDialog:null,
+    courierRunningOrders:()=>[{id:'ride'}],
     localStorage: { setItem: (k,v) => storage.set(k,v), removeItem: k => storage.delete(k) },
     toast() {}, command: async () => {}, gpsDistanceMeters: () => 100, Date,
   });
-  vm.runInContext(source, context);
-  return { context, calls, removed, storage };
+  vm.runInContext(nativeUpload+source, context);
+  return { context, calls, removed, storage, listeners };
 }
 
 test('repeated active-order updates create only one native watcher', async () => {
@@ -80,11 +84,29 @@ test('a rejected native start is paused and does not create a crash-restart loop
   assert.equal(h.context.gpsBlockedOrderId, 'ride');
   assert.equal(h.storage.size, 0);
 });
-test('backgrounded app does not attempt to start a while-in-use location service', async () => {
+test('backgrounded app waits until visible to start the location service', async () => {
   const h = harness(); h.context.document.visibilityState = 'hidden';
   await h.context.startGpsTracking('ride');
   assert.equal(h.calls.length, 0);
-  assert.equal(h.context.gpsBlockedOrderId, 'ride');
+  assert.equal(h.context.gpsBlockedOrderId, null);
+  h.context.document.visibilityState='visible';
+  h.listeners.visibilitychange();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.calls.length,1);
+});
+test('native watcher sends positions through the Android HTTP transport', async () => {
+  const sent=[];
+  const h=harness({http:{post:async request=>{
+    sent.push(request);return {status:200,data:{result:{ok:true}}};
+  }}});
+  await h.context.startGpsTracking('ride');
+  h.calls[0].callback({latitude:-19.82,longitude:-40.27,accuracy:15});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(sent.length,1);
+  assert.equal(sent[0].headers.Authorization,'Bearer fixture-user-token');
+  assert.equal(sent[0].data.data.action,'location');
+  assert.equal(sent[0].data.data.orderId,'ride');
+  assert.equal(sent[0].data.data.input.lat,-19.82);
 });
 test('changing priority between two active orders preserves the existing physical GPS watcher', async () => {
   const h=harness();
