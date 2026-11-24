@@ -1,0 +1,55 @@
+.ihub-admin { display: grid; gap: 16px; color: var(--store-text); font: 14px/1.5 var(--store-font); }
+.ihub-admin h1 { margin: 0; font-size: clamp(25px, 3.8vw, 36px); line-height: 1.12; letter-spacing: -.045em; }
+.ihub-admin h2 { margin: 0; color: var(--store-text); font-size: 17px; letter-spacing: -.02em; }
+.ihub-grid { display: grid; align-items: start; gap: 14px; min-width: 0; }
+.ihub-panel { display: grid; gap: 10px; min-width: 0; padding: 14px clamp(13px, 2vw, 20px); border: 1px solid var(--store-border); border-radius: 12px; background: var(--store-surface); }
+.ihub-panel header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px; }
+.ihub-panel p { margin: 0; color: var(--store-muted); }
+.ihub-panel form { display: grid; gap: 9px; }
+.ihub-field { display: grid; gap: 4px; min-width: 0; }
+.ihub-field > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+.ihub-field label { color: var(--store-text); font-size: 13px; font-weight: 650; }
+.ihub-admin :is(input, select) { width: 100%; min-width: 0; min-height: 41px; padding: 6px 9px; border: 1px solid var(--store-border); border-radius: 8px; background: var(--store-bg); color: var(--store-text); font: inherit; text-transform: none; }
+.ihub-admin .btn { min-height: 39px; padding: 7px 11px; border-radius: 8px; font-size: 13px; }
+.ihub-admin .btn.secondary { border: 1px solid var(--store-border); background: var(--store-surface); color: var(--store-text); }
+.ihub-admin .btn.primary { justify-self: start; background: var(--store-accent); color: #fff; }
+.ihub-admin .btn.primary:disabled { background: var(--store-soft); color: var(--store-muted); opacity: 1; }
+.ihub-panel .ihub-note { margin-top: 3px; padding: 8px 10px; border-radius: 8px; background: var(--store-soft); color: var(--store-teal); }
+.ihub-note strong { display: block; font-weight: 700; }
+.ihub-status { padding-top: 8px; border-top: 1px solid var(--store-border); }
+.ihub-links { display: grid; gap: 4px; margin: 0; padding: 0; overflow-wrap: anywhere; list-style: none; }
+.ihub-links small { display: block; color: var(--store-muted); }
+.ihub-provider { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 3px 10px; padding-top: 7px; border-top: 1px solid var(--store-border); }
+.ihub-provider span { color: var(--store-muted); }
+.ihub-finished { margin-top: 8px; border-top: 1px solid var(--store-border); }
+.ihub-finished summary { padding: 8px 0; color: var(--store-text); font-weight: 650; cursor: pointer; }
+.store-workspace .store-queue-call .btn:disabled { border-color: var(--store-border); background: var(--store-bg); color: var(--store-muted); opacity: 1; cursor: default; }
+.ihub-authorization { display: grid; gap: 8px; margin-bottom: 10px; padding: 12px; border: 1px solid var(--store-border); border-radius: 9px; background: var(--store-soft); }
+.ihub-authorization h3 { margin: 0; color: var(--store-text); font-size: 15px; }
+.ihub-authorization form { display: grid; gap: 9px; }
+.ihub-authorization p { margin: 0; }
+.ihub-authorization input { min-height: 42px; border: 1px solid var(--store-border); border-radius: 8px; background: var(--store-surface); color: var(--store-text); font: inherit; text-transform: none; }
+.ihub-authorization-actions, .ihub-portal { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 9px; }
+.ihub-portal { color: var(--store-muted); font-size: 12px; }
+.ihub-portal .btn { min-height: 40px; font-size: 12px; }
+.ihub-portal strong { color: var(--store-text); font-variant-numeric: tabular-nums; }
+.store-platform-settings .ihub-authorization-error { color: var(--store-link); }
+.ihub-connected-name { overflow-wrap: anywhere; }
+.ihub-queue-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.store-workspace .store-queue-call [data-platform-ready] { border-color: var(--store-accent); color: var(--store-accent); font-weight: 750; }
+@media (prefers-reduced-motion: no-preference) {
+  .store-queue-call [data-platform-ready] { animation: platform-call-pulse 2s ease-in-out infinite; }
+}
+@keyframes platform-call-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--store-accent) 24%, transparent); }
+}
+.ihub-mode-form, .ihub-mode-form fieldset { display: grid; gap: 9px; }
+.ihub-mode-form h2, .ihub-mode-form p { margin: 0; }
+.ihub-mode-form p:empty, .ihub-mode-form fieldset[hidden] { display: none; }
+.ihub-mode-form fieldset { min-width: 0; border: 1px solid var(--store-border); border-radius: 9px; padding: 10px; }
+.ihub-mode-form legend { padding-inline: 4px; font-size: 13px; font-weight: 650; }
+
+@media (min-width: 850px) {
+  .ihub-grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+}

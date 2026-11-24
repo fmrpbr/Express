@@ -1,5 +1,6 @@
 {
-  "version": "2.0.16",
-  "channel": "teste",
-  "notes": "Migração da distribuição pública para Firebase, preservando a identidade e os fluxos."
+  "version": "2.0.18",
+  "name": "Express Entregas Beta",
+  "channel": "beta",
+  "notes": "Instalação web, atalho Express e notificações persistentes."
 }

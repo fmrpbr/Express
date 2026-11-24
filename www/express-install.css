@@ -1,0 +1,11 @@
+[data-express-install][hidden], #express-install-dialog [hidden] { display: none !important; }
+[data-express-install] { color: var(--primary, #b7192d); background: transparent; font-weight: 700; }
+.login-install { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 2px 8px; margin-top: 4px; }
+.login-install button { padding: 5px 7px; font-size: 12px; }
+.express-install-dialog { width: min(460px, calc(100% - 28px)); }
+.express-install-dialog h2 { margin: 0 0 8px; }
+.express-install-dialog p { margin: 8px 0; }
+.express-install-dialog ol { display: grid; gap: 6px; margin: 8px 0 12px; padding-left: 22px; }
+.express-install-dialog .dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.express-install-dialog .dialog-actions a { text-decoration: none; }
+.express-install-dialog [role="status"]:empty { display: none; }

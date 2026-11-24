@@ -31,9 +31,9 @@ manifest=manifest.replace(/android:icon="[^"]*"/,'android:icon="@mipmap/ic_launc
 await writeFile(path,manifest);
 const gradlePath='android/app/build.gradle';
 let gradle=await readFile(gradlePath,'utf8');
-const versionCode=200000+Number(process.env.GITHUB_RUN_NUMBER || 1);
+const versionCode=200001+Number(process.env.GITHUB_RUN_NUMBER || 1);
 if(!Number.isSafeInteger(versionCode)||versionCode<=0||versionCode>2100000000) throw new Error('Código de versão inválido');
-gradle=gradle.replace(/versionCode \d+/,`versionCode ${versionCode}`).replace(/versionName "[^"]+"/,`versionName "${release.version}-teste"`);
+gradle=gradle.replace(/versionCode \d+/,`versionCode ${versionCode}`).replace(/versionName "[^"]+"/,`versionName "${release.version}-beta"`);
 await writeFile(gradlePath,gradle);
 if(!gradle.includes("apply plugin: 'com.google.gms.google-services'")) throw new Error('Plugin Google Services ausente');
 const google=JSON.parse(await readFile('android/app/google-services.json','utf8'));

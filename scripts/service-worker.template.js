@@ -1,5 +1,5 @@
-const CACHE_NAME = 'express-v2-__VERSION__';
-const APP_SHELL = ['./index.html', './brand.css', './phone-customers.js', './order-by-phone.js', './notice-policy.js', './notification-policy.js', './payments.js', './tariffs.js', './admin-dashboard.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './vendor/firebase.bundle.js', './vendor/native-push.bundle.js'];
+const CACHE_NAME = 'express-beta-__VERSION__';
+const APP_SHELL = ['./index.html', './brand.css', './express-install.css', './express-install.js', './phone-customers.js', './order-by-phone.js', './notice-policy.js', './notification-policy.js', './platform-order-alerts.js', './order-request.js', './payments.js', './tariffs.js', './admin-dashboard.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './vendor/firebase.bundle.js', './vendor/native-push.bundle.js'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
   self.skipWaiting();
@@ -32,6 +32,7 @@ self.addEventListener('notificationclick', event => {
   if(event.notification.data?.type==='admin-rain')target.hash='rain';
   else if(event.notification.data?.type==='alert')target.hash='alerts';
   else if(event.notification.data?.type==='announcement')target.hash='notices';
+  else if(event.notification.data?.type==='platform-order')target.hash='platform-orders';
   else if(/^[A-Za-z0-9_-]{1,128}$/.test(orderId || ''))target.hash='order='+orderId;
   event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clients => {
     const existing = clients.find(client => client.url.startsWith(self.registration.scope));

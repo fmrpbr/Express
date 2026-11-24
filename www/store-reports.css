@@ -1,0 +1,52 @@
+.store-report-overdue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--store-payment-bg);
+  color: var(--store-payment-text);
+}
+
+.store-report-overdue b { font-size: 13px; }
+.store-report-overdue .btn.secondary { border: 1px solid var(--store-border); background: var(--store-surface); color: var(--store-text); }
+
+.store-report { display: grid; gap: 20px; color: var(--store-text); }
+.store-report-heading h1 { margin: 0; font-size: clamp(25px, 3.8vw, 38px); line-height: 1.12; letter-spacing: -.045em; }
+.store-report :is(.store-report-month-heading, .store-report-history > header) { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; }
+.store-report :is(.store-report-month-heading h2, .store-report-history > header h2) { margin: 0; font-size: 18px; letter-spacing: -.025em; }
+.store-report-month-heading { margin-bottom: 8px; }
+.store-report-month-heading h2::first-letter { text-transform: uppercase; }
+.store-report-month-heading span, .store-report-payment-note { color: var(--store-muted); font-size: 12px; }
+.store-report .store-report-stats { margin: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.store-report .store-report-stats .stat {
+  min-width: 0;
+  min-height: 86px;
+  padding: 10px clamp(9px, 2vw, 16px);
+  border: 1px solid var(--store-border);
+  border-radius: 11px;
+  background: var(--store-surface);
+  color: var(--store-text);
+}
+.store-report .stat-top { color: var(--store-text); font-size: 12px; }
+.store-report .stat-value { margin-block: 3px; color: var(--store-text); font-size: clamp(18px, 3.9vw, 27px); }
+.store-report .stat-sub { color: var(--store-muted); font-size: 11px; }
+.store-report .store-report-stats .store-report-due { border-color: color-mix(in srgb, var(--store-payment-text) 22%, var(--store-payment-bg)); background: var(--store-payment-bg); }
+.store-report .store-report-due :is(.stat-top, .stat-value) { color: var(--store-payment-text); }
+
+.store-report-history { padding-top: 15px; border-top: 1px solid var(--store-border); }
+.store-report-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: min(100%, 385px); }
+.store-report-filters .field { min-width: 0; }
+.store-report-filters label { color: var(--store-muted); font-size: 12px; font-weight: 650; }
+.store-report-filters select { width: 100%; min-height: 42px; padding: 6px 8px; border: 1px solid var(--store-border); border-radius: 8px; background: var(--store-surface); color: var(--store-text); font: 14px var(--store-font); }
+.store-report-payment-note { margin: 8px 0; }
+.report-payment-list { margin-top: 14px; scroll-margin-top: 12px; }
+.report-payment-group { margin-block: 12px; }
+.store-report .report-payment-list { border-color: var(--store-border); border-radius: 13px; background: var(--store-surface); }
+
+@media (min-width: 760px) {
+  .store-report .store-report-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

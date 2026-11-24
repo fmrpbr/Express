@@ -6,7 +6,7 @@ const html=fs.readFileSync('www/index.html','utf8');
 const source=html.match(/<script id="registration-entry">([\s\S]*?)<\/script>/)[1];
 function entry(search){
  const state={profile:'store',mode:'login',extra:{style:{display:'none'}},notes:[],authenticatedUid:'existing-user'};
- const window={location:{search},__expressUI:{selectLoginRole:p=>state.profile=p,setAuthTab:m=>state.mode=m}};
+ const window={location:{search},__expressUI:{selectLoginRole:p=>state.profile=p,setAuthTab:m=>{state.mode=m;state.extra.style.display=m==='register'?'grid':'none';}}};
  const document={getElementById:id=>id==='field-extra'?state.extra:id==='auth-form'?{before:note=>state.notes.push(note)}:null,createElement:()=>({})};
  vm.runInNewContext(source,{window,document,URLSearchParams});return state;
 }
