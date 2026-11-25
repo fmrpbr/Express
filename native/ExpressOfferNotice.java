@@ -41,6 +41,7 @@ final class ExpressOfferNotice {
         data.put("notificationId", UUID.randomUUID().toString());
         data.put("noticeKey", "test");
         data.put("title", "Oferta de teste do Express");
+        data.put("body", "Segatto → Jequitibá");
         data.put("owner", owner);
         data.put("channelId", channelId);
         data.put("expiresAt", Long.toString(System.currentTimeMillis() + 60000));
@@ -111,14 +112,25 @@ final class ExpressOfferNotice {
             return;
         }
         String androidChannel = channel(context, notice.optString("channelId"));
+        String title = notice.optString("title", "Nova oferta de corrida");
+        String route = notice.optString("body", "Confira a oferta no Express.");
+        android.app.Notification lockScreen = new NotificationCompat.Builder(context, androidChannel)
+            .setContentTitle(title)
+            .setContentText("Desbloqueie para ver a rota e responder.")
+            .setSmallIcon(R.drawable.ic_express_notification)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(action(context, OPEN, tag, ticket, test))
+            .build();
         NotificationCompat.Builder alert = new NotificationCompat.Builder(context, androidChannel)
-            .setContentTitle(notice.optString("title", "Nova oferta de corrida"))
-            .setContentText(test ? "Teste os botões de uma oferta." : notice.optString("body"))
+            .setContentTitle(title)
+            .setContentText(route)
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(route))
             .setSmallIcon(R.drawable.ic_express_notification)
             .setColor(0xffed1726)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_EVENT)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(lockScreen)
             .setAutoCancel(true)
             .setTimeoutAfter(remaining)
             .setContentIntent(action(context, OPEN, tag, ticket, test))

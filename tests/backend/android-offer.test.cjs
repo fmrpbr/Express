@@ -63,3 +63,12 @@ test('test notifications show the buttons without corresponding to an actual ord
   assert.equal(message.data.orderId,undefined);
   assert.equal(message.data.declineToken,undefined);
 });
+
+test('dispatch uses the pickup direction and keeps private data out of offer text', async () => {
+  const order = { serviceType:'collection', storeNeighborhood:'Jequitibá', clientNeighborhood:'Segatto',
+    city:'Aracruz', clientStreet:'Rua residencial', client:'Nome pessoal', phone:'123456789' };
+  const recolha = await androidMessage({...base, key:'public:3', order });
+  assert.equal(recolha.data.body,'Segatto → Jequitibá');
+  const entrega = await androidMessage({...base, key:'public:3', order:{...order, serviceType:'delivery', clientCity:'Ibiraçu'} });
+  assert.equal(entrega.data.body,'Jequitibá, Aracruz → Segatto, Ibiraçu');
+});

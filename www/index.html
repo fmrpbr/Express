@@ -666,7 +666,7 @@
         </label>
       </details>
     </div>
-    <div class="login-install"><small class="login-version" data-app-version>Versão 2.1.5 Beta</small><button type="button" data-express-install hidden>Instalar Express</button></div>
+    <div class="login-install"><small class="login-version" data-app-version>Versão 2.1.6 Beta</small><button type="button" data-express-install hidden>Instalar Express</button></div>
   </div>
   </div>
 </div>
@@ -968,9 +968,9 @@
 <script src="./order-request.js"></script>
 <script src="./platform-order-alerts.js"></script>
 <script type="module">
-  const APP_VERSION="2.1.5";
+  const APP_VERSION="2.1.6";
   window.EXPRESS_APP_VERSION=APP_VERSION;
-  document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão 2.1.5 Beta");
+  document.querySelectorAll("[data-app-version]").forEach(el=>el.textContent="Versão 2.1.6 Beta");
   const { initializeApp, getDatabase, ref, set, update, push, get, onValue, query, orderByChild, equalTo, limitToLast, startAt, onDisconnect, serverTimestamp,
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, getIdTokenResult, sendPasswordResetEmail,
     getFunctions, httpsCallable, connectDatabaseEmulator, connectAuthEmulator, connectFunctionsEmulator } = window.ExpressFirebase;
@@ -988,6 +988,9 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   let cityDirectory = {}, cityManagers = {}, managerCity = '', courierActiveCity = '', storeFavorites = {}, cityTariffProposals = {}, localCityRates = {}, storeUnits = {}, cityUnits = {};
+  let ownCourierRating = null;
+  let storeCourierRatings = new Map();
+  let loadingCourierRating = false;
   const activeCity = () => role === 'manager' ? managerCity : role === 'courier' ? courierActiveCity || accountProfile?.cityId || 'aracruz' : accountProfile?.cityId || 'aracruz';
   const registrationCities = document.getElementById('auth-city');
   onValue(ref(db,'cityDirectory'), snap => {
@@ -1589,6 +1592,9 @@
     storeTrackingDialog?.dialog.close();
     stopPickupRoute();
     if (ihubSheet) closeOrderSheet();
+    ownCourierRating = null;
+    storeCourierRatings = new Map();
+    loadingCourierRating = false;
     offerSettings={enabled:false,couriersPerRound:3,responseSeconds:30,maxRounds:3};
     integrationConfigs={};
     ihub=emptyIhubState();
@@ -1772,6 +1778,10 @@
       listenIhubOrders();
     } else {
       unsubscribers.push(onValue(ref(db,"profiles/couriers/"+actor), snap => { let v=snap.val(); data.couriers = v ? [{id:actor,...v}] : []; render(); }));
+      unsubscribers.push(onValue(ref(db, "ratingSummaries/courier/" + actor), snap => {
+        ownCourierRating = snap.val() || { count: 0 };
+        render();
+      }));
       const city = activeCity();
       listenOrders("available", city === 'aracruz' ? 'availableOrders' : `cityOperations/${city}/availableOrders`);
       listenOrders("quotes", city === 'aracruz' ? 'quoteBoard' : `cityOperations/${city}/quoteBoard`);
@@ -2807,7 +2817,8 @@
     const owner=currentUser?.uid;
     const notificationsReady=pushRegistration?.owner===owner&&pushPreferences.enabled!==false&&pushPreferences.orders!==false;
     return '<section class="courier-availability" data-availability="' + state + '" aria-label="Disponibilidade">' +
-      '<div><b data-work-status>' + label + '</b><small>' + hint + '</small>'+(available?(notificationsReady?'<small>Avisos de corridas configurados neste aparelho.</small>':'<button type="button" class="store-text-button" data-enable-push>Conferir avisos em segundo plano</button>'):'')+'</div>' +
+      '<div>' + (person()?.name ? '<small class="courier-person-rating">' + esc(person().name) + (ownCourierRating ? ' · ' + esc(ratingLabel(ownCourierRating)) : '') + '</small>' : '') +
+      '<b data-work-status>' + label + '</b><small>' + hint + '</small>'+(available?(notificationsReady?'<small>Avisos de corridas configurados neste aparelho.</small>':'<button type="button" class="store-text-button" data-enable-push>Conferir avisos em segundo plano</button>'):'')+'</div>' +
       '<button type="button" class="btn ' + (available ? "secondary" : "primary") +
       ' tiny" data-toggle-availability'+(changingAvailability?' disabled':'')+'>' + (available ? "Pausar" : "Ficar disponível") + '</button></section>';
   }
@@ -2972,13 +2983,17 @@
     if(waiting<15*60000||order.kind==='route') return cityStatus ? '<div class="info">'+cityStatus+'Aguardando aceite.</div>' : '';
     return '<div class="info">'+cityStatus+'Ainda sem aceite. <button type="button" class="btn secondary tiny" data-action="renewOrderSearch" data-id="'+esc(order.id)+'">Avisar motoboys novamente</button></div>';
   }
-  function courierRatingLabel(order){
-    const rating=order.courierRating;
-    if(!rating?.count)return 'Ainda sem avaliações';
-    if(rating.count<5)return rating.count+' '+(rating.count===1?'avaliação':'avaliações');
-    return '★ '+rating.average.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' · '+rating.count+' avaliações';
+  function ratingLabel(rating) {
+    if (!rating?.count) return 'Sem avaliações';
+    const average = Number(rating.average).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    return '★ ' + average + '/5 (' + rating.count + (rating.count === 1 ? ' avaliação)' : ' avaliações)');
   }
-  function recordActions(o){
+
+  function courierRatingLabel(order) {
+    return ratingLabel(storeCourierRatings.get(order.courierId)?.rating || order.courierRating);
+  }
+
+  function recordActions(o, history = false){
     const storeParticipant=role==='store'&&(o.storeId===actor||o.routeStoreIds?.[actor]===true);
     const courierParticipant=role==='courier'&&o.courierId===actor;
     const participant=storeParticipant||courierParticipant;
@@ -2990,9 +3005,9 @@
     if(role==='admin'&&o.ratingStatus?.storeSubmitted&&o.ratingStatus?.courierSubmitted)parts.push('<button type="button" class="btn secondary tiny" data-action="view-ratings" data-id="'+esc(o.id)+'">Ver avaliações</button>');
     if(storeParticipant&&o.status==='done'&&o.kind!=='route'){
       const submitted=o.ratingStatus?.storeSubmitted;
-      if(!submitted)parts.push('<button type="button" class="btn secondary tiny" data-action="rate-delivery" data-id="'+esc(o.id)+'">Avaliar entrega</button>');
-      else parts.push('<span class="tag green">Avaliação enviada</span>');
-      if(o.courierId) parts.push('<button type="button" class="btn secondary tiny" data-action="toggle-favorite" data-id="'+esc(o.courierId)+'">'+(storeFavorites[o.courierId]?'Remover dos favoritos':'Adicionar aos favoritos')+'</button>');
+      if(!submitted && !history)parts.push('<button type="button" class="btn secondary tiny" data-action="rate-delivery" data-id="'+esc(o.id)+'">Avaliar entrega</button>');
+      else if(submitted)parts.push('<span class="tag green">Avaliação enviada</span>');
+      if(o.courierId && !history) parts.push('<button type="button" class="btn secondary tiny" data-action="toggle-favorite" data-id="'+esc(o.courierId)+'">'+(storeFavorites[o.courierId]?'Remover dos favoritos':'Adicionar aos favoritos')+'</button>');
       if(o.ratingStatus?.storeSubmitted&&o.ratingStatus?.courierSubmitted)parts.push('<button type="button" class="btn secondary tiny" data-action="view-ratings" data-id="'+esc(o.id)+'">Ver avaliações</button>');
     }
     if(o.deliveryProofAt&&(participant||role==='admin'))parts.push('<button type="button" class="btn secondary tiny" data-action="view-proof" data-id="'+esc(o.id)+'">Ver comprovante</button>');
@@ -3076,7 +3091,7 @@
       : '<button type="button" class="btn secondary tiny" data-action="arrived" data-id="'+esc(order.id)+'">Avisar chegada</button>';
   }
 
-  function card(o){
+  function card(o, history = false){
     if(o.kind==='route')return routeCard(o);
     let queueClass = "", queueBadge = "";
     if(role === "courier" && isOffer(o)){
@@ -3201,7 +3216,10 @@
         (o.phone ? '<p>Telefone do cliente · '+esc(o.phone)+'</p>' : '')+'<div class="meta"><span>Data: '+esc(formatServiceDate(o.serviceDate))+'</span>'+runDurationHtml+times+'</div><div class="buttons">'+callButtons(o)+runCancel+'</div>'+recordActions(o)+
         '</div></details></article>';
     }
-    return '<article data-order-id="'+esc(o.id)+'" class="order '+queueClass+'"><div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+locationLine+'</h3><div class="order-store">'+clientLine+'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>'+queueBadge+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span><span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>'+' '+pickupTimerHtml+' '+runDurationHtml+times+'</div>'+returnHtml+careDetails(o)+trackingShareHtml+bidsHtml+gpsTrackingInfo+(o.status === "done" ? paymentDetails(o) : '')+recordActions(o)+'<div class="footer"><div class="buttons">'+action+callButtons(o)+'</div></div></article>';
+    const heading = history
+      ? '<div class="history-addresses">' + historyStops(o).map(({label, address}) => '<div><small>' + label + '</small><strong>' + esc(address || 'Endereço indisponível') + '</strong></div>').join('') + '</div><div class="order-store">' + clientLine + '</div>'
+      : '<div class="order-top"><div><div class="id">'+esc(o.orderCode || o.id)+' · '+date(o.created)+' '+serviceBadge+'</div><h3>📍 '+locationLine+'</h3><div class="order-store">'+clientLine+'</div></div><div style="text-align:right"><span class="tag '+tag+'">'+st+'</span><div class="fee">'+(o.status==="cotacao"?"A definir":cash(o.fee))+'</div></div></div>';
+    return '<article data-order-id="'+esc(o.id)+'" class="order '+queueClass+'">'+heading+queueBadge+'<div class="meta"><span>📅 Data: '+esc(formatServiceDate(o.serviceDate))+'</span><span>🔧 Serviço: '+esc(serviceTypeLabel(o.serviceType))+'</span>'+(history?'':'<span>🏪 Loja: '+esc(o.storeName)+'</span><span>♙ Motoboy: '+esc(o.courierName||"Aguardando")+'</span>')+' '+pickupTimerHtml+' '+runDurationHtml+times+'</div>'+returnHtml+careDetails(o)+trackingShareHtml+bidsHtml+gpsTrackingInfo+(o.status === "done" ? paymentDetails(o, history) : '')+recordActions(o, history)+'<div class="footer"><div class="buttons">'+action+callButtons(o)+'</div></div></article>';
   }
 
   function renderAccountStatus(panel, entering){
@@ -3302,7 +3320,7 @@
     if(role === "admin") actor = "admin"; if(people.length && !people.some(p => p.id === actor)) actor = people[0].id;
 
     let availableCount = role === "courier" ? data.orders.filter(isOffer).length : 0;
-    const detailsSelector = "details.store-recent, details.store-order-entry, details.courier-offer-details, details.courier-run-details";
+    const detailsSelector = "details.store-recent, details.store-order-entry, details.history-details, details.courier-offer-details, details.courier-run-details";
     const openRecent = new Set(Array.from(document.querySelectorAll(detailsSelector), el => el.open ? el.dataset.recentId : null));
     const focusedOrder = document.activeElement?.matches(".store-order-entry > summary") ? document.activeElement.parentElement.dataset.recentId : null;
     const focusedRoute = document.activeElement?.dataset.routeSelect;
@@ -3386,7 +3404,7 @@
       const card = document.querySelector('[data-order-id="' + CSS.escape(pendingPushOrderId) + '"]');
       if(!card && data.orders.some(order => order.id === pendingPushOrderId && order.status === "cotacao")) { view = "quotes"; document.getElementById("content").innerHTML = availabilityPanel + show(); }
       const target = document.querySelector('[data-order-id="' + CSS.escape(pendingPushOrderId) + '"]');
-      if(target) { const detail = target.closest("details.store-recent, details.store-order-entry"); if(detail) detail.open = true; target.scrollIntoView({ block: "center" }); target.style.outline = "2px solid var(--primary)"; pendingPushOrderId = null; }
+      if(target) { const detail = target.closest("details.store-recent, details.store-order-entry, details.history-details"); if(detail) detail.open = true; target.scrollIntoView({ block: "center" }); target.style.outline = "2px solid var(--primary)"; pendingPushOrderId = null; }
     }
     renderHero();
     if(adminTeamOpen&&document.getElementById('admin-team'))document.getElementById('admin-team').open=true;
@@ -3551,7 +3569,7 @@
     return '<span class="tag orange">'+(state === "reported" ? 'Aguardando confirmação do motoboy' : 'Aguardando lojista informar pagamento')+'</span>';
   }
 
-  function paymentDetails(order) {
+  function paymentDetails(order, history = false) {
     const p = window.ExpressPayments;
     const state = p.paymentState(order);
     const pix = order.paymentPix;
@@ -3566,9 +3584,10 @@
       : pix
         ? '<div style="margin-top:8px"><b>Pix do motoboy</b><div>Titular: '+esc(pix.holder)+'</div><div style="overflow-wrap:anywhere">Chave: '+esc(pix.key)+'</div><button type="button" class="btn secondary tiny" data-action="copy-pix" data-id="'+esc(order.id)+'">Copiar chave Pix</button></div>'
         : '<p>Motoboy ainda não cadastrou a chave Pix para esta corrida.</p>';
-    const amount = state !== "confirmed" || order.paymentReceivedMethod === "cash"
-      ? '<p>Valor da corrida: <b>'+cash(order.fee)+'</b>'+(courier || state === "confirmed" ? '.' : '. Confira o titular no seu banco antes de transferir.')+'</p>' : '';
-    return '<section style="margin-top:10px;padding:12px;background:#F2F3F5;border-radius:12px"><b>'+status+'</b>'+times+(old ? '<p style="color:#9A3412">Pendência de dia anterior'+(state === "reported" ? ': confira o recebimento. A loja já informou o pagamento.' : ': a loja ainda não informou o pagamento.')+'</p>' : '')+amount+cashButton+(state !== "confirmed" ? pixHtml : '')+'</section>';
+    const amount = history ? (state !== "confirmed" && pix ? '<p>Confira o titular no seu banco antes de transferir.</p>' : '')
+      : state !== "confirmed" || order.paymentReceivedMethod === "cash"
+        ? '<p>Valor da corrida: <b>'+cash(order.fee)+'</b>'+(courier || state === "confirmed" ? '.' : '. Confira o titular no seu banco antes de transferir.')+'</p>' : '';
+    return '<section style="margin-top:10px;padding:12px;background:#F2F3F5;border-radius:12px"><b>'+(history?'Dados do pagamento':status)+'</b>'+times+(old ? '<p style="color:#9A3412">Pendência de dia anterior'+(state === "reported" ? ': confira o recebimento. A loja já informou o pagamento.' : ': a loja ainda não informou o pagamento.')+'</p>' : '')+amount+cashButton+(state !== "confirmed" ? pixHtml : '')+'</section>';
   }
 
   function financialCard(order) {
@@ -3920,6 +3939,60 @@
     if(expired)render();
   },1000);
 
+  function historyStops(order) {
+    const store = { area: order.storeNeighborhood || order.storeCity || order.storeName || "Loja", address: order.storeAddress };
+    const client = { area: order.clientNeighborhood || order.neighborhood || order.clientCity || order.city || "Cliente",
+      address: [order.clientStreet, order.clientNumber, order.clientNeighborhood, order.clientCity || order.city].filter(Boolean).join(", ") || order.address };
+    const [first, second] = ["collection", "roundtrip"].includes(order.serviceType) ? [client, store] : [store, client];
+    return [{ ...first, label: "Retirada" }, { ...second, label: "Destino" }];
+  }
+
+  function storeHistoryCard(order, status, payment, paymentLabel, price, metadata) {
+    const [origin, destination] = historyStops(order);
+    const courier = order.courierId ?
+      '<button type="button" class="history-courier-button" data-action="courier-contact-card" data-id="' + esc(order.id) + '">' +
+      '<strong>' + esc(order.courierName || "Motoboy") + '</strong><small>' + esc(courierRatingLabel(order)) + '</small></button>' : '';
+    const canRate = order.courierId && !order.ratingStatus?.storeSubmitted;
+    return '<article class="store-order-row store-history-card"><div class="history-summary">' +
+      '<div class="history-route"><strong>' + esc(origin.area) + ' <span aria-label="para">→</span> ' + esc(destination.area) + '</strong><small>' + esc(metadata) + '</small></div>' +
+      '<div class="history-people"><span class="store-order-status">' + esc(status) + '</span>' + courier + '</div>' +
+      '<div class="history-price"><strong>' + esc(price) + '</strong><small class="store-order-payment" data-payment="' + payment + '">' + esc(paymentLabel) + '</small></div></div>' +
+      '<div class="history-actions"><details class="history-details" data-recent-id="' + esc("done:" + order.id) + '"><summary>Ver detalhes</summary>' +
+      '<div class="store-order-detail">' + card(order, true) + '</div></details>' +
+      (canRate ? '<button class="store-text-button history-rate" type="button" data-action="rate-delivery" data-id="' + esc(order.id) + '">Avaliar entrega</button>' : '') +
+      '</div></article>';
+  }
+
+  async function refreshHistoryRatings(orders) {
+    if (loadingCourierRating || !currentUser || !navigator.onLine) return;
+    const owner = currentUser.uid;
+    const cache = storeCourierRatings;
+    const now = Date.now();
+    const batch = new Map();
+    for (const order of orders) {
+      if (order.status === "done" && order.kind !== "route" && order.courierId && !(cache.get(order.courierId)?.until > now)) {
+        batch.set(order.courierId, order.id);
+      }
+      if (batch.size === 30) break;
+    }
+    if (!batch.size) return;
+    loadingCourierRating = true;
+    try {
+      const { ratings } = (await callOrderContact({ ratingOrders: [...batch.values()] })).data;
+      if (cache !== storeCourierRatings || currentUser?.uid !== owner) return;
+      for (const courier of batch.keys()) {
+        if (!(cache.get(courier)?.until > now + 60000))
+          cache.set(courier, { rating: ratings?.[courier] || cache.get(courier)?.rating, until: now + 60000 });
+      }
+    } catch {
+      for (const courier of batch.keys()) cache.set(courier, { rating: cache.get(courier)?.rating, until: now + 30000 });
+      return;
+    } finally {
+      if (cache === storeCourierRatings) loadingCourierRating = false;
+    }
+    if (role === "store" && view === "done") render();
+  }
+
   function storeOrderEntry(order, page){
     const route = order.kind === "route";
     const isRunning = order.status === "run";
@@ -3945,6 +4018,7 @@
     const tracking = isRunning && !route && !order.externalOrder?.returnRequestedAt ? '<button type="button" class="store-text-button store-track-button" data-action="open-store-tracking" data-id="' + esc(order.id) + '">' + storeIcon("direction") + 'Rastrear</button>' : '';
     const time = page === "done" ? order.completed || order.cancelledAt || order.created : order.created;
     const metadata = [order.orderCode || order.id, route ? "" : storeOrderChannel(order), time ? date(time) : ""].filter(Boolean).join(" · ");
+    if (page === "done" && order.status === "done" && !route) return storeHistoryCard(order, status, payment, paymentLabel, price, metadata);
     return '<article class="store-order-row"><details class="store-order-entry" data-recent-id="' + esc(page + ":" + order.id) + '"><summary>' +
       '<span class="store-order-location"><strong>' + esc(destination) + '</strong>' + (address ? '<small>' + esc(address) + '</small>' : '') +
       '<small>' + esc(metadata) + '</small></span>' +
@@ -3952,8 +4026,7 @@
       (isRunning && order.courierName ? '<small>' + esc(order.courierName) + ' · ' + esc(courierRatingLabel(order)) + '</small>' : '') +
       (paymentLabel ? '<small class="store-order-payment" data-payment="' + payment + '">' + paymentLabel + '</small>' : '') + '</span>' +
       '<strong class="store-order-price">' + price + '</strong>' + storeIcon("next") + '</summary>' +
-      '<div class="store-order-detail">' + card(order) + (order.cancellationReason ? '<p class="info">'+esc(order.cancellationReason)+'</p>' : '') + '</div></details>' + favoriteOfferStatus(order) + orderSearchStatus(order) + (tracking?'<div class="store-tracking-actions">'+tracking+trackingWhatsAppButton(order)+'</div>':'') +
-      (page==='done'&&order.status==='done'&&order.courierId&&order.kind!=='route'&&!order.ratingStatus?.storeSubmitted?'<button class="store-text-button" type="button" data-action="rate-delivery" data-id="'+esc(order.id)+'">Avaliar entrega</button>':'')+'</article>';
+      '<div class="store-order-detail">' + card(order) + (order.cancellationReason ? '<p class="info">'+esc(order.cancellationReason)+'</p>' : '') + '</div></details>' + favoriteOfferStatus(order) + orderSearchStatus(order) + (tracking?'<div class="store-tracking-actions">'+tracking+trackingWhatsAppButton(order)+'</div>':'') + '</article>';
   }
 
   function trackingWhatsAppButton(order){
@@ -3961,6 +4034,7 @@
   }
 
   function storeOrdersView(orders, page){
+    if (page === "done") void refreshHistoryRatings(orders);
     const titles = {quotes:"Cotações", open:"Pedidos em aberto", run:"Em execução", done:"Histórico de entregas"};
     const emptyMessages = {
       quotes:["Nenhuma cotação registrada", "As propostas dos motoboys aparecem nas suas cotações."],
@@ -4470,7 +4544,7 @@
   }
   function collectRating(){
     return new Promise(resolve=>{
-      const {dialog,form,feedback}=recordDialog('Avaliar a entrega','<p>A avaliação fica registrada uma vez por participante e só aparece para o outro depois que ambos avaliarem.</p><label>Nota<select name="score" required><option value="">Escolha uma nota</option><option value="5">5 · Ótima</option><option value="4">4 · Boa</option><option value="3">3 · Regular</option><option value="2">2 · Ruim</option><option value="1">1 · Muito ruim</option></select></label><label>Comentário opcional<textarea name="note" maxlength="240" rows="3"></textarea></label>');
+      const {dialog,form,feedback}=recordDialog('Avaliar a entrega','<p>Sua nota é registrada uma vez e entra na média geral do motoboy.</p><label>Nota<select name="score" required><option value="">Escolha uma nota</option><option value="5">5 · Ótima</option><option value="4">4 · Boa</option><option value="3">3 · Regular</option><option value="2">2 · Ruim</option><option value="1">1 · Muito ruim</option></select></label><label>Comentário opcional<textarea name="note" maxlength="240" rows="3"></textarea></label>');
       form.addEventListener('submit',e=>{e.preventDefault();const score=Number(form.elements.score.value);if(!Number.isInteger(score)||score<1||score>5){feedback.textContent='Escolha uma nota de 1 a 5.';return;}resolve({score,note:form.elements.note.value.trim()});dialog.close();},{once:true});dialog.addEventListener('close',()=>{dialog.remove();resolve(null);},{once:true});
     });
   }
@@ -4498,6 +4572,55 @@
   function ifoodDialer(order, target, phone = order.phone) {
     return target === "customer" && order.externalOrder?.provider === "ifood" &&
       /^0800\d{7}$/.test(String(phone || "").replace(/\D/g, ""));
+  }
+
+  async function showCourierContact(order) {
+    if (role !== "store" || order?.storeId !== currentUser?.uid || !order.courierId) return;
+    const owner = currentUser.uid;
+    const { phone, courier } = (await callOrderContact({ orderId: order.id, target: "courier" })).data;
+    if (currentUser?.uid !== owner || !accountAllowed() || !courier) return;
+    storeCourierRatings.set(courier.id, { rating: courier.rating, until: Date.now() + 60000 });
+    render();
+    const dialog = document.createElement("dialog");
+    dialog.className = "express-dialog";
+    dialog.setAttribute("aria-label", "Contato do motoboy");
+    const hasPhone = /^55\d{10,11}$/.test(phone || "");
+    const whatsapp = hasPhone
+      ? '<a class="btn primary" href="https://wa.me/' + phone + '" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>'
+      : '<span>WhatsApp indisponível.</span>';
+    dialog.innerHTML = '<h2>' + esc(courier.name) + '</h2><p>' + esc(ratingLabel(courier.rating)) + '</p>' +
+      (hasPhone ? '<p>WhatsApp · (' + phone.slice(2,4) + ') ' + phone.slice(4,-4) + '-' + phone.slice(-4) + '</p>' : '') +
+      '<p data-favorite-label></p><p role="status"></p><div class="dialog-actions">' + whatsapp +
+      '<button type="button" class="btn secondary" data-favorite></button><button type="button" class="btn secondary" data-close>Fechar</button></div>';
+    let favorite = courier.favorite;
+    const favoriteButton = dialog.querySelector("[data-favorite]");
+    const status = dialog.querySelector("[role=status]");
+    const updateFavorite = () => {
+      favoriteButton.textContent = favorite ? "Remover dos favoritos" : "Adicionar aos favoritos";
+      dialog.querySelector("[data-favorite-label]").textContent = favorite ? "Motoboy favorito" : "Fora dos favoritos";
+    };
+    updateFavorite();
+    favoriteButton.onclick = async () => {
+      if (currentUser?.uid !== owner || role !== "store" || !accountAllowed()) return;
+      favoriteButton.disabled = true;
+      try {
+        await command("setCourierFavorite", null, { courierId: courier.id, enabled: !favorite });
+        favorite = !favorite;
+        updateFavorite();
+        status.textContent = "Favoritos atualizados.";
+      } catch (error) {
+        status.textContent = error.message || "Não foi possível atualizar os favoritos.";
+      } finally {
+        favoriteButton.disabled = false;
+      }
+    };
+    dialog.querySelector("[data-close]").onclick = () => dialog.close();
+    dialog.addEventListener("close", () => {
+      dialog.remove();
+      document.querySelector('[data-action="courier-contact-card"][data-id="' + CSS.escape(order.id) + '"]')?.focus();
+    }, { once: true });
+    document.body.append(dialog);
+    dialog.showModal();
   }
 
   async function openOrderContact(order, target) {
@@ -4677,8 +4800,13 @@
       if(action==='rate-delivery'){
         if(!order)throw Error('Pedido não encontrado.');
         const rating=await collectRating();if(!rating)return;
-        await command('submitDeliveryRating',id,rating);toast('Avaliação registrada.');render();return;
+        const result = await command('submitDeliveryRating',id,rating);
+        if (role === "store" && order.courierId && Number.isFinite(result.average)) {
+          storeCourierRatings.set(order.courierId, { rating: { count: result.count, average: result.average }, until: Date.now() + 60000 });
+        }
+        toast('Avaliação registrada.');render();return;
       }
+      if(action==="courier-contact-card")return await showCourierContact(order);
       if(action==="order-contact"){if(order)await openOrderContact(order,trigger.dataset.contact);return;}
       if(action==="open-arrival-order"){
         if(role === "courier" && arrivalMonitor?.orderId === id && order?.status === "run"){
@@ -4878,11 +5006,12 @@
   async function acceptOrderWithCare(id, noticeKey){
     const owner=currentUser?.uid;
     const sameSession=()=>owner&&currentUser?.uid===owner&&role==="courier"&&accountAllowed();
+    const noticeInput = typeof noticeKey === "string" && noticeKey ? { noticeKey } : {};
     for(let attempt=0;attempt<3;attempt++){
       if(!sameSession())throw Error("A sessão mudou. Entre novamente antes de aceitar.");
       // O resumo do mural pode estar incompleto ou desatualizado. O servidor
       // fornece os cuidados e a revisão que deverão ser confirmados no aceite.
-      const preview=await command("previewOrderCare",id,{noticeKey});
+      const preview=await command("previewOrderCare",id,noticeInput);
       if(!sameSession())throw Error("A sessão mudou. Entre novamente antes de aceitar.");
       const care=preview?.care;
       if(!care||typeof care.fragile!=="boolean"||typeof care.importantNotes!=="boolean"||typeof care.notes!=="string"||!Number.isSafeInteger(care.revision)||care.revision<0)throw Error("Não foi possível conferir os cuidados. Tente novamente.");
@@ -4890,7 +5019,7 @@
       mergeOrders();
       const shownType=noticeKey ? preview.serviceType : data.orders.find(order=>order.id===id)?.serviceType;
       if(preview.serviceType&&shownType&&preview.serviceType!==shownType)throw Error('A modalidade mudou. Confira a oferta atualizada antes de aceitar.');
-      let input={logisticsVersion:1,serviceType:shownType,noticeKey};
+      let input={logisticsVersion:1,...(shownType ? {serviceType:shownType} : {}),...noticeInput};
       if(care.fragile||care.importantNotes){
         const message=(attempt?"O pedido foi atualizado. Confira os cuidados novamente.\n\n":"")+(care.fragile?"📦 CONTEÚDO FRÁGIL. Transportar com cuidado.\n\n":"")+(care.notes?"OBSERVAÇÕES: "+care.notes:"Confirme que leu os cuidados.");
         if(!await confirmInApp("⚠️ Cuidados com o pedido",message,"Li e estou ciente"))return null;
@@ -5034,6 +5163,17 @@
     const enable=dialog.querySelector('[data-push-enable]');
     const remoteTest=dialog.querySelector('[data-push-test]');
     if(role==="courier")dialog.querySelector('#push-category').value='order';
+    if (native && role === "courier") {
+      const link = document.createElement("button");
+      link.type = "button";
+      link.className = "btn secondary full";
+      link.textContent = "Configurações do Android";
+      link.onclick = () => run(link, async () => {
+        feedback.textContent = "Procure Notificações na tela de bloqueio e habilite a exibição dos avisos.";
+        await window.ExpressNativePush.NotificationSettings.lockScreenSettings();
+      });
+      dialog.querySelector("[data-sound-settings]").after(link);
+    }
     if(!native){
       const help=document.createElement('p');
       help.textContent='Se o Chrome não abrir a permissão, feche as bolhas flutuantes de outros apps, como a 99, e toque em Ativar neste dispositivo novamente.';

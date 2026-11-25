@@ -168,7 +168,7 @@ function applyCommand(original, auth, command, context) {
   let id = command.orderId ? key(command.orderId, "Pedido") : null;
   let order = id ? state.orders?.[id] : null;
   const previous = order ? structuredClone(order) : null;
-  if (input.noticeKey !== undefined && ["previewOrderCare", "accept"].includes(action)) {
+  if (input.noticeKey != null && ["previewOrderCare", "accept"].includes(action)) {
     fail(typeof input.noticeKey === "string" && require("./android-offer").currentOfferKey(state, id, input.noticeKey),
       "Esta notificação já expirou. Confira as ofertas disponíveis.");
   }

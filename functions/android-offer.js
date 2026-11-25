@@ -22,19 +22,36 @@ function currentOfferKey(state, id, key) {
 
 const digest = value => createHash("sha256").update(value).digest("hex");
 
-async function androidMessage({ device, uid, delivery, data, title, body, ttl, now, key }) {
+function offerRouteLabel(order) {
+  if (!order) return "";
+  if (order.kind === "route") {
+    return [order.storeNeighborhood || "Loja", "Várias paradas"].join(" → ");
+  }
+  const clean = value => String(value || "").trim().replace(/\s+/g, " ").slice(0, 48);
+  const storeCity = clean(order.storeCity || order.city);
+  const clientCity = clean(order.clientCity || order.city);
+  const crossCity = storeCity && clientCity && storeCity.localeCompare(clientCity, "pt-BR", { sensitivity: "base" }) !== 0;
+  const stop = (area, city, fallback) => area ? [area, crossCity ? city : ""].filter(Boolean).join(", ") : city || fallback;
+  const store = stop(clean(order.storeNeighborhood), storeCity, "Loja");
+  const client = stop(clean(order.clientNeighborhood || order.neighborhood), clientCity, "Cliente");
+  const startsAtClient = ["collection", "roundtrip"].includes(order.serviceType);
+  return (startsAtClient ? [client, store] : [store, client]).join(" → ");
+}
+
+async function androidMessage({ device, uid, delivery, data, title, body, ttl, now, key, order }) {
   const channelId = Policy.channel(device, data.category);
   const android = { priority: "high", ttl };
+  const route = key ? offerRouteLabel(order) : "";
   if (!device.offerActions || (!key && data.type !== "test") ||
       (!key && data.category !== "order")) {
-    return { token: device.token, notification: { title, body }, data, android: {
+    return { token: device.token, notification: { title, body: route || body }, data, android: {
       ...android, collapseKey: data.notificationId, notification: { channelId, tag: data.notificationId,
         sound: Policy.sound(device, data.category), icon: "ic_express_notification", priority: "max", visibility: "private" }
     } };
   }
   const expiresAt = now + ttl;
   const offerData = { ...data, offerMode: "android-actions-v1", owner: uid, title,
-    body: key?.startsWith("public:") ? "Aceite ou dispense a corrida pelo aviso." : body,
+    body: route || body,
     expiresAt: String(expiresAt), channelId, noticeKey: key || "test" };
   if (key && !key.startsWith("public:")) {
     const token = randomBytes(32).toString("hex");

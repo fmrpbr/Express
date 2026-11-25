@@ -1,7 +1,7 @@
 {
-  "notes": "Aviso de oferta no Android com Aceitar e Recusar, balão corrigido para alternar entre aplicativos e diagnóstico das notificações.",
-  "version": "2.1.5",
-  "display_version": "2.1.5 Beta",
+  "notes": "Origem e destino no aviso de corrida, aceite corrigido no app e histórico com contato, favoritos e avaliação do motoboy.",
+  "version": "2.1.6",
+  "display_version": "2.1.6 Beta",
   "name": "Express Entregas",
   "channel": "beta"
 }

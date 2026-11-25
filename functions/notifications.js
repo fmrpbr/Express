@@ -63,7 +63,7 @@ function createDispatcher(db, messaging, clock = Date.now, webPush = null) {
             const key = job.kind === "order" ? offerKey(latest, "public") : "";
             await messaging.send(await androidMessage({ device: { ...current, id: device.id }, uid,
               delivery: deliveryRef, data: { type: job.kind, category, orderId: job.orderId, notificationId: deliveryId },
-              title, body, ttl: 300000, now: clock(), key }));
+              title, body, ttl: 300000, now: clock(), key, order: latest }));
           } else {
             await webPush.sendNotification({ endpoint: device.endpoint, keys: device.keys }, JSON.stringify({ title, body, orderId: job.orderId, type: job.kind, category, tag: deliveryId }), { TTL: 300 });
           }

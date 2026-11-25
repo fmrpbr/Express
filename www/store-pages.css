@@ -43,6 +43,23 @@
 .store-order-detail { padding: 0 9px 9px; }
 .store-workspace .store-order-detail .order { margin: 0; padding: 12px; border: 1px solid var(--store-border); border-radius: 9px; background: var(--store-bg); box-shadow: none; }
 .store-order-row > .store-track-button { margin: 0 12px 5px; }
+.store-history-card { padding: 14px; }
+.history-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 16px; align-items: start; }
+.history-route { grid-column: 1 / -1; min-width: 0; overflow-wrap: anywhere; }
+.history-route strong { font-size: 16px; }
+.history-route strong span { color: var(--store-teal); }
+.history-summary small { display: block; font-size: 12px; }
+.history-people, .history-price { display: grid; gap: 4px; }
+.history-price { text-align: right; }
+.history-courier-button { display: grid; gap: 1px; padding: 4px 0; text-align: left; border: 0; background: none; color: var(--store-teal); cursor: pointer; }
+.history-courier-button strong { text-decoration: underline; text-underline-offset: 3px; }
+.history-actions { position: relative; margin-top: 8px; }
+.history-details > summary, .history-actions .history-rate { min-height: 42px; width: fit-content; }
+.history-details > summary { display: list-item; padding: 11px 0; cursor: pointer; }
+.history-details .store-order-detail { padding: 0; }
+.history-rate { margin-top: 4px; }
+.history-addresses { display: grid; gap: 10px; margin-bottom: 8px; }
+.history-addresses > div { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 
 .store-profile-form { display: grid; gap: 16px; }
 .store-profile-form section + section { padding-top: 12px; border-top: 1px solid var(--store-border); }
@@ -91,6 +108,9 @@
 }
 
 @media (min-width: 680px) {
+  .history-summary { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto; }
+  .history-route { grid-column: auto; }
+  .history-addresses { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .store-order-entry > summary { grid-template: 'place progress price arrow' auto / minmax(0, 1.2fr) minmax(0, 1fr) auto auto; align-items: center; gap: 12px; }
   .store-order-progress { display: grid; }
   .store-order-row:has(.store-track-button) { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }

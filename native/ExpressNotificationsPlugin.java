@@ -144,4 +144,13 @@ public class ExpressNotificationsPlugin extends Plugin {
             getActivity().startActivity(intent);call.resolve();
         }catch(Exception e){call.reject("Abra as notificações do Express nas configurações do Android.");}
     }
+
+    @PluginMethod public void lockScreenSettings(PluginCall call) {
+        try {
+            getActivity().startActivity(new Intent(Settings.ACTION_SETTINGS));
+            call.resolve();
+        } catch (RuntimeException ignored) {
+            call.reject("Abra Configurações do Android e procure Notificações na tela de bloqueio.");
+        }
+    }
 }
