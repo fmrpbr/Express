@@ -52,6 +52,10 @@ manifest=manifest.replace(/android:icon="[^"]*"/,'android:icon="@mipmap/ic_launc
 await writeFile(path,manifest);
 const gradlePath='android/app/build.gradle';
 let gradle=await readFile(gradlePath,'utf8');
+if(!gradle.includes('com.google.firebase:firebase-messaging:')){
+  if(!/^dependencies\s*\{/m.test(gradle))throw Error('Bloco de dependências do Android ausente');
+  gradle=gradle.replace(/^dependencies\s*\{/m,"dependencies {\n    implementation 'com.google.firebase:firebase-messaging:24.1.0'");
+}
 const versionCode=200001+Number(process.env.GITHUB_RUN_NUMBER || 1);
 if(!Number.isSafeInteger(versionCode)||versionCode<=0||versionCode>2100000000) throw new Error('Código de versão inválido');
 gradle=gradle.replace(/versionCode \d+/,`versionCode ${versionCode}`).replace(/versionName "[^"]+"/,`versionName "${release.version}-beta"`);
