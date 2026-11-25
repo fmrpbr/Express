@@ -168,6 +168,10 @@ function applyCommand(original, auth, command, context) {
   let id = command.orderId ? key(command.orderId, "Pedido") : null;
   let order = id ? state.orders?.[id] : null;
   const previous = order ? structuredClone(order) : null;
+  if (input.noticeKey !== undefined && ["previewOrderCare", "accept"].includes(action)) {
+    fail(typeof input.noticeKey === "string" && require("./android-offer").currentOfferKey(state, id, input.noticeKey),
+      "Esta notificação já expirou. Confira as ofertas disponíveis.");
+  }
   const store = () => fail(who?.role === "store" && order?.storeId === uid, "Pedido de outra loja.", "permission-denied");
   const courier = () => fail(who?.role === "courier" && order?.courierId === uid, "Corrida de outro motoboy.", "permission-denied");
   const available = () => fail(who?.role === "courier" && canTakeOrder(state,uid,order,id), "Ative sua disponibilidade. Limite de duas corridas aceitas ou reservadas.");
@@ -245,8 +249,9 @@ function applyCommand(original, auth, command, context) {
     const soundSchema = require('./notification-policy').SCHEMA;
     const notificationSchema = input.notificationSchema === soundSchema ? soundSchema : 'legacy';
     const offerSound = who?.role === 'courier' && notificationSchema === soundSchema && input.offerSound === true;
+    const offerActions = who?.role === 'courier' && notificationSchema === soundSchema && input.offerActions === true;
     put(state, `fcmTokens/${uid}/${tokenId}`, { token: input.token, deviceId, platform: "android", notificationSchema,
-      ...(offerSound ? { offerSound } : {}), updatedAt: now });
+      ...(offerSound ? { offerSound } : {}), ...(offerActions ? { offerActions } : {}), updatedAt: now });
     result.notificationSchema=notificationSchema;
   } else if(action==='registerWebDevice') {
     fail(who?.role==='store'||who?.role==='courier'||auth.token?.admin===true,'Perfil não encontrado.','permission-denied');

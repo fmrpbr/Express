@@ -2,6 +2,7 @@
 const { createHash, randomUUID } = require("node:crypto");
 const { eligibleOrder, FIVE_MINUTES, courierSlots, COURIER_CAPACITY, accessAllowed,canTakeOrder,offerAllowed } = require("./domain");
 const Policy=require('./notification-policy');
+const { androidMessage, offerKey } = require("./android-offer");
 const {validWebEndpoint}=Policy;
 const CHANNELS=Policy.LEGACY;
 function eligibleRecipient(state, uid, order, kind, orderId, now=Date.now()) {
@@ -57,8 +58,12 @@ function createDispatcher(db, messaging, clock = Date.now, webPush = null) {
         }
         try {
           if (device.platform === "android") {
-            await messaging.send({ token: device.token, notification: { title, body }, data: { type: job.kind, category, orderId: job.orderId, notificationId:deliveryId },
-              android: { priority: "high", ttl:300000, collapseKey: deliveryId.slice(0, 64), notification: { channelId: Policy.channel(device,category), tag: deliveryId, sound: Policy.sound(device,category), icon:"ic_express_notification", priority: "max", visibility: "private" } } });
+            const current = fresh.fcmTokens?.[uid]?.[device.id];
+            if (current?.token !== device.token) { await deliveryRef.update({ status: "cancelled" }); continue; }
+            const key = job.kind === "order" ? offerKey(latest, "public") : "";
+            await messaging.send(await androidMessage({ device: { ...current, id: device.id }, uid,
+              delivery: deliveryRef, data: { type: job.kind, category, orderId: job.orderId, notificationId: deliveryId },
+              title, body, ttl: 300000, now: clock(), key }));
           } else {
             await webPush.sendNotification({ endpoint: device.endpoint, keys: device.keys }, JSON.stringify({ title, body, orderId: job.orderId, type: job.kind, category, tag: deliveryId }), { TTL: 300 });
           }
@@ -124,7 +129,10 @@ function createUpdateDispatcher(db, messaging, clock = Date.now, webPush = null)
           const profilesNow=(await db.ref('profiles').get()).val()||{};
           if(!accessAllowed(profilesNow.stores?.[uid])&&!accessAllowed(profilesNow.couriers?.[uid])&&root.notificationAccounts?.[uid]?.role!=='admin'){await delivery.update({status:'cancelled'});continue;}
           if(event.action==='operational-alert'){const alertNow=(await db.ref(`alerts/${event.alertId}`).get()).val();if(!alertNow||alertNow.cancelledAt||alertNow.expiresAt<=clock()){await delivery.update({status:'cancelled'});continue;}}
-          if(device.platform==='android')await messaging.send({token:device.token,notification:{title,body},data:{...data,notificationId:id},android:{priority:'high',ttl:300000,notification:{channelId:Policy.channel(device,category),tag:id,sound:Policy.sound(device,category),icon:'ic_express_notification',visibility:'private',priority:'max'}}});
+          if(device.platform==='android')await messaging.send(await androidMessage({
+            device: { ...current, id: device.id }, uid, delivery, data: { ...data, notificationId: id },
+            title, body, ttl: 300000, now: clock(), key: ""
+          }));
           else await webPush.sendNotification({endpoint:device.endpoint,keys:device.keys},JSON.stringify({title,body,...data,tag:id}),{TTL:300,urgency:'high'});
           await delivery.update({status:'sent',sentAt:clock()});if(testRef)await testRef.set({status:'sent',platform:device.platform,at:clock()});
         }catch(error){

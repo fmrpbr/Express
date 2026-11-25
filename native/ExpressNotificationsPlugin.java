@@ -28,6 +28,39 @@ public class ExpressNotificationsPlugin extends Plugin {
     private static final long[] STANDARD_VIBRATION = {0, 200, 100, 200};
     private static final long[] OFFER_VIBRATION = {0, 180, 80, 180, 80, 180, 260, 180, 80, 180};
 
+    @PluginMethod public void bindOfferNotifications(PluginCall call) {
+        ExpressOfferNotice.bind(getContext(), call.getString("owner", ""));
+        call.resolve();
+    }
+
+    @PluginMethod public void sampleOfferNotice(PluginCall call) {
+        if (ExpressOfferNotice.sample(getContext(), call.getString("channelId", IDS[0]))) call.resolve();
+        else call.reject("Ative as notificações do motoboy neste aparelho primeiro.");
+    }
+
+    @Override public void load() {
+        routeOfferIntent(getActivity().getIntent());
+    }
+
+    @Override protected void handleOnNewIntent(Intent intent) {
+        routeOfferIntent(intent);
+    }
+
+    private void routeOfferIntent(Intent intent) {
+        if (intent == null || (!ExpressOfferNotice.ACCEPT.equals(intent.getAction()) &&
+            !ExpressOfferNotice.OPEN.equals(intent.getAction()))) return;
+        org.json.JSONObject notice = ExpressOfferNotice.matching(getContext(), intent);
+        if (notice == null) return;
+        JSObject result = new JSObject();
+        result.put("accept", ExpressOfferNotice.ACCEPT.equals(intent.getAction()));
+        result.put("owner", notice.optString("owner"));
+        result.put("orderId", notice.optString("orderId"));
+        result.put("noticeKey", notice.optString("noticeKey"));
+        result.put("expiresAt", notice.optLong("expiresAt"));
+        ExpressOfferNotice.dismiss(getContext(), intent);
+        notifyListeners("offerAction", result, true);
+    }
+
     private Uri tone(String name) {
         return Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE + "://" + getContext().getPackageName() + "/raw/" + name);
     }

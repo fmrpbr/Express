@@ -1,7 +1,7 @@
 {
-  "notes": "Contatos pelo WhatsApp, acesso direto à corrida, lembrete de chegada, toque de ofertas reforçado e balão opcional no Android.",
-  "version": "2.1.4",
-  "display_version": "2.1.4 Beta",
+  "notes": "Aviso de oferta no Android com Aceitar e Recusar, balão corrigido para alternar entre aplicativos e diagnóstico das notificações.",
+  "version": "2.1.5",
+  "display_version": "2.1.5 Beta",
   "name": "Express Entregas",
   "channel": "beta"
 }
